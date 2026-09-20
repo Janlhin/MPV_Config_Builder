@@ -173,7 +173,9 @@ MPV Config Builder 2.0
   legacy\                 旧界面（Tkinter）。保留但不维护，见 legacy\README.md
       mpv_config_builder.py   主程序（要 import core\，所以启动器会先回仓库根）
       启动.bat                旧版启动器
-  docs\                   实测出来的结论（踩过的坑）—— 想知道「为什么这么做」看这份
+  docs\                   开发笔记（面向改这个代码的人，不是给用户的）
+      踩过的坑.md         实测出来的结论 —— 想知道「为什么这么做」看这份
+      待做.md             **还没做的事**（做完一条删一条，只减不增）
       （开发过程的台账与 spec 已清理，需要时从 git 历史取）
   LICENSE                 许可：GPL-3.0 全文
   NOTICE.txt              第三方内容的来源与许可（分发安装包时要一并带上）
