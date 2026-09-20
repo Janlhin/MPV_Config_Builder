@@ -15,12 +15,15 @@
     4. 下载清单里的 URL 都还活着（要联网；用 --offline 跳过）
     5. 必带的发行文件都在（data / md / static）
     6. 没有残留的"机器专用绝对路径"
+    7. 许可文件内容（GPL-3.0 全文 + 第三方归属）
+    8. 顶栏常驻入口在 9 个页面上真的渲染出来了（要本机有 Edge/Chrome；没有就跳过）
 
 ⚠ 联网那一步（4）在国内网络下可能整体失败 —— 那是网络问题不是清单问题，
 脚本会明确区分"清单失效"与"连不上"。
 """
 import argparse
 import compileall
+import importlib.util
 import io
 import re
 import subprocess
@@ -179,6 +182,29 @@ def check_links(r, offline=False):
               "失效：" + "、".join(x["id"] for x in bad) if bad else "")
 
 
+def check_ui_nav(r):
+    """顶栏常驻入口在 9 个页面上真的渲染出来了吗（U-1）。
+
+    **没有 Edge/Chrome 就跳过，不算失败** —— 这是实机检查，不是每个人每台机器
+    都能跑。但只要有浏览器，它就必须过：这个功能是纯 JS 注入的，
+    HTML 里一个入口都看不到，只有真跑一遍才知道有没有撞上页面自己的 DOM/变量。
+    """
+    if importlib.util.find_spec("uidriver") is None and not (Path(__file__).parent / "uidriver.py").is_file():
+        r.add("顶栏常驻入口实机检查", True, "跳过（找不到 tools/uidriver.py）")
+        return
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from uidriver import find_browser                            # noqa: PLC0415
+    if not find_browser():
+        r.add("顶栏常驻入口实机检查", True, "跳过（本机没有 Edge/Chrome）")
+        return
+    p = subprocess.run([sys.executable, "-X", "utf8",
+                        str(Path(__file__).parent / "check_topnav.py")],
+                       capture_output=True, cwd=str(ROOT))
+    tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+    summary = tail[-1] if tail else "(没有输出)"
+    r.add("顶栏常驻入口实机检查", p.returncode == 0, summary)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true", help="跳过联网检查")
@@ -195,6 +221,7 @@ def main():
     check_license_content(r)
     check_absolute_paths(r)
     check_links(r, offline=args.offline)
+    check_ui_nav(r)
 
     print("-" * 58)
     if r.failed:

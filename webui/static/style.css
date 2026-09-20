@@ -58,6 +58,9 @@ a { color: var(--accent); text-decoration: none; }
 /* ---------- 顶栏 ---------- */
 .topbar {
   display: flex; align-items: center; gap: 12px;
+  /* 加了常驻入口（U-1）之后窄窗口放不下了。允许换行比把 .target 压瘪好：
+     .target 被压扁时路径会被省略成「C:\Pro…」看不出是哪个目录。 */
+  flex-wrap: wrap;
   padding: 10px 16px;
   background: var(--bg-soft);
   border-bottom: 1px solid var(--border);
@@ -75,6 +78,51 @@ a { color: var(--accent); text-decoration: none; }
 .target code {
   color: var(--text); font-size: 12px; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---------- 顶栏常驻入口（U-1）----------
+   体检 / 快捷键 / 下载中心。这三个入口以前只写在首页的卡片里，
+   进了内页就再也找不到，所以提到顶栏常驻。
+
+   ⚠⚠ 这里踩过一个坑，改之前先看这段：
+   第一版给导航项套了 `class="btn small topnav-link"`，然后在下面写
+   `.topnav-link { border: none; background: none; }` —— **没生效**。
+   原因是 CSS 权重：`.btn.small` 是 (0,2,0) 且定义在后面，压过了同为 (0,2,0) 的
+   `.topnav-link`；`.topnav-cur` 也一样输给 `.btn.small`。
+   结果导航项全带着按钮的边框/底色/圆角，当前页那条更是「圆角框 + 下划线」两套视觉打架。
+   **是靠 CDP 读 getComputedStyle 才看清的，肉眼看截图只以为是"样式没调好"。**
+   现在直接不给它们 btn 类 —— 导航本来就不该是按钮。 */
+
+.topnav {
+  display: flex; align-items: center; gap: 2px;
+  /* 跟右边各页自己的操作按钮隔开：它们是一组"动作"，这一组是"去哪儿" */
+  margin-right: 6px; padding-right: 12px;
+  border-right: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.topnav-link, .topnav-cur {
+  display: inline-flex; align-items: center; gap: 5px;
+  /* 比按钮矮一点：它是导航，不该跟「生成配置」抢视线 */
+  padding: 6px 9px; font-size: 12.5px; line-height: 1;
+  border: none; background: none; border-radius: 6px;
+  text-decoration: none; position: relative; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.topnav-link { color: var(--muted); font-weight: 400; }
+.topnav-link:hover { background: var(--panel); color: var(--text); }
+.topnav-ico { font-size: 13px; line-height: 1; }
+.topnav-cur {
+  /* 当前页：主色 + 下划线。不可点，光标也不该变成手型 */
+  color: var(--accent); font-weight: 600; cursor: default;
+}
+.topnav-cur::after {
+  content: ''; position: absolute; left: 9px; right: 9px; bottom: 2px;
+  height: 2px; border-radius: 2px; background: var(--accent);
+}
+.topnav-dot { color: var(--accent); font-weight: 700; margin-left: 1px; font-size: 11px; }
+/* 窄窗口下顶栏会换行：这一组独占一行时去掉那根分隔线，免得悬在行首很怪 */
+@media (max-width: 780px) {
+  .topnav { border-right: none; padding-right: 0; margin-right: 0; }
 }
 
 /* ---------- 按钮 ---------- */
