@@ -308,5 +308,40 @@ class RealProcessTest(unittest.TestCase):
         self.assertTrue(rows[3]["ok"])           # 坏行没有毒到后面的请求
 
 
+class SeparationTest(unittest.TestCase):
+    """stdio 是传输层，**不许**顺带把 HTTP / socket 拖进来（NFR-2）。
+
+    ⚠ 判据必须是 AST，不能是字符串搜索。
+    实测踩过：`webui/stdio.py` 的文档串里明明白白写着
+    「这个模块**不许 import `http.server` / socket**」——
+    用 `"http.server" in 源码` 去判，会被这句**关于禁令的说明**判成违规。
+    那种检查比没有还糟：它逼你去删一句正确的注释。
+    """
+
+    def _imports(self):
+        import ast
+        src = (ROOT / "webui" / "stdio.py").read_text(encoding="utf-8")
+        mods = set()
+        for node in ast.walk(ast.parse(src)):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                mods.add(node.module.split(".")[0])
+            elif isinstance(node, ast.Import):
+                for a in node.names:
+                    mods.add(a.name.split(".")[0])
+        return mods
+
+    def test_no_http_or_socket_dependency(self):
+        mods = self._imports()
+        self.assertNotIn("http", mods, f"stdio.py 不该依赖 http：{sorted(mods)}")
+        self.assertNotIn("socket", mods, f"stdio.py 不该依赖 socket：{sorted(mods)}")
+
+    def test_only_expected_dependencies(self):
+        """顺便钉住它依赖面有多窄 —— 变宽了要有人知道。"""
+        allowed = {"api", "server", "json", "sys", "collections", "typing"}
+        extra = self._imports() - allowed
+        self.assertEqual(extra, set(),
+                         f"stdio.py 多出新依赖 {sorted(extra)}，确认是否必要")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

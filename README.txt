@@ -169,7 +169,7 @@ MPV Config Builder 2.0
       scripts\sync-renderer.js  把 webui\static 复制到 electron\renderer（单一来源）
       renderer\           构建期复制产物，**不要手改、不入库**
       用法：cd electron && npm install && npm run dist
-  tests\                  单元测试（648 项，含接口端到端与真实脚本测试）
+  tests\                  单元测试（650 项，含接口端到端与真实脚本测试）
   specs\                  先写规格再动手的 spec（每份都带验收记录）
   LICENSE                 许可：GPL-3.0 全文
   NOTICE.txt              第三方内容的来源与许可（分发安装包时要一并带上）
