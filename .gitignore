@@ -11,6 +11,9 @@ __pycache__/
 build/
 dist/
 *.spec
+# ⚠ 但打包**配方**是源码，必须入库（`*.spec` 这条太宽，会把它们一起吃掉）。
+# 配方统一放在 packaging/ 下，这里显式放回来。
+!packaging/*.spec
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

@@ -154,7 +154,11 @@ MPV Config Builder 2.0
       check_topnav.py     实机验证 9 个页面的顶栏常驻入口（同上，会自动起后端）
       check_stdio_ui.py   实机验证 9 个页面能跑在 stdio 通道上（同上；
                           会拦截 fetch 记账，任何漏到 HTTP 的 API 调用都算失败）
+      check_pack.py       验证打包产物（要先打包；21 项，跑在真 exe 上）
       preflight.py        发布前自检（测试/编译/文档/必带文件/许可/下载链接/顶栏）
+  packaging\
+      backend.spec        PyInstaller 配方：把后端打成独立 exe（用户机器不需要 Python）
+                          用法：py -m PyInstaller packaging\backend.spec
   tests\                  单元测试（648 项，含接口端到端与真实脚本测试）
   specs\                  先写规格再动手的 spec（每份都带验收记录）
   LICENSE                 许可：GPL-3.0 全文
