@@ -155,10 +155,20 @@ MPV Config Builder 2.0
       check_stdio_ui.py   实机验证 9 个页面能跑在 stdio 通道上（同上；
                           会拦截 fetch 记账，任何漏到 HTTP 的 API 调用都算失败）
       check_pack.py       验证打包产物（要先打包；21 项，跑在真 exe 上）
-      preflight.py        发布前自检（测试/编译/文档/必带文件/许可/下载链接/顶栏）
+      check_electron.py   实机验证 Electron 外壳（19 项，要装了 electron/node_modules）
+      check_electron_packaged.py 实机验证打包后的 Electron 应用（13 项）
+      make_icon.py        重新生成应用图标（零依赖手写 ico，不引 Pillow）
+      preflight.py        发布前自检（测试/编译/文档/必带文件/许可/下载链接/顶栏/Electron）
   packaging\
       backend.spec        PyInstaller 配方：把后端打成独立 exe（用户机器不需要 Python）
                           用法：py -m PyInstaller packaging\backend.spec
+  electron\               Electron 桌面外壳（安装器就出自这里）
+      main.js             主进程：spawn 后端走 stdio、按 id 配对、退出杀子进程、单实例、CSP
+      preload.js          唯一的桥，只暴露 __MPVCB_INVOKE__（contextIsolation 开着）
+      menu.js             原生菜单
+      scripts\sync-renderer.js  把 webui\static 复制到 electron\renderer（单一来源）
+      renderer\           构建期复制产物，**不要手改、不入库**
+      用法：cd electron && npm install && npm run dist
   tests\                  单元测试（648 项，含接口端到端与真实脚本测试）
   specs\                  先写规格再动手的 spec（每份都带验收记录）
   LICENSE                 许可：GPL-3.0 全文

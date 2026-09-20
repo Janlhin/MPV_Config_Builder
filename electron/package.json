@@ -1,0 +1,68 @@
+{
+  "name": "mpv-config-builder",
+  "productName": "MPV Config Builder",
+  "version": "0.1.0",
+  "description": "把 mpv 配置写对：勾选项 → 生成 mpv.conf，写前备份，随时可撤",
+  "license": "GPL-3.0-only",
+  "author": "MPV Config Builder contributors",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "sync": "node scripts/sync-renderer.js",
+    "start": "npm run sync && electron .",
+    "start:dev": "npm run sync && electron . --dev",
+    "dist": "npm run sync && electron-builder --win --x64",
+    "dist:dir": "npm run sync && electron-builder --win --x64 --dir"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "io.github.janlhin.mpvconfigbuilder",
+    "productName": "MPV Config Builder",
+    "copyright": "GPL-3.0-only",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "menu.js",
+      "renderer/**/*",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist/MPVConfigBuilderBackend",
+        "to": "backend",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../LICENSE",
+        "to": "."
+      },
+      {
+        "from": "../NOTICE.txt",
+        "to": "."
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "${productName}-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MPV Config Builder",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

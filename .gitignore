@@ -31,6 +31,11 @@ node_modules/
 electron/dist/
 electron/out/
 electron/release/
+# renderer/ 是 `npm run sync` 从 webui/static/ **复制**来的（单一来源）。
+# ⚠ 不要手改、也不要入库 —— 入库就会出现两份会漂移的副本，
+#    而实机验证脚本测的是 webui/static 那份。
+#    一致性由 tools/check_electron.py 检查。
+electron/renderer/
 npm-debug.log*
 yarn-error.log*
 .npm/

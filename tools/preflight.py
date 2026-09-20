@@ -17,6 +17,7 @@
     6. 没有残留的"机器专用绝对路径"
     7. 许可文件内容（GPL-3.0 全文 + 第三方归属）
     8. 顶栏常驻入口在 9 个页面上真的渲染出来了（要本机有 Edge/Chrome；没有就跳过）
+    9. Electron 外壳能跑、页面能拿到后端数据（要装了 node_modules；没装就跳过）
 
 ⚠ 联网那一步（4）在国内网络下可能整体失败 —— 那是网络问题不是清单问题，
 脚本会明确区分"清单失效"与"连不上"。
@@ -205,6 +206,36 @@ def check_ui_nav(r):
     r.add("顶栏常驻入口实机检查", p.returncode == 0, summary)
 
 
+def check_electron_pack(r):
+    """Electron 那套（如果本机备齐了工具链）能不能跑通。
+
+    **没装 node_modules 就算跳过，不算失败** —— Electron 是可选的外壳，
+    不是发布源码包的必要条件。但只要装了，它的实机检查就必须过。
+    """
+    el = ROOT / "electron"
+    if not (el / "node_modules" / "electron" / "dist" / "electron.exe").is_file():
+        r.add("Electron 外壳实机检查", True, "跳过（electron/node_modules 没装）")
+        return
+    if not (ROOT / "dist" / "MPVConfigBuilderBackend" / "MPVConfigBuilderBackend.exe").is_file():
+        r.add("Electron 外壳实机检查", True,
+              "跳过（后端 exe 还没打；先跑 py -m PyInstaller packaging/backend.spec）")
+        return
+    p = subprocess.run([sys.executable, "-X", "utf8",
+                        str(Path(__file__).parent / "check_electron.py")],
+                       capture_output=True, cwd=str(ROOT))
+    tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+    r.add("Electron 外壳实机检查", p.returncode == 0,
+          tail[-1] if tail else "(没有输出)")
+
+    if (el / "release" / "win-unpacked" / "MPV Config Builder.exe").is_file():
+        p2 = subprocess.run([sys.executable, "-X", "utf8",
+                             str(Path(__file__).parent / "check_electron_packaged.py")],
+                            capture_output=True, cwd=str(ROOT))
+        tail2 = p2.stdout.decode("utf-8", "replace").strip().splitlines()
+        r.add("Electron 打包形态检查", p2.returncode == 0,
+              tail2[-1] if tail2 else "(没有输出)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true", help="跳过联网检查")
@@ -222,6 +253,7 @@ def main():
     check_absolute_paths(r)
     check_links(r, offline=args.offline)
     check_ui_nav(r)
+    check_electron_pack(r)
 
     print("-" * 58)
     if r.failed:
