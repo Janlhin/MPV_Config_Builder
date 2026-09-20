@@ -79,6 +79,33 @@ from core.score import score_active, overall_score, grade_of   # noqa: E402
 from core import dlcenter                                  # noqa: E402
 
 
+# ------------------------------------------------- 日志层（M5-E-1）
+#
+# stdio 模式下 **stdout 是协议流**，多打一行字就会让 Electron 那边的
+# JSON.parse 炸掉、后续响应全部错位。所以所有给人看的话都要走 stderr。
+#
+# stdio.serve() 一进来就把 QUIET_STDOUT 打开、并把 LOG_STREAM 指到 stderr；
+# HTTP 模式（默认）行为不变，仍然打到 stdout。
+#
+# ⚠ 别在别处直接 print() 了 —— 用 log()。防线是 tests/test_stdio.py 里
+# 「stdout 每一行都必须能 json.loads」那条测试。
+
+QUIET_STDOUT = False
+LOG_STREAM = None          # None = 用 sys.stdout（HTTP 模式）
+
+
+def log(msg=""):
+    """给人看的输出。stdio 模式下走 stderr，HTTP 模式下走 stdout。"""
+    stream = LOG_STREAM
+    if stream is None:
+        stream = sys.stderr if QUIET_STDOUT else sys.stdout
+    stream.write(str(msg) + "\n")
+    try:
+        stream.flush()
+    except Exception:                                        # pragma: no cover
+        pass
+
+
 # ------------------------------------------------- 下载中心的后台任务表
 #
 # 下载是长任务（几十 MB / 要重试镜像），不能卡在请求里。
@@ -1261,6 +1288,14 @@ def open_window(url):
 
 
 def main():
+    # ---- stdio 模式：给 Electron 用的，不开端口（M5-E-1 + W-4 第②步）
+    if "--stdio" in sys.argv:
+        try:
+            from . import stdio as _stdio
+        except ImportError:                                  # pragma: no cover
+            import stdio as _stdio                           # type: ignore
+        return _stdio.serve()
+
     no_window = "--no-window" in sys.argv
     port = 0
     if "--port" in sys.argv:
@@ -1272,8 +1307,8 @@ def main():
         port = free_port()
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"
-    print(f"{APP_TITLE} web ui  →  {url}")
-    print("关闭窗口后按 Ctrl+C 结束服务")
+    log(f"{APP_TITLE} web ui  →  {url}")
+    log("关闭窗口后按 Ctrl+C 结束服务")
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     if not no_window:
         open_window(url)
@@ -1281,9 +1316,9 @@ def main():
         while True:
             threading.Event().wait(1)
     except KeyboardInterrupt:
-        print("\n已退出")
+        log("\n已退出")
         httpd.shutdown()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

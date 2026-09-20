@@ -105,6 +105,10 @@ MPV Config Builder 2.0
   mpv_config_builder.py   旧界面（Tkinter，功能最全）
   webui\                  新界面
       server.py           只用标准库的本地服务 + JSON API（39 个接口）
+                          加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Electron 用）
+      api.py              与传输无关的分发层：dispatch(请求) → 响应（HTTP 与 stdio 共用）
+      stdio.py            stdio 传输：读 stdin 的 JSONL、写 stdout 的 JSONL
+                          **stdout 只走协议，日志一律 stderr**（规格见 specs\stdio-transport.md）
       static\             index / basic / advanced / expert / analyze / keys
                           / downloads / guide / hell（9 个页面）
                           + style.css + api.js + state.js
@@ -149,7 +153,7 @@ MPV Config Builder 2.0
       check_ui.py         实机验证候选值下拉（要本机有 Edge/Chrome，另开服务）
       check_topnav.py     实机验证 9 个页面的顶栏常驻入口（同上，会自动起后端）
       preflight.py        发布前自检（测试/编译/文档/必带文件/许可/下载链接/顶栏）
-  tests\                  单元测试（615 项，含接口端到端与真实脚本测试）
+  tests\                  单元测试（645 项，含接口端到端与真实脚本测试）
   specs\                  先写规格再动手的 spec（每份都带验收记录）
   LICENSE                 许可：GPL-3.0 全文
   NOTICE.txt              第三方内容的来源与许可（分发安装包时要一并带上）
