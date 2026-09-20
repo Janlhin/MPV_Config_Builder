@@ -1,0 +1,44 @@
+# 行尾统一：**一律 LF 入库**。
+#
+# 为什么需要这个文件：仓库里全是 Python 与文本文件，本机 Windows 的 git 默认
+# core.autocrlf=true，会让「工作区 CRLF / 库里 LF」来回转换。后果是：
+#   * 每次 git status 都有一堆"没改过但显示已修改"的文件；
+#   * `git diff` 看起来全文件重写，真实改动被行尾噪音淹没；
+#   * tools/check_docs.py 这类**逐字节读文件**的脚本会读到不一样的内容。
+# 项目自己的所有脚本都是按 LF 写的（写文件时用 newline="\n"），所以入库用 LF
+# 才和它们的实际行为一致。Windows 上的编辑器（VS Code / Notepad++）都认 LF。
+
+# 默认：自动识别文本，入库统一 LF
+* text=auto eol=lf
+
+# 明确按文本处理（否则 Windows 上可能被当二进制）
+*.py      text eol=lf
+*.txt     text eol=lf
+*.md      text eol=lf
+*.json    text eol=lf
+*.html    text eol=lf
+*.css     text eol=lf
+*.js      text eol=lf
+*.vpy     text eol=lf
+*.conf    text eol=lf
+*.ini     text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+# 二进制：禁止任何转换
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.zip     binary
+*.7z      binary
+*.exe     binary
+*.dll     binary
+*.ttf     binary
+*.otf     binary
+*.woff    binary
+*.woff2   binary

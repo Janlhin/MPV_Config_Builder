@@ -57,3 +57,6 @@ desktop.ini
 # ⚠ 但这两个是**项目文件**，不是临时脚本 —— 必须显式放回来
 !_mpv_options_raw.txt
 !LICENSE
+# git commit -F 用的提交信息临时文件（PowerShell 没有 heredoc，只能落盘；
+# 有一次忘了删结果被提交进来，所以这里直接忽略）
+/commit_msg.txt

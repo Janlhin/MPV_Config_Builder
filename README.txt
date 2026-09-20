@@ -144,9 +144,11 @@ MPV Config Builder 2.0
       build_options_db.py 重新生成选项库（mpv 升级后跑一次）
       build_keybindings.py 重新生成按键库（同上）
       check_docs.py       检查文档里的数字与实测是否一致
+      compare_conflicts.py 冲突规则「重构前/后」等价性对照（4699 组枚举，改规则时跑）
+      gen_conflicts_golden.py 重新生成冲突检测的行为快照基准（改规则后才跑）
       check_ui.py         实机验证候选值下拉（要本机有 Edge/Chrome，另开服务）
       preflight.py        发布前自检（测试/编译/文档/必带文件/下载链接）
-  tests\                  单元测试（595 项，含接口端到端与真实脚本测试）
+  tests\                  单元测试（615 项，含接口端到端与真实脚本测试）
   specs\                  先写规格再动手的 spec（每份都带验收记录）
   LICENSE                 许可：GPL-3.0 全文
   NOTICE.txt              第三方内容的来源与许可（分发安装包时要一并带上）

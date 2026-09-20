@@ -1,0 +1,1508 @@
+{
+ "note": "mpv 配置冲突检测的行为快照（C-1 重构基准）。由 tools/gen_conflicts_golden.py 生成，禁止手工编辑。",
+ "count": 55,
+ "cases": [
+  {
+   "name": "clean_default",
+   "values": {
+    "vo": "gpu-next",
+    "scale": "spline36",
+    "deband": "yes",
+    "deband-iterations": "2",
+    "cache": "yes"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "clean_empty",
+   "values": {},
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "sigmoid_and_linear",
+   "values": {
+    "sigmoid-upscaling": "yes",
+    "linear-upscaling": "yes"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "sigmoid_vs_linear",
+     "level": "warn",
+     "title": "sigmoid-upscaling 与 linear-upscaling 同时开启",
+     "detail": "手册明确写着这两个不兼容，sigmoid 会取代 linear —— 也就是说 linear-upscaling 白设了。",
+     "fix": "把 linear-upscaling 关掉（或者设成 no），只留 sigmoid-upscaling。",
+     "keys": [
+      "sigmoid-upscaling",
+      "linear-upscaling"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "sigmoid-upscaling 与 linear-upscaling 同时开启 → 把 linear-upscaling 关掉（或者设成 no），只留 sigmoid-upscaling。"
+    ]
+   ],
+   "keys": [
+    "linear-upscaling",
+    "sigmoid-upscaling"
+   ]
+  },
+  {
+   "name": "linear_alone",
+   "values": {
+    "linear-upscaling": "yes"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "linear_upscaling_alone",
+     "level": "info",
+     "title": "linear-upscaling 单独开启",
+     "detail": "手册：这个选项除了测试/特殊目的外通常不推荐，建议改用 sigmoid-upscaling 或两个都关掉。",
+     "fix": "除非你在做对照实验，否则关掉它。",
+     "keys": [
+      "linear-upscaling"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "linear-upscaling 单独开启 → 除非你在做对照实验，否则关掉它。"
+    ]
+   ],
+   "keys": [
+    "linear-upscaling"
+   ]
+  },
+  {
+   "name": "sigmoid_alone_ok",
+   "values": {
+    "sigmoid-upscaling": "yes"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "linear_no_is_ok",
+   "values": {
+    "linear-upscaling": "no"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "interp_without_display_sync",
+   "values": {
+    "interpolation": "yes",
+    "video-sync": "audio",
+    "tscale": "mitchell"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "interp_needs_sync",
+     "level": "error",
+     "title": "interpolation=yes 但 video-sync 不是 display- 模式",
+     "detail": "手册原文：这需要把 video-sync 设为 display- 模式之一，否则插值会被静默禁用 —— 你看到的就是「开了但没效果」。",
+     "fix": "把 video-sync 设成 display-resample（或 display-resample-vdrop）。",
+     "keys": [
+      "interpolation",
+      "video-sync"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "error",
+     "interpolation=yes 但 video-sync 不是 display- 模式 → 把 video-sync 设成 display-resample（或 display-resample-vdrop）。"
+    ]
+   ],
+   "keys": [
+    "interpolation",
+    "video-sync"
+   ]
+  },
+  {
+   "name": "interp_no_video_sync_at_all",
+   "values": {
+    "interpolation": "yes",
+    "tscale": "mitchell"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "interp_needs_sync",
+     "level": "error",
+     "title": "interpolation=yes 但 video-sync 不是 display- 模式",
+     "detail": "手册原文：这需要把 video-sync 设为 display- 模式之一，否则插值会被静默禁用 —— 你看到的就是「开了但没效果」。",
+     "fix": "把 video-sync 设成 display-resample（或 display-resample-vdrop）。",
+     "keys": [
+      "interpolation",
+      "video-sync"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "error",
+     "interpolation=yes 但 video-sync 不是 display- 模式 → 把 video-sync 设成 display-resample（或 display-resample-vdrop）。"
+    ]
+   ],
+   "keys": [
+    "interpolation",
+    "video-sync"
+   ]
+  },
+  {
+   "name": "interp_display_sync_but_no_tscale",
+   "values": {
+    "interpolation": "yes",
+    "video-sync": "display-resample"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "interp_no_tscale",
+     "level": "info",
+     "title": "开了插值但没指定 tscale",
+     "detail": "tscale 决定时间方向用什么算法重采样，不写就用默认 oversample（最清晰、也最容易抖）。",
+     "fix": "可以试试 catmull_rom 或 mitchell，比默认更平滑。",
+     "keys": [
+      "interpolation",
+      "tscale"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "开了插值但没指定 tscale → 可以试试 catmull_rom 或 mitchell，比默认更平滑。"
+    ]
+   ],
+   "keys": [
+    "interpolation",
+    "tscale"
+   ]
+  },
+  {
+   "name": "interp_display_sync_with_tscale_ok",
+   "values": {
+    "interpolation": "yes",
+    "video-sync": "display-resample",
+    "tscale": "mitchell"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "interp_with_memc_script",
+   "values": {
+    "interpolation": "yes",
+    "video-sync": "display-resample",
+    "tscale": "mitchell"
+   },
+   "shaders": [],
+   "memc": "~~/vs/MEMC_RIFE_NV.vpy",
+   "conflicts": [
+    {
+     "id": "interp_with_memc",
+     "level": "warn",
+     "title": "内置插值和外挂补帧脚本同时开着",
+     "detail": "vpy 脚本已经在造中间帧了，mpv 再插一次等于插两遍：画面可能更糊、负载翻倍。",
+     "fix": "二选一：要么关掉 interpolation，要么不挂补帧脚本。",
+     "keys": [
+      "interpolation",
+      "vf"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "内置插值和外挂补帧脚本同时开着 → 二选一：要么关掉 interpolation，要么不挂补帧脚本。"
+    ]
+   ],
+   "keys": [
+    "interpolation",
+    "vf"
+   ]
+  },
+  {
+   "name": "deband_off_ignores_iterations",
+   "values": {
+    "deband": "no",
+    "deband-iterations": "0"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "deband_without_iterations_ok",
+   "values": {
+    "deband": "yes"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "deband_zero_iterations",
+   "values": {
+    "deband": "yes",
+    "deband-iterations": "0"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "deband_zero_iterations",
+     "level": "warn",
+     "title": "deband 开着，但 deband-iterations=0",
+     "detail": "迭代次数为 0 等于不做去色带，开了个寂寞。",
+     "fix": "改成 1~4；一般 2 就够。",
+     "keys": [
+      "deband",
+      "deband-iterations"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "deband 开着，但 deband-iterations=0 → 改成 1~4；一般 2 就够。"
+    ]
+   ],
+   "keys": [
+    "deband",
+    "deband-iterations"
+   ]
+  },
+  {
+   "name": "deband_iterations_at_4_ok",
+   "values": {
+    "deband": "yes",
+    "deband-iterations": "4",
+    "deband-range": "16"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "deband_iterations_above_4",
+   "values": {
+    "deband": "yes",
+    "deband-iterations": "6"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "deband_iterations_high",
+     "level": "info",
+     "title": "deband-iterations=6 偏高",
+     "detail": "手册：每一步强度下降很快，>4 实际上是无用的，只是更慢。",
+     "fix": "降到 4 以内。",
+     "keys": [
+      "deband-iterations"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "deband-iterations=6 偏高 → 降到 4 以内。"
+    ]
+   ],
+   "keys": [
+    "deband-iterations"
+   ]
+  },
+  {
+   "name": "deband_range_boundary_31_no",
+   "values": {
+    "deband": "yes",
+    "deband-iterations": "4",
+    "deband-range": "31"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "deband_range_boundary_32_yes",
+   "values": {
+    "deband": "yes",
+    "deband-iterations": "4",
+    "deband-range": "32"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "deband_range_vs_iterations",
+     "level": "info",
+     "title": "去色带迭代多 + 半径大，容易糊细节",
+     "detail": "手册建议：增加 deband-iterations 时应该相应减小 deband-range 来补偿。",
+     "fix": "把 deband-range 降到 16 左右试试。",
+     "keys": [
+      "deband-iterations",
+      "deband-range"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "去色带迭代多 + 半径大，容易糊细节 → 把 deband-range 降到 16 左右试试。"
+    ]
+   ],
+   "keys": [
+    "deband-iterations",
+    "deband-range"
+   ]
+  },
+  {
+   "name": "deband_range_high_but_iterations_low_ok",
+   "values": {
+    "deband": "yes",
+    "deband-iterations": "2",
+    "deband-range": "48"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "deband_high_iterations_and_range",
+   "values": {
+    "deband": "yes",
+    "deband-iterations": "5",
+    "deband-range": "40"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "deband_iterations_high",
+     "level": "info",
+     "title": "deband-iterations=5 偏高",
+     "detail": "手册：每一步强度下降很快，>4 实际上是无用的，只是更慢。",
+     "fix": "降到 4 以内。",
+     "keys": [
+      "deband-iterations"
+     ]
+    },
+    {
+     "id": "deband_range_vs_iterations",
+     "level": "info",
+     "title": "去色带迭代多 + 半径大，容易糊细节",
+     "detail": "手册建议：增加 deband-iterations 时应该相应减小 deband-range 来补偿。",
+     "fix": "把 deband-range 降到 16 左右试试。",
+     "keys": [
+      "deband-iterations",
+      "deband-range"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "deband-iterations=5 偏高 → 降到 4 以内。"
+    ],
+    [
+     "info",
+     "去色带迭代多 + 半径大，容易糊细节 → 把 deband-range 降到 16 左右试试。"
+    ]
+   ],
+   "keys": [
+    "deband-iterations",
+    "deband-range"
+   ]
+  },
+  {
+   "name": "deband_iterations_not_a_number",
+   "values": {
+    "deband": "yes",
+    "deband-iterations": "abc"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "icc_profile_with_target",
+   "values": {
+    "icc-profile": "C:/icc/srgb.icc",
+    "target-prim": "bt.709"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "icc_profile_vs_target",
+     "level": "warn",
+     "title": "icc-profile 与 target-* 同时设置",
+     "detail": "手册：icc-profile 会覆盖 --target-prim、--target-trc 和 --icc-profile-auto。这几个 target-* 不生效，只会让人看配置时误会。",
+     "fix": "用 ICC 校色的话就把 target-prim / target-trc / target-gamut 删掉。",
+     "keys": [
+      "icc-profile",
+      "target-prim"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "icc-profile 与 target-* 同时设置 → 用 ICC 校色的话就把 target-prim / target-trc / target-gamut 删掉。"
+    ]
+   ],
+   "keys": [
+    "icc-profile",
+    "target-prim"
+   ]
+  },
+  {
+   "name": "icc_profile_with_two_targets",
+   "values": {
+    "icc-profile": "C:/icc/srgb.icc",
+    "target-trc": "srgb",
+    "target-gamut": "bt.709"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "icc_profile_vs_target",
+     "level": "warn",
+     "title": "icc-profile 与 target-* 同时设置",
+     "detail": "手册：icc-profile 会覆盖 --target-prim、--target-trc 和 --icc-profile-auto。这几个 target-* 不生效，只会让人看配置时误会。",
+     "fix": "用 ICC 校色的话就把 target-prim / target-trc / target-gamut 删掉。",
+     "keys": [
+      "icc-profile",
+      "target-trc",
+      "target-gamut"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "icc-profile 与 target-* 同时设置 → 用 ICC 校色的话就把 target-prim / target-trc / target-gamut 删掉。"
+    ]
+   ],
+   "keys": [
+    "icc-profile",
+    "target-gamut",
+    "target-trc"
+   ]
+  },
+  {
+   "name": "icc_auto_without_profile_ok",
+   "values": {
+    "icc-profile-auto": "yes"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "icc_auto_and_profile_and_target",
+   "values": {
+    "icc-profile-auto": "yes",
+    "icc-profile": "C:/icc/srgb.icc",
+    "target-prim": "bt.709"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "icc_auto_vs_profile",
+     "level": "warn",
+     "title": "icc-profile-auto 与 icc-profile 同时设置",
+     "detail": "手册：icc-profile 覆盖 icc-profile-auto，自动校色不会生效。",
+     "fix": "二选一。",
+     "keys": [
+      "icc-profile-auto",
+      "icc-profile"
+     ]
+    },
+    {
+     "id": "icc_profile_vs_target",
+     "level": "warn",
+     "title": "icc-profile 与 target-* 同时设置",
+     "detail": "手册：icc-profile 会覆盖 --target-prim、--target-trc 和 --icc-profile-auto。这几个 target-* 不生效，只会让人看配置时误会。",
+     "fix": "用 ICC 校色的话就把 target-prim / target-trc / target-gamut 删掉。",
+     "keys": [
+      "icc-profile",
+      "target-prim"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "icc-profile-auto 与 icc-profile 同时设置 → 二选一。"
+    ],
+    [
+     "warn",
+     "icc-profile 与 target-* 同时设置 → 用 ICC 校色的话就把 target-prim / target-trc / target-gamut 删掉。"
+    ]
+   ],
+   "keys": [
+    "icc-profile",
+    "icc-profile-auto",
+    "target-prim"
+   ]
+  },
+  {
+   "name": "hable_without_peak",
+   "values": {
+    "tone-mapping": "hable"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "hable_needs_peak",
+     "level": "info",
+     "title": "tone-mapping=hable 建议配合 hdr-compute-peak",
+     "detail": "手册在 hable 条目里写着：如果可能的话，你还应该启用 --hdr-compute-peak 以获得最佳效果。",
+     "fix": "开 hdr-compute-peak=yes（或 auto）。",
+     "keys": [
+      "tone-mapping",
+      "hdr-compute-peak"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "tone-mapping=hable 建议配合 hdr-compute-peak → 开 hdr-compute-peak=yes（或 auto）。"
+    ]
+   ],
+   "keys": [
+    "hdr-compute-peak",
+    "tone-mapping"
+   ]
+  },
+  {
+   "name": "hable_with_peak_ok",
+   "values": {
+    "tone-mapping": "hable",
+    "hdr-compute-peak": "yes"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "hable_uppercase_still_detected",
+   "values": {
+    "tone-mapping": "Hable"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "hable_needs_peak",
+     "level": "info",
+     "title": "tone-mapping=hable 建议配合 hdr-compute-peak",
+     "detail": "手册在 hable 条目里写着：如果可能的话，你还应该启用 --hdr-compute-peak 以获得最佳效果。",
+     "fix": "开 hdr-compute-peak=yes（或 auto）。",
+     "keys": [
+      "tone-mapping",
+      "hdr-compute-peak"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "tone-mapping=hable 建议配合 hdr-compute-peak → 开 hdr-compute-peak=yes（或 auto）。"
+    ]
+   ],
+   "keys": [
+    "hdr-compute-peak",
+    "tone-mapping"
+   ]
+  },
+  {
+   "name": "spline_tone_mapping_ok",
+   "values": {
+    "tone-mapping": "spline"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "gpu_with_gpunext_only_option",
+   "values": {
+    "vo": "gpu",
+    "gamut-mapping-mode": "clip"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "gpunext_only_with_gpu",
+     "level": "warn",
+     "title": "vo=gpu 下用了 1 个 gpu-next 独占选项",
+     "detail": "手册把这些标注为「--vo=gpu-next 独占」：用 vo=gpu 时它们不生效（gamut-mapping-mode）。",
+     "fix": "要么把 vo 换成 gpu-next，要么删掉这些项。",
+     "keys": [
+      "vo",
+      "gamut-mapping-mode"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "vo=gpu 下用了 1 个 gpu-next 独占选项 → 要么把 vo 换成 gpu-next，要么删掉这些项。"
+    ]
+   ],
+   "keys": [
+    "gamut-mapping-mode",
+    "vo"
+   ]
+  },
+  {
+   "name": "gpu_with_many_gpunext_only_options",
+   "values": {
+    "vo": "gpu",
+    "gamut-mapping-mode": "clip",
+    "target-gamut": "bt.709",
+    "lut": "C:/lut.cube",
+    "image-lut": "C:/img.cube",
+    "icc-use-luma": "yes",
+    "sdr-adjust-gamma": "yes",
+    "hdr-reference-white": "203",
+    "treat-srgb-as-power22": "yes"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "gpunext_only_with_gpu",
+     "level": "warn",
+     "title": "vo=gpu 下用了 8 个 gpu-next 独占选项",
+     "detail": "手册把这些标注为「--vo=gpu-next 独占」：用 vo=gpu 时它们不生效（gamut-mapping-mode、hdr-reference-white、icc-use-luma、image-lut、lut、sdr-adjust-gamma…）。",
+     "fix": "要么把 vo 换成 gpu-next，要么删掉这些项。",
+     "keys": [
+      "vo",
+      "gamut-mapping-mode",
+      "hdr-reference-white",
+      "icc-use-luma",
+      "image-lut",
+      "lut",
+      "sdr-adjust-gamma",
+      "target-gamut",
+      "treat-srgb-as-power22"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "vo=gpu 下用了 8 个 gpu-next 独占选项 → 要么把 vo 换成 gpu-next，要么删掉这些项。"
+    ]
+   ],
+   "keys": [
+    "gamut-mapping-mode",
+    "hdr-reference-white",
+    "icc-use-luma",
+    "image-lut",
+    "lut",
+    "sdr-adjust-gamma",
+    "target-gamut",
+    "treat-srgb-as-power22",
+    "vo"
+   ]
+  },
+  {
+   "name": "gpu_alone_ok",
+   "values": {
+    "vo": "gpu",
+    "scale": "spline36"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "gpunext_with_gpu_only_option",
+   "values": {
+    "vo": "gpu-next",
+    "corner-rounding": "10"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "gpu_only_with_gpunext",
+     "level": "info",
+     "title": "vo=gpu-next 下用了 1 个只有 vo=gpu 支持的选项",
+     "detail": "手册标注这些是「--vo=gpu 独占」：gpu-next 下不生效（corner-rounding）。",
+     "fix": "删掉，或者临时切回 vo=gpu 用。",
+     "keys": [
+      "vo",
+      "corner-rounding"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "vo=gpu-next 下用了 1 个只有 vo=gpu 支持的选项 → 删掉，或者临时切回 vo=gpu 用。"
+    ]
+   ],
+   "keys": [
+    "corner-rounding",
+    "vo"
+   ]
+  },
+  {
+   "name": "gpunext_with_three_gpu_only_options",
+   "values": {
+    "vo": "gpu-next",
+    "corner-rounding": "10",
+    "sharpen": "0.5",
+    "tone-mapping-max-boost": "2"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "gpu_only_with_gpunext",
+     "level": "info",
+     "title": "vo=gpu-next 下用了 3 个只有 vo=gpu 支持的选项",
+     "detail": "手册标注这些是「--vo=gpu 独占」：gpu-next 下不生效（corner-rounding、sharpen、tone-mapping-max-boost）。",
+     "fix": "删掉，或者临时切回 vo=gpu 用。",
+     "keys": [
+      "vo",
+      "corner-rounding",
+      "sharpen",
+      "tone-mapping-max-boost"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "vo=gpu-next 下用了 3 个只有 vo=gpu 支持的选项 → 删掉，或者临时切回 vo=gpu 用。"
+    ]
+   ],
+   "keys": [
+    "corner-rounding",
+    "sharpen",
+    "tone-mapping-max-boost",
+    "vo"
+   ]
+  },
+  {
+   "name": "gpunext_with_all_gpu_only_options",
+   "values": {
+    "vo": "gpu-next",
+    "corner-rounding": "10",
+    "sharpen": "0.5",
+    "tone-mapping-max-boost": "2",
+    "gamut-mapping-mode": "clip"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "gpu_only_with_gpunext",
+     "level": "info",
+     "title": "vo=gpu-next 下用了 3 个只有 vo=gpu 支持的选项",
+     "detail": "手册标注这些是「--vo=gpu 独占」：gpu-next 下不生效（corner-rounding、sharpen、tone-mapping-max-boost）。",
+     "fix": "删掉，或者临时切回 vo=gpu 用。",
+     "keys": [
+      "vo",
+      "corner-rounding",
+      "sharpen",
+      "tone-mapping-max-boost"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "vo=gpu-next 下用了 3 个只有 vo=gpu 支持的选项 → 删掉，或者临时切回 vo=gpu 用。"
+    ]
+   ],
+   "keys": [
+    "corner-rounding",
+    "sharpen",
+    "tone-mapping-max-boost",
+    "vo"
+   ]
+  },
+  {
+   "name": "vo_uppercase_is_normalised",
+   "values": {
+    "vo": "GPU",
+    "gamut-mapping-mode": "clip"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "gpunext_only_with_gpu",
+     "level": "warn",
+     "title": "vo=gpu 下用了 1 个 gpu-next 独占选项",
+     "detail": "手册把这些标注为「--vo=gpu-next 独占」：用 vo=gpu 时它们不生效（gamut-mapping-mode）。",
+     "fix": "要么把 vo 换成 gpu-next，要么删掉这些项。",
+     "keys": [
+      "vo",
+      "gamut-mapping-mode"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "vo=gpu 下用了 1 个 gpu-next 独占选项 → 要么把 vo 换成 gpu-next，要么删掉这些项。"
+    ]
+   ],
+   "keys": [
+    "gamut-mapping-mode",
+    "vo"
+   ]
+  },
+  {
+   "name": "single_shader_family_ok",
+   "values": {},
+   "shaders": [
+    "~~/shaders/FSRCNNX_x2_8-0-4-1.glsl"
+   ],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "two_shader_families",
+   "values": {},
+   "shaders": [
+    "~~/shaders/FSRCNNX_x2_8-0-4-1.glsl",
+    "~~/shaders/Anime4K_Upscale_CNN_x2_M.glsl"
+   ],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "double_upscale_shaders",
+     "level": "warn",
+     "title": "shader 链里有多个超分家族",
+     "detail": "同时挂了 Anime4K Upscale、FSRCNNX —— 它们都在做放大，串起来等于放大两三轮：细节未必更好，但负载一定翻倍，还容易出振铃。",
+     "fix": "选一个家族就够了（通用向 FSRCNNX/RAVU，动画向 Anime4K/ArtCNN）。",
+     "keys": []
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "shader 链里有多个超分家族 → 选一个家族就够了（通用向 FSRCNNX/RAVU，动画向 Anime4K/ArtCNN）。"
+    ]
+   ],
+   "keys": []
+  },
+  {
+   "name": "two_families_same_family_twice_ok",
+   "values": {},
+   "shaders": [
+    "~~/shaders/FSRCNNX_x2_8-0-4-1.glsl",
+    "~~/shaders/FSRCNNX_x2_16-0-4-1.glsl"
+   ],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "empty_shader_entries_ignored",
+   "values": {},
+   "shaders": [
+    "",
+    "   "
+   ],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "vpy_superres_with_shader_superres",
+   "values": {},
+   "shaders": [
+    "~~/shaders/FSRCNNX_x2_8-0-4-1.glsl"
+   ],
+   "memc": "~~/vs/SR_ESRGAN_x2.vpy",
+   "conflicts": [
+    {
+     "id": "vpy_sr_with_shader_sr",
+     "level": "warn",
+     "title": "vpy 超分脚本 + shader 超分链同时开着",
+     "detail": "脚本 SR_ESRGAN_X2.VPY 自己做超分，shader 链里也有超分家族（FSRCNNX），两轮放大会放大噪点和振铃。",
+     "fix": "留一头：要么只用脚本，要么只用 shader。",
+     "keys": [
+      "vf"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "vpy 超分脚本 + shader 超分链同时开着 → 留一头：要么只用脚本，要么只用 shader。"
+    ]
+   ],
+   "keys": [
+    "vf"
+   ]
+  },
+  {
+   "name": "vpy_superres_without_shader_ok",
+   "values": {},
+   "shaders": [],
+   "memc": "~~/vs/SR_ESRGAN_x2.vpy",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "vpy_superres_with_only_sharpen_shader_ok",
+   "values": {},
+   "shaders": [
+    "~~/shaders/AMD_CAS.glsl"
+   ],
+   "memc": "~~/vs/SR_ESRGAN_x2.vpy",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "vpy_mix_uai_counts_as_superres",
+   "values": {},
+   "shaders": [
+    "~~/shaders/RAVU_Zoom_R3.glsl"
+   ],
+   "memc": "~~/vs/MIX_UAI_ESRGAN.vpy",
+   "conflicts": [
+    {
+     "id": "vpy_sr_with_shader_sr",
+     "level": "warn",
+     "title": "vpy 超分脚本 + shader 超分链同时开着",
+     "detail": "脚本 MIX_UAI_ESRGAN.VPY 自己做超分，shader 链里也有超分家族（RAVU），两轮放大会放大噪点和振铃。",
+     "fix": "留一头：要么只用脚本，要么只用 shader。",
+     "keys": [
+      "vf"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "warn",
+     "vpy 超分脚本 + shader 超分链同时开着 → 留一头：要么只用脚本，要么只用 shader。"
+    ]
+   ],
+   "keys": [
+    "vf"
+   ]
+  },
+  {
+   "name": "memc_prefix_is_not_superres",
+   "values": {},
+   "shaders": [
+    "~~/shaders/RAVU_Zoom_R3.glsl"
+   ],
+   "memc": "~~/vs/MEMC_RIFE_NV.vpy",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "sharpen_not_last",
+   "values": {},
+   "shaders": [
+    "~~/shaders/AMD_CAS.glsl",
+    "~~/shaders/FSRCNNX_x2_8-0-4-1.glsl"
+   ],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "sharpen_not_last",
+     "level": "info",
+     "title": "锐化 shader 不在链尾",
+     "detail": "锐化类 shader（Adaptive_sharpen / CAS / SGEDS）放在中间，后面的 shader 会把它刚锐化出来的边缘再处理一遍，通常不是想要的效果。",
+     "fix": "用 ↑↓ 把锐化挪到链尾。",
+     "keys": []
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "锐化 shader 不在链尾 → 用 ↑↓ 把锐化挪到链尾。"
+    ]
+   ],
+   "keys": []
+  },
+  {
+   "name": "sharpen_at_last_ok",
+   "values": {},
+   "shaders": [
+    "~~/shaders/FSRCNNX_x2_8-0-4-1.glsl",
+    "~~/shaders/AMD_CAS.glsl"
+   ],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "sharpen_only_one_shader_ok",
+   "values": {},
+   "shaders": [
+    "~~/shaders/AMD_CAS.glsl"
+   ],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "sharpen_substring_false_positive_guarded",
+   "values": {},
+   "shaders": [
+    "~~/shaders/Cascade_Sharpen.glsl",
+    "~~/shaders/FSRCNNX_x2_8-0-4-1.glsl"
+   ],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "cache_off_with_demuxer_buffer",
+   "values": {
+    "cache": "no",
+    "demuxer-max-bytes": "512MiB"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "cache_off_but_buffer",
+     "level": "info",
+     "title": "cache=no 却设了 demuxer-max-bytes",
+     "detail": "缓存关掉之后这个上限没有意义。",
+     "fix": "要么把 cache 打开，要么删掉 demuxer-max-bytes。",
+     "keys": [
+      "cache",
+      "demuxer-max-bytes"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "cache=no 却设了 demuxer-max-bytes → 要么把 cache 打开，要么删掉 demuxer-max-bytes。"
+    ]
+   ],
+   "keys": [
+    "cache",
+    "demuxer-max-bytes"
+   ]
+  },
+  {
+   "name": "cache_missing_with_demuxer_buffer",
+   "values": {
+    "demuxer-max-bytes": "512MiB"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "cache_off_but_buffer",
+     "level": "info",
+     "title": "cache=no 却设了 demuxer-max-bytes",
+     "detail": "缓存关掉之后这个上限没有意义。",
+     "fix": "要么把 cache 打开，要么删掉 demuxer-max-bytes。",
+     "keys": [
+      "cache",
+      "demuxer-max-bytes"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "info",
+     "cache=no 却设了 demuxer-max-bytes → 要么把 cache 打开，要么删掉 demuxer-max-bytes。"
+    ]
+   ],
+   "keys": [
+    "cache",
+    "demuxer-max-bytes"
+   ]
+  },
+  {
+   "name": "cache_on_with_demuxer_buffer_ok",
+   "values": {
+    "cache": "yes",
+    "demuxer-max-bytes": "512MiB"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "cache_off_without_demuxer_buffer_ok",
+   "values": {
+    "cache": "no"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [],
+   "issues": [],
+   "keys": []
+  },
+  {
+   "name": "many_rules_sorted",
+   "values": {
+    "vo": "gpu",
+    "sigmoid-upscaling": "yes",
+    "linear-upscaling": "yes",
+    "interpolation": "yes",
+    "video-sync": "audio",
+    "deband": "yes",
+    "deband-iterations": "0",
+    "icc-profile-auto": "yes",
+    "icc-profile": "C:/icc/srgb.icc",
+    "target-prim": "bt.709",
+    "tone-mapping": "hable",
+    "gamut-mapping-mode": "clip",
+    "cache": "no",
+    "demuxer-max-bytes": "512MiB"
+   },
+   "shaders": [
+    "~~/shaders/AMD_CAS.glsl",
+    "~~/shaders/FSRCNNX_x2_8-0-4-1.glsl",
+    "~~/shaders/Anime4K_Upscale_CNN_x2_M.glsl"
+   ],
+   "memc": "~~/vs/MEMC_RIFE_NV.vpy",
+   "conflicts": [
+    {
+     "id": "interp_needs_sync",
+     "level": "error",
+     "title": "interpolation=yes 但 video-sync 不是 display- 模式",
+     "detail": "手册原文：这需要把 video-sync 设为 display- 模式之一，否则插值会被静默禁用 —— 你看到的就是「开了但没效果」。",
+     "fix": "把 video-sync 设成 display-resample（或 display-resample-vdrop）。",
+     "keys": [
+      "interpolation",
+      "video-sync"
+     ]
+    },
+    {
+     "id": "deband_zero_iterations",
+     "level": "warn",
+     "title": "deband 开着，但 deband-iterations=0",
+     "detail": "迭代次数为 0 等于不做去色带，开了个寂寞。",
+     "fix": "改成 1~4；一般 2 就够。",
+     "keys": [
+      "deband",
+      "deband-iterations"
+     ]
+    },
+    {
+     "id": "double_upscale_shaders",
+     "level": "warn",
+     "title": "shader 链里有多个超分家族",
+     "detail": "同时挂了 Anime4K Upscale、FSRCNNX —— 它们都在做放大，串起来等于放大两三轮：细节未必更好，但负载一定翻倍，还容易出振铃。",
+     "fix": "选一个家族就够了（通用向 FSRCNNX/RAVU，动画向 Anime4K/ArtCNN）。",
+     "keys": []
+    },
+    {
+     "id": "gpunext_only_with_gpu",
+     "level": "warn",
+     "title": "vo=gpu 下用了 1 个 gpu-next 独占选项",
+     "detail": "手册把这些标注为「--vo=gpu-next 独占」：用 vo=gpu 时它们不生效（gamut-mapping-mode）。",
+     "fix": "要么把 vo 换成 gpu-next，要么删掉这些项。",
+     "keys": [
+      "vo",
+      "gamut-mapping-mode"
+     ]
+    },
+    {
+     "id": "icc_auto_vs_profile",
+     "level": "warn",
+     "title": "icc-profile-auto 与 icc-profile 同时设置",
+     "detail": "手册：icc-profile 覆盖 icc-profile-auto，自动校色不会生效。",
+     "fix": "二选一。",
+     "keys": [
+      "icc-profile-auto",
+      "icc-profile"
+     ]
+    },
+    {
+     "id": "icc_profile_vs_target",
+     "level": "warn",
+     "title": "icc-profile 与 target-* 同时设置",
+     "detail": "手册：icc-profile 会覆盖 --target-prim、--target-trc 和 --icc-profile-auto。这几个 target-* 不生效，只会让人看配置时误会。",
+     "fix": "用 ICC 校色的话就把 target-prim / target-trc / target-gamut 删掉。",
+     "keys": [
+      "icc-profile",
+      "target-prim"
+     ]
+    },
+    {
+     "id": "interp_with_memc",
+     "level": "warn",
+     "title": "内置插值和外挂补帧脚本同时开着",
+     "detail": "vpy 脚本已经在造中间帧了，mpv 再插一次等于插两遍：画面可能更糊、负载翻倍。",
+     "fix": "二选一：要么关掉 interpolation，要么不挂补帧脚本。",
+     "keys": [
+      "interpolation",
+      "vf"
+     ]
+    },
+    {
+     "id": "sigmoid_vs_linear",
+     "level": "warn",
+     "title": "sigmoid-upscaling 与 linear-upscaling 同时开启",
+     "detail": "手册明确写着这两个不兼容，sigmoid 会取代 linear —— 也就是说 linear-upscaling 白设了。",
+     "fix": "把 linear-upscaling 关掉（或者设成 no），只留 sigmoid-upscaling。",
+     "keys": [
+      "sigmoid-upscaling",
+      "linear-upscaling"
+     ]
+    },
+    {
+     "id": "cache_off_but_buffer",
+     "level": "info",
+     "title": "cache=no 却设了 demuxer-max-bytes",
+     "detail": "缓存关掉之后这个上限没有意义。",
+     "fix": "要么把 cache 打开，要么删掉 demuxer-max-bytes。",
+     "keys": [
+      "cache",
+      "demuxer-max-bytes"
+     ]
+    },
+    {
+     "id": "hable_needs_peak",
+     "level": "info",
+     "title": "tone-mapping=hable 建议配合 hdr-compute-peak",
+     "detail": "手册在 hable 条目里写着：如果可能的话，你还应该启用 --hdr-compute-peak 以获得最佳效果。",
+     "fix": "开 hdr-compute-peak=yes（或 auto）。",
+     "keys": [
+      "tone-mapping",
+      "hdr-compute-peak"
+     ]
+    },
+    {
+     "id": "interp_no_tscale",
+     "level": "info",
+     "title": "开了插值但没指定 tscale",
+     "detail": "tscale 决定时间方向用什么算法重采样，不写就用默认 oversample（最清晰、也最容易抖）。",
+     "fix": "可以试试 catmull_rom 或 mitchell，比默认更平滑。",
+     "keys": [
+      "interpolation",
+      "tscale"
+     ]
+    },
+    {
+     "id": "sharpen_not_last",
+     "level": "info",
+     "title": "锐化 shader 不在链尾",
+     "detail": "锐化类 shader（Adaptive_sharpen / CAS / SGEDS）放在中间，后面的 shader 会把它刚锐化出来的边缘再处理一遍，通常不是想要的效果。",
+     "fix": "用 ↑↓ 把锐化挪到链尾。",
+     "keys": []
+    }
+   ],
+   "issues": [
+    [
+     "error",
+     "interpolation=yes 但 video-sync 不是 display- 模式 → 把 video-sync 设成 display-resample（或 display-resample-vdrop）。"
+    ],
+    [
+     "warn",
+     "deband 开着，但 deband-iterations=0 → 改成 1~4；一般 2 就够。"
+    ],
+    [
+     "warn",
+     "shader 链里有多个超分家族 → 选一个家族就够了（通用向 FSRCNNX/RAVU，动画向 Anime4K/ArtCNN）。"
+    ],
+    [
+     "warn",
+     "vo=gpu 下用了 1 个 gpu-next 独占选项 → 要么把 vo 换成 gpu-next，要么删掉这些项。"
+    ],
+    [
+     "warn",
+     "icc-profile-auto 与 icc-profile 同时设置 → 二选一。"
+    ],
+    [
+     "warn",
+     "icc-profile 与 target-* 同时设置 → 用 ICC 校色的话就把 target-prim / target-trc / target-gamut 删掉。"
+    ],
+    [
+     "warn",
+     "内置插值和外挂补帧脚本同时开着 → 二选一：要么关掉 interpolation，要么不挂补帧脚本。"
+    ],
+    [
+     "warn",
+     "sigmoid-upscaling 与 linear-upscaling 同时开启 → 把 linear-upscaling 关掉（或者设成 no），只留 sigmoid-upscaling。"
+    ],
+    [
+     "info",
+     "cache=no 却设了 demuxer-max-bytes → 要么把 cache 打开，要么删掉 demuxer-max-bytes。"
+    ],
+    [
+     "info",
+     "tone-mapping=hable 建议配合 hdr-compute-peak → 开 hdr-compute-peak=yes（或 auto）。"
+    ],
+    [
+     "info",
+     "开了插值但没指定 tscale → 可以试试 catmull_rom 或 mitchell，比默认更平滑。"
+    ],
+    [
+     "info",
+     "锐化 shader 不在链尾 → 用 ↑↓ 把锐化挪到链尾。"
+    ]
+   ],
+   "keys": [
+    "cache",
+    "deband",
+    "deband-iterations",
+    "demuxer-max-bytes",
+    "gamut-mapping-mode",
+    "hdr-compute-peak",
+    "icc-profile",
+    "icc-profile-auto",
+    "interpolation",
+    "linear-upscaling",
+    "sigmoid-upscaling",
+    "target-prim",
+    "tone-mapping",
+    "tscale",
+    "vf",
+    "video-sync",
+    "vo"
+   ]
+  },
+  {
+   "name": "error_outranks_warn",
+   "values": {
+    "interpolation": "yes",
+    "sigmoid-upscaling": "yes",
+    "linear-upscaling": "yes",
+    "video-sync": "audio"
+   },
+   "shaders": [],
+   "memc": "",
+   "conflicts": [
+    {
+     "id": "interp_needs_sync",
+     "level": "error",
+     "title": "interpolation=yes 但 video-sync 不是 display- 模式",
+     "detail": "手册原文：这需要把 video-sync 设为 display- 模式之一，否则插值会被静默禁用 —— 你看到的就是「开了但没效果」。",
+     "fix": "把 video-sync 设成 display-resample（或 display-resample-vdrop）。",
+     "keys": [
+      "interpolation",
+      "video-sync"
+     ]
+    },
+    {
+     "id": "sigmoid_vs_linear",
+     "level": "warn",
+     "title": "sigmoid-upscaling 与 linear-upscaling 同时开启",
+     "detail": "手册明确写着这两个不兼容，sigmoid 会取代 linear —— 也就是说 linear-upscaling 白设了。",
+     "fix": "把 linear-upscaling 关掉（或者设成 no），只留 sigmoid-upscaling。",
+     "keys": [
+      "sigmoid-upscaling",
+      "linear-upscaling"
+     ]
+    },
+    {
+     "id": "interp_no_tscale",
+     "level": "info",
+     "title": "开了插值但没指定 tscale",
+     "detail": "tscale 决定时间方向用什么算法重采样，不写就用默认 oversample（最清晰、也最容易抖）。",
+     "fix": "可以试试 catmull_rom 或 mitchell，比默认更平滑。",
+     "keys": [
+      "interpolation",
+      "tscale"
+     ]
+    }
+   ],
+   "issues": [
+    [
+     "error",
+     "interpolation=yes 但 video-sync 不是 display- 模式 → 把 video-sync 设成 display-resample（或 display-resample-vdrop）。"
+    ],
+    [
+     "warn",
+     "sigmoid-upscaling 与 linear-upscaling 同时开启 → 把 linear-upscaling 关掉（或者设成 no），只留 sigmoid-upscaling。"
+    ],
+    [
+     "info",
+     "开了插值但没指定 tscale → 可以试试 catmull_rom 或 mitchell，比默认更平滑。"
+    ]
+   ],
+   "keys": [
+    "interpolation",
+    "linear-upscaling",
+    "sigmoid-upscaling",
+    "tscale",
+    "video-sync"
+   ]
+  }
+ ]
+}
