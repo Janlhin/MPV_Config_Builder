@@ -147,7 +147,9 @@ class OtherModulesUsePathsTest(unittest.TestCase):
             importlib.reload(options_db)
 
     def test_tkinter_uses_doc_path(self):
-        src = self._src("mpv_config_builder.py")
+        # 旧界面 2026-09-14 挪进了 legacy/；这条检查的本意没变
+        # （它必须走 doc_path 而不是用 __file__ 推路径，否则打包后打不开说明书）
+        src = self._src("legacy/mpv_config_builder.py")
         self.assertIn("from core.paths import doc_path", src)
         self.assertIn("doc_path(", src)
         self.assertNotIn('with_name("MPV_Shader', src,

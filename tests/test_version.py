@@ -15,6 +15,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+# 旧界面 2026-09-14 从仓库根挪进了 legacy/。
+# 这些测试盯着的是**两个界面都别各自手写标题/版本**，所以文件挪了也得继续盯 ——
+# 挪完不修，它们会从"检查通过"变成"文件找不到"然后直接报错。
+TK = ROOT / "legacy" / "mpv_config_builder.py"
+
 from core import schema                                                      # noqa: E402
 
 
@@ -39,7 +44,7 @@ class VersionSourceTest(unittest.TestCase):
     def test_no_hardcoded_title_left(self):
         """源码里不该再手写完整的 "MPV Config Builder 2.0"。"""
         for f in list((ROOT / "core").glob("*.py")) + [
-                ROOT / "webui" / "server.py", ROOT / "mpv_config_builder.py"]:
+                ROOT / "webui" / "server.py", TK]:
             src = f.read_text(encoding="utf-8")
             for i, line in enumerate(src.splitlines(), 1):
                 if line.lstrip().startswith("#"):
@@ -48,7 +53,7 @@ class VersionSourceTest(unittest.TestCase):
                                  f"{f.name}:{i} 还在手写标题")
 
     def test_tkinter_uses_schema_constants(self):
-        src = (ROOT / "mpv_config_builder.py").read_text(encoding="utf-8")
+        src = TK.read_text(encoding="utf-8")
         self.assertIn("FULL_TITLE", src)
         self.assertIn("APP_VERSION", src)
         self.assertIn("VERSION", src)
@@ -82,7 +87,7 @@ class DpiHelperTest(unittest.TestCase):
     def setUp(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location(
-            "mcb_dpi", ROOT / "mpv_config_builder.py")
+            "mcb_dpi", TK)
         self.m = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.m)
 
@@ -97,7 +102,7 @@ class DpiHelperTest(unittest.TestCase):
 
     def test_dpi_declared_before_window(self):
         """DPI 声明必须在 super().__init__() 之前 —— 建完窗口再声明就晚了。"""
-        src = (ROOT / "mpv_config_builder.py").read_text(encoding="utf-8")
+        src = TK.read_text(encoding="utf-8")
         start = src.index("class App(tk.Tk):")
         head = src[start:start + 900]
         i_dpi = head.index("enable_dpi_awareness()")

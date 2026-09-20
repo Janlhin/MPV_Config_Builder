@@ -65,9 +65,20 @@ desktop.ini
 # ⚠ 但这两个是**项目文件**，不是临时脚本 —— 必须显式放回来
 !_mpv_options_raw.txt
 !LICENSE
-# git commit -F 用的提交信息临时文件（PowerShell 没有 heredoc，只能落盘）。
-# ⚠ 教训：第一次只写了 /commit_msg.txt，结果换个名字（cmsg.txt）又被提交进来一次。
-# 所以这里改成按语义通配，而不是钉死某一个文件名。
+
+# git commit -F 用的提交信息临时文件。
+#
+# ⚠⚠ 这里连着踩了三次：commit_msg.txt → cmsg.txt → c.txt，
+# 每次都是"写个文件传给 -F，忘了删就被提交进来"。而 `c.txt` 这种短名字
+# 根本没法用通配去忽略（会误伤正常文件）。
+#
+# **真正的修法是别把提交信息写进仓库** —— 写到 %TEMP% 去：
+#     $msg = Join-Path $env:TEMP "mpvcb-commit.txt"
+#     git commit -F $msg
+# 下面这几条只是给"万一又忘了"兜底。
 /*msg*.txt
 /commitmsg*.txt
 /commit_message*.txt
+/commit.txt
+/c.txt
+/gitmsg*.txt

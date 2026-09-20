@@ -3,6 +3,7 @@ import os
 import queue
 import re
 import shutil
+import sys
 import threading
 import tkinter as tk
 import urllib.error
@@ -12,7 +13,22 @@ from datetime import datetime
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 
-from core.paths import doc_path, is_frozen, writable_root
+# ---- 让 `core` 找得到（这个文件住在 legacy/，而 core/ 在仓库根）----
+#
+# 2026-09-14 把旧界面从仓库根挪进了 `legacy/`。挪完它 import 不到 `core` 了 ——
+# 以前能跑只是因为启动器 `cd` 到了仓库根，靠"当前工作目录"碰巧在 sys.path 上。
+# 这种依赖是隐式的，换个启动方式就断，所以这里把它写明。
+#
+# 三种运行形态都认：
+#   · 源码：legacy/mpv_config_builder.py → 退一级就是仓库根
+#   · 打包：数据在 sys._MEIPASS（PyInstaller 解包目录）
+#   · 被别处以包的形式导入：仓库根已经在 sys.path 上，插了也无害
+if not getattr(sys, "frozen", False):
+    _ROOT = Path(__file__).resolve().parent.parent
+    if str(_ROOT) not in sys.path:
+        sys.path.insert(0, str(_ROOT))
+
+from core.paths import doc_path, is_frozen, writable_root      # noqa: E402
 from core.schema import (
     APP_TITLE,
     APP_VERSION,

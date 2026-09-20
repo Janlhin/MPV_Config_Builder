@@ -87,7 +87,7 @@ def check_compile(r):
         ok = compileall.compile_dir(str(ROOT / "webui"), quiet=2) and ok
         ok = compileall.compile_dir(str(ROOT / "tests"), quiet=2) and ok
         ok = compileall.compile_dir(str(ROOT / "tools"), quiet=2) and ok
-        ok = compileall.compile_file(str(ROOT / "mpv_config_builder.py"), quiet=2) and ok
+        ok = compileall.compile_file(str(ROOT / "legacy" / "mpv_config_builder.py"), quiet=2) and ok
     finally:
         sys.stdout = old
     r.add("源码可编译", bool(ok), buf.getvalue().strip()[:120])
@@ -151,7 +151,7 @@ def check_license_content(r):
 def check_absolute_paths(r):
     hits = []
     for f in list((ROOT / "core").glob("*.py")) + [
-            ROOT / "webui" / "server.py", ROOT / "mpv_config_builder.py"]:
+            ROOT / "webui" / "server.py", ROOT / "legacy" / "mpv_config_builder.py"]:
         for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
             if line.lstrip().startswith("#"):
                 continue

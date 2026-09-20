@@ -10,8 +10,9 @@ MPV Config Builder 2.0
       零依赖：Python 标准库起本地服务，用 Edge/Chrome 的 --app 模式开独立窗口
       界面文件在 webui\static\，改 style.css 就能换观感
 
-  【旧版界面 · Tkinter】双击  启动.bat
-      或：py -3 mpv_config_builder.py
+  【旧版界面 · Tkinter】双击  legacy\启动.bat
+      或：py -3 legacy\mpv_config_builder.py
+      已定「保留但不维护」，所以挪进了 legacy\ —— 见 legacy\README.md
 
   依赖：Python 3.8+（Windows 自带 py 启动器即可）。核心逻辑只用标准库，无第三方依赖。
   注意：必须保持 core\ 目录与程序在一起。
@@ -102,7 +103,6 @@ MPV Config Builder 2.0
 ────────────────────────────────────────
 目录结构
 ────────────────────────────────────────
-  mpv_config_builder.py   旧界面（Tkinter，功能最全）
   webui\                  新界面
       server.py           只用标准库的本地服务 + JSON API（39 个接口）
                           加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Electron 用）
@@ -112,7 +112,7 @@ MPV Config Builder 2.0
       static\             index / basic / advanced / expert / analyze / keys
                           / downloads / guide / hell（9 个页面）
                           + style.css + api.js + state.js
-  core\                   核心逻辑，与界面无关（两个界面共用，24 个模块）
+  core\                   核心逻辑，与界面无关（两个界面共用，25 个模块）
       schema.py           参数表 / shader·vpy 清单 / 原生选项 / 路径辅助
                           / 选项格式化（写盘唯一入口）
       options_db.py       全量选项库的读取与搜索（813 项可写进配置）
@@ -170,6 +170,9 @@ MPV Config Builder 2.0
       renderer\           构建期复制产物，**不要手改、不入库**
       用法：cd electron && npm install && npm run dist
   tests\                  单元测试（650 项，含接口端到端与真实脚本测试）
+  legacy\                 旧界面（Tkinter）。保留但不维护，见 legacy\README.md
+      mpv_config_builder.py   主程序（要 import core\，所以启动器会先回仓库根）
+      启动.bat                旧版启动器
   specs\                  先写规格再动手的 spec（每份都带验收记录）
   LICENSE                 许可：GPL-3.0 全文
   NOTICE.txt              第三方内容的来源与许可（分发安装包时要一并带上）
