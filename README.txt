@@ -173,7 +173,8 @@ MPV Config Builder 2.0
   legacy\                 旧界面（Tkinter）。保留但不维护，见 legacy\README.md
       mpv_config_builder.py   主程序（要 import core\，所以启动器会先回仓库根）
       启动.bat                旧版启动器
-  specs\                  先写规格再动手的 spec（每份都带验收记录）
+  docs\                   实测出来的结论（踩过的坑）—— 想知道「为什么这么做」看这份
+      （开发过程的台账与 spec 已清理，需要时从 git 历史取）
   LICENSE                 许可：GPL-3.0 全文
   NOTICE.txt              第三方内容的来源与许可（分发安装包时要一并带上）
   _archive\               不再参与运行的历史文件（见其 README.md）
@@ -188,23 +189,46 @@ MPV Config Builder 2.0
   ⚠ tests\__init__.py 是 0 字节但**必须留着**，删了测试跑不起来
 
 ────────────────────────────────────────
+打包发布（顺序不能颠倒）
+────────────────────────────────────────
+  ① 打后端（Electron 要把它塞进 resources\backend\）
+         py -3 -m PyInstaller packaging\backend.spec
+         py -3 tools\check_pack.py            # 验产物真的能用（21 项）
+
+  ② 打 Electron 应用 + 安装器
+         cd electron
+         npm install                          # 第一次要下 Electron 二进制（几百 MB）
+         npm run dist                         # 产出 release\MPV Config Builder-<版本>-Setup.exe
+         cd ..
+         py -3 tools\check_electron.py        # 开发形态（19 项）
+         py -3 tools\check_electron_packaged.py   # 打包形态（13 项）
+
+  普通用户拿到安装包双击就行 —— **不需要装 Python**（后端 exe 自带解释器）。
+
+  已知限制：
+    · 安装包约 97 MB（Electron 本身占大头）
+    · **没有代码签名** → Windows SmartScreen 会拦一次（"更多信息 → 仍要运行"）
+    · 只支持 Windows
+    · 安装器很重，所以仓库里不含 node_modules / release（都是产物，随时重生成）
+
+────────────────────────────────────────
 文档
 ────────────────────────────────────────
-  已完成清单.md              **只写做完并且验证过的东西**（核心模块 / 界面 / 数据 /
-                             测试与实测结论）—— 想知道某功能到底有没有，看这份
-  产品规划与路线图.md        **只写还没做的**（待做项 / 里程碑 / 待决策 / 未来方向：
-                             PyQt6、英文版、许可）—— 想知道还剩什么，看这份
-  问题清单与修复计划.md      发现过的问题（P0~P3，状态已刷新）+ F-1~F-18 修复记录
-  入门指南.md                第一次改配置该看这个：mpv.conf 放哪儿 / 语法 5 条 /
-                             改完怎么确认生效 / 改坏了三条退路 / 新手 8 个坑
-  MPV_Shader搭配说明书.md    最锐利画面组合 / 最强大补帧排序（通俗版）
-  致谢与许可.md              致谢、免责声明、合规说明
-  制作与发布文档.md          打包、安装器、发布流程
-  MPV_实机配置分析报告.md    几套实机配置的差异分析
-  mpv1配置分析报告.md        单份配置的分析报告
+  README.md                  给 GitHub 首页看的简介
+  docs\踩过的坑.md           实测出来的结论（mpv 行为 / mpv-lazy / 验证方法）
+                             —— 想知道"为什么这么做"，看这份
 
-  上面几份在界面里也能直接看：入口页 →「入门指南 / Shader 说明书 / 致谢与许可」，
-  或打开 webui\static\guide.html（文档是在线渲染仓库里的 md，只有一个来源）
+  界面里能直接读的三份（guide.html 在线渲染，只有一个来源）：
+    入门指南.md               第一次改配置该看这个：mpv.conf 放哪儿 / 语法 5 条 /
+                              改完怎么确认生效 / 改坏了三条退路 / 新手 8 个坑
+    MPV_Shader搭配说明书.md   最锐利画面组合 / 最强大补帧排序（通俗版）
+    致谢与许可.md             致谢、免责声明、合规说明
+  产品规划与路线图.md         还剩什么没做（界面里也能读）
+    或打开 webui\static\guide.html
+
+  ⚠ 开发过程的台账（已完成清单 / 问题清单 / specs\ 等）已清理 ——
+    它们在 git 历史里，需要时用 `git show <commit>:<文件名>` 取。
+    留下的结论都收进了 docs\踩过的坑.md。
 
 ────────────────────────────────────────
 致谢（完整版见 致谢与许可.md）

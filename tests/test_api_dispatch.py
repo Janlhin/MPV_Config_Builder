@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """`webui/api.py` 的 dispatch 直测 —— 不起服务、不开端口。
 
-对应 spec：`specs/transport-dispatch.md`（每条测试标了它覆盖哪个 AC）。
+对应的设计记录在 git 历史里（`git show <commit>:specs/transport-dispatch.md`）——
+开发文档已清理，只留源码与用户文档。
 
 ## 为什么值得单独测
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""stdio 传输测试（specs/stdio-transport.md 的 AC-1 ~ AC-12）。
+"""stdio 传输测试（原 specs/stdio-transport.md 的 AC-1 ~ AC-12）。
 
 分两层：
   * 纯函数层：`handle_line(str) -> dict|None`，喂字符串拿字符串，不起进程（FR-13）；

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """W-2：用户数据必须落到 `%LOCALAPPDATA%`，**不许往安装目录写**。
 
-对应 spec：`specs/w2-user-data-dir.md`（每条测试标了它覆盖哪个 AC）。
+对应的设计记录在 git 历史里（`git show <commit>:specs/w2-user-data-dir.md`）。
 
 ## 这个 bug 为什么值得单独一组测试
 

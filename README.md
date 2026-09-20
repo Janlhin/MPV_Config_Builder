@@ -17,14 +17,21 @@
 | | 常见的一键配置工具 | 本项目 |
 |---|---|---|
 | 覆盖的选项 | 几十个（同类工具最多 74 个） | **813 个**（全量库） |
-| 界面 | Windows 桌面程序，要装运行时 | **浏览器**，零第三方依赖 |
 | 冲突检测 | 没有 | **17 条规则**，每条注明手册原文 |
 | 选项说明 | 没有或靠联网查 | **726 条中文说明**内嵌 |
 | 会不会写出已废弃的选项 | 会 | 读取时**滤掉** 16 条命令行专用项，并标出 deprecated |
 
-## 快速开始
+## 怎么用
 
-需要 **Python 3.8+**（只用标准库，不需要 `pip install` 任何东西）。
+### 普通用户：装桌面版（不需要 Python）
+
+从 Releases 下载 `MPV Config Builder-<版本>-Setup.exe`，双击安装即可。
+装完桌面会出现图标，双击就能用 —— **本机不需要装 Python**。
+
+> ⚠ 安装包**没有代码签名**，Windows 会拦一次 SmartScreen 提示：
+> 点「更多信息」→「仍要运行」。
+
+### 从源码跑（需要 Python 3.8+，只用标准库，不用 `pip install`）
 
 ```bat
 双击  启动(新版界面).bat
@@ -41,6 +48,8 @@ py -3 webui\server.py
 
 另外还有**配置体检**：拖入一份 mpv.conf，报告编码 / include 链 / profile /
 未知项 / 重复项 / 冲突 / 六维评分。
+
+> 旧的 Tkinter 界面在 `legacy/`（保留但不维护，见 `legacy/README.md`）。
 
 ## 功能
 
@@ -70,31 +79,40 @@ py -3 webui\server.py
 
 ```bat
 py -m unittest discover -s tests -t .
-py -X utf8 tools\preflight.py        :: 发布前自检（7 项）
+py -X utf8 tools\preflight.py        :: 发布前自检
 ```
 
-`preflight` 会一次跑完：单元测试、源码可编译、文档数字与实测一致、
-发行必带文件、许可文件内容、无机器专用路径、下载清单链接可访问。
+`preflight` 一次跑完：单元测试、源码可编译、文档数字与实测一致、发行必带文件、
+许可文件内容、无机器专用路径、下载清单链接可访问、顶栏常驻入口（真浏览器）、
+Electron 外壳与打包形态（装了 `electron/node_modules` 才跑）。
 
-界面相关的两处要真机验证（需要本机有 Edge/Chrome）：
+界面相关的实机验证（需要本机有 Edge/Chrome，脚本会自己起后端）：
 
 ```bat
-py -3 webui\server.py --port 8765 --no-window    :: 另开一个窗口
-py -3 tools\check_ui.py                          :: 候选值下拉
-py -3 tools\check_presets.py                     :: 用户预设
+py -3 tools\check_topnav.py        :: 9 个页面的顶栏入口
+py -3 tools\check_stdio_ui.py      :: 9 个页面跑在 stdio 通道上
+py -3 tools\check_electron.py      :: Electron 开发形态
 ```
 
 ## 目录结构
 
 ```
-core/          与界面无关的逻辑（25 个模块）
-webui/         界面
+core/          与界面无关的逻辑（25 个模块，两个界面共用）
+webui/         网页界面
   server.py      本地服务 + JSON API（39 个接口，只用标准库）
-  api.py         与传输无关的分发层（可换 stdio，见 specs/）
+               加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Electron 用）
+  api.py         与传输无关的分发层（HTTP 与 stdio 共用）
+  stdio.py       stdio 传输：stdout 只走协议，日志一律 stderr
   static/        9 个页面
+electron/      Electron 桌面外壳（安装器从这里出）
+  main.js        spawn 后端走 stdio、退出杀子进程、单实例、CSP
+  preload.js     唯一的桥，只暴露 __MPVCB_INVOKE__
+  renderer/      构建期从 webui/static 复制（不入库）
+packaging/     PyInstaller 配方（把后端打成独立 exe）
+legacy/        旧 Tkinter 界面（保留但不维护）
 tests/         单元测试
 tools/         构建选项库 / 文档数字守门人 / 发布前自检 / 实机验证
-specs/         先写规格再动手的 spec（每份带验收记录）
+docs/          实测出来的结论（踩过的坑）
 data/          内置数据（选项库 / 键位 / 命令）
 _reference/    调研笔记（同类项目调查、竞品评估）
 _archive/      不再参与运行的历史文件
