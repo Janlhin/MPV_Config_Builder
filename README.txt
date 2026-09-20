@@ -5,7 +5,7 @@ MPV Config Builder 2.0
 ────────────────────────────────────────
 运行
 ────────────────────────────────────────
-  【新版界面 · HTML】双击  启动(新版界面).bat
+  【新版界面 · HTML】双击  启动.bat
       或：py -3 webui\server.py
       零依赖：Python 标准库起本地服务，用 Edge/Chrome 的 --app 模式开独立窗口
       界面文件在 webui\static\，改 style.css 就能换观感
