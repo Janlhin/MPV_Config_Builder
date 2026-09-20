@@ -60,7 +60,8 @@ function currentDoc() {
 async function load(doc) {
   const box = document.getElementById('doc');
   box.innerHTML = '<p class="note">正在读取…</p>';
-  const r = await fetch('/api/guide?doc=' + encodeURIComponent(doc)).then(x => x.json())
+  // ⚠ 走 API.guide，不要直接 fetch —— 直连在 Electron 的 stdio 通道下不通
+  const r = await API.guide(doc)
     .catch(() => ({ ok: false, detail: '读取失败' }));
   const toc = document.getElementById('toc');
   if (r.docs && toc) {

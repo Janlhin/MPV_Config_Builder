@@ -381,10 +381,10 @@ async function loadDb(reset) {
   if (reset) { DB.offset = 0; DB.items = []; }
   const stat = document.getElementById('dbStat');
   if (stat) stat.textContent = '正在读取选项库…';
-  const qs = new URLSearchParams({
-    q: DB.q, group: DB.group, offset: String(DB.offset), limit: String(DB.limit)
-  });
-  const r = await fetch('/api/db/options?' + qs).then(x => x.json()).catch(() => ({ ok: false }));
+  // ⚠ 走 API.dbOptions，不要直接 fetch —— 直连在 Electron 的 stdio 通道下不通
+  const r = await API.dbOptions({
+    q: DB.q, group: DB.group, offset: DB.offset, limit: DB.limit
+  }).catch(() => ({ ok: false }));
   DB.loading = false;
   const host = document.getElementById('listHost');
   if (!host) return;

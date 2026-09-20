@@ -152,8 +152,10 @@ MPV Config Builder 2.0
       gen_conflicts_golden.py 重新生成冲突检测的行为快照基准（改规则后才跑）
       check_ui.py         实机验证候选值下拉（要本机有 Edge/Chrome，另开服务）
       check_topnav.py     实机验证 9 个页面的顶栏常驻入口（同上，会自动起后端）
+      check_stdio_ui.py   实机验证 9 个页面能跑在 stdio 通道上（同上；
+                          会拦截 fetch 记账，任何漏到 HTTP 的 API 调用都算失败）
       preflight.py        发布前自检（测试/编译/文档/必带文件/许可/下载链接/顶栏）
-  tests\                  单元测试（645 项，含接口端到端与真实脚本测试）
+  tests\                  单元测试（648 项，含接口端到端与真实脚本测试）
   specs\                  先写规格再动手的 spec（每份都带验收记录）
   LICENSE                 许可：GPL-3.0 全文
   NOTICE.txt              第三方内容的来源与许可（分发安装包时要一并带上）

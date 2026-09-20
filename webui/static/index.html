@@ -144,7 +144,8 @@ async function boot() {
     if (t) document.documentElement.dataset.theme = t;
   } catch (e) {}
   try {
-    const r = await fetch('/api/status').then(x => x.json());
+    // ⚠ 走 API.status，不要直接 fetch —— 直连在 Electron 的 stdio 通道下不通
+    const r = await API.status();
     document.getElementById('ver').textContent = 'v' + r.version;
     const t = document.getElementById('targetLabel');
     if (r.lazy_pc) { t.textContent = shortPath(r.lazy_pc); t.title = r.lazy_pc; }

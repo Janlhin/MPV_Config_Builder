@@ -1,21 +1,93 @@
 /* MPV Config Builder · 前端与 Python 后端的桥
-   所有真实逻辑都在 Python 的 core/ 里，这里只负责发请求与渲染。 */
+   所有真实逻辑都在 Python 的 core/ 里，这里只负责发请求与渲染。
+
+   ---------- 两种传输，界面无感（W-4 第②③步）----------
+
+   HTTP     浏览器里直接开页面用（开发 / 调试 / 实机测试脚本）。
+   stdio    Electron 里用：外壳 spawn 后端，一行一条 JSON 走管道，**不开端口**。
+
+   切换点在 `invoke()`：只要 `window.__MPVCB_INVOKE__` 存在就走 stdio，否则 fetch。
+   这个全局由 Electron 的 preload 注入 —— **页面自己不知道跑在哪种传输下**，
+   也不需要知道。所以下面 39 个方法一个都不用改。
+
+   ⚠ 两种传输的**错误形状必须一致**：
+   后端 HTTP 模式回 `{ok:false, detail:"..."}`，stdio 协议回 `{ok:false, error:"..."}`。
+   页面里 64 处都在读 `r.detail`，所以 invoke() 负责把 `error` 映射成 `detail`
+   —— 否则 Electron 下每个报错都会显示成 undefined。 */
+
+/** 有没有 Electron 给的调用通道。没有就是普通浏览器。 */
+function hasInvoke() {
+  return typeof window !== 'undefined'
+    && typeof window.__MPVCB_INVOKE__ === 'function';
+}
+
+/** 把 `/api/download/job?id=3&x=1` 拆成 {path, query}。
+    三种传输（HTTP / stdio）都要用同一套拆法，所以只写一处。 */
+function splitUrl(url) {
+  const s = String(url || '');
+  const i = s.indexOf('?');
+  if (i < 0) return { path: s, query: {} };
+  const query = {};
+  for (const piece of s.slice(i + 1).split('&')) {
+    if (!piece) continue;
+    const eq = piece.indexOf('=');
+    const k = decodeURIComponent(eq < 0 ? piece : piece.slice(0, eq));
+    // ⚠ 同名参数取**第一个**（与后端 parse_qs 的用法一致），不是最后一个
+    if (k in query) continue;
+    const v = eq < 0 ? '' : piece.slice(eq + 1);
+    query[k] = decodeURIComponent(v.replace(/\+/g, ' '));
+  }
+  return { path: s.slice(0, i), query };
+}
+
+/** 走 stdio 通道发一条请求，返回跟 HTTP 一模一样的形状。 */
+async function invokeVia(method, url, body) {
+  const { path, query } = splitUrl(url);
+  let res;
+  try {
+    res = await window.__MPVCB_INVOKE__({
+      path: path.replace(/^\/api\//, ''),   // 协议用领域名，不带 /api 前缀
+      method,
+      query,
+      body
+    });
+  } catch (e) {
+    // 通道本身坏了（后端进程死了、管道断了）—— 也得给页面一个能显示的错
+    return { ok: false, detail: '后端连接中断：' + (e && e.message ? e.message : e) };
+  }
+  if (!res || typeof res !== 'object') {
+    return { ok: false, detail: '后端返回了无法识别的响应' };
+  }
+  if (res.ok) return res.data;
+  // 形状对齐：协议给的是 error，页面读的是 detail
+  return { ok: false, detail: res.error || '未知错误' };
+}
 
 const API = {
-  async get(path) {
-    const r = await fetch(path);
+  /** 发一条请求。这是唯一的出口 —— 39 个方法全部经过它。 */
+  async invoke(method, url, body) {
+    if (hasInvoke()) return invokeVia(method, url, body);
+    const r = method === 'POST'
+      ? await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body || {})
+        })
+      : await fetch(url);
     return r.json();
   },
+  async get(path) {
+    return API.invoke('GET', path);
+  },
   async post(path, body) {
-    const r = await fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body || {})
-    });
-    return r.json();
+    return API.invoke('POST', path, body);
   },
   status: () => API.get('/api/status'),
   presets: () => API.get('/api/presets'),
+  // 全量选项库的分页查询（expert 页的搜索/翻页）
+  dbOptions: (p) => API.get('/api/db/options?' + new URLSearchParams(p || {}).toString()),
+  // 在线渲染仓库里的文档（guide 页）
+  guide: (doc) => API.get('/api/guide?doc=' + encodeURIComponent(doc || '')),
   // 用户自己的预设（磁盘上存的）—— 和上面那 6 套内置的不是一回事
   userPresets: () => API.get('/api/userpresets'),
   userPresetSave: (b) => API.post('/api/presets/save', b),
