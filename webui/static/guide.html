@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>文档 · MPV Config Builder</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .doc { max-width: 900px; margin: 0 auto; }
+  .doc h1 { font-size: 24px; margin: 6px 0 14px; }
+  .doc h2 { font-size: 19px; margin: 28px 0 10px; padding-top: 6px; border-top: 1px solid var(--border); }
+  .doc h3 { font-size: 16px; margin: 20px 0 8px; }
+  .doc h4 { font-size: 14px; margin: 16px 0 6px; color: var(--muted); }
+  .doc p, .doc li { line-height: 1.75; }
+  .doc code {
+    background: var(--panel-2); border-radius: 5px; padding: 1px 5px;
+    font: 12.5px Consolas, monospace; color: var(--accent);
+  }
+  .doc pre {
+    background: var(--bg-soft); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; overflow: auto;
+  }
+  .doc pre code { background: none; padding: 0; color: var(--text); font-size: 12.5px; line-height: 1.7; }
+  .doc table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13px; }
+  .doc th, .doc td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
+  .doc th { background: var(--panel-2); }
+  .doc blockquote {
+    margin: 12px 0; padding: 10px 14px; border-left: 3px solid var(--accent);
+    background: var(--panel-2); border-radius: 0 10px 10px 0; color: var(--muted);
+  }
+  .doc hr { border: 0; border-top: 1px solid var(--border); margin: 22px 0; }
+  .doc ul, .doc ol { padding-left: 22px; }
+  .doc a { color: var(--accent); }
+  .toc { display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">📖 文档 <small id="docTitle"></small></div>
+  <div class="spacer"></div>
+  <a class="btn small" href="index.html">🔀 切换模式</a>
+  <a class="btn small" href="analyze.html">🩺 配置体检</a>
+  <button class="btn small" data-theme-toggle>🌓</button>
+</div>
+
+<div class="content">
+  <div class="toc" id="toc" style="max-width:900px;margin:0 auto 12px"></div>
+  <div class="card doc" id="doc">（正在读取…）</div>
+</div>
+
+<script src="api.js"></script>
+<script>
+const DOC_ICONS = { guide: '🧭', shaders: '✨', thanks: '🙏', roadmap: '🗺️' };
+const DOC_LABELS = { guide: '入门指南', shaders: 'Shader 搭配说明书', thanks: '致谢与许可', roadmap: '产品规划与路线图' };
+
+function currentDoc() {
+  const q = new URLSearchParams(location.search).get('doc');
+  return q || 'guide';
+}
+
+async function load(doc) {
+  const box = document.getElementById('doc');
+  box.innerHTML = '<p class="note">正在读取…</p>';
+  const r = await fetch('/api/guide?doc=' + encodeURIComponent(doc)).then(x => x.json())
+    .catch(() => ({ ok: false, detail: '读取失败' }));
+  const toc = document.getElementById('toc');
+  if (r.docs && toc) {
+    toc.innerHTML = r.docs.map(d =>
+      `<a class="btn small${d.id === doc ? ' primary' : ''}" href="?doc=${d.id}">
+        ${DOC_ICONS[d.id] || '📄'} ${DOC_LABELS[d.id] || d.name}</a>`).join('');
+  }
+  if (!r.ok) { box.innerHTML = `<p class="note danger">❌ ${esc(r.detail)}</p>`; return; }
+  document.getElementById('docTitle').textContent = r.file;
+  box.innerHTML = r.html;
+  box.querySelectorAll('a[href^="http"]').forEach(a => { a.target = '_blank'; });
+}
+
+load(currentDoc());
+</script>
+</body>
+</html>

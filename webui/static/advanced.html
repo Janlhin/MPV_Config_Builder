@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>进阶模式 · MPV Config Builder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">🎛️ 进阶模式 <small id="ver"></small></div>
+  <div class="target">目标：<code id="targetLabel">未设置</code>
+    <button class="btn small ghost" id="pickDir">更改</button></div>
+  <div class="spacer"></div>
+  <a class="btn small" href="index.html">🔀 切换模式</a>
+  <button class="btn small" id="loadTop">📂 读取现有配置</button>
+  <button class="btn small primary" id="applyTop" data-primary data-primary-icon="✅">✅ 生成配置</button>
+  <button class="btn small" data-theme-toggle>🌓</button>
+</div>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar"></nav>
+  <main class="content">
+    <div class="card tight" style="margin-bottom:12px">
+      <div class="seg" id="modeSeg" style="display:inline-flex">
+        <button data-mode="create">🆕 从零创建</button>
+        <button data-mode="edit">✏️ 改现有配置</button>
+      </div>
+      <p class="note" id="modeHint" style="margin-top:8px"></p>
+    </div>
+    <div class="cols">
+      <div>
+        <h1 id="secTitle">🚀 快速预设</h1>
+        <p class="sub" id="secSub">选一套现成的，再逐项微调</p>
+        <div id="panes"></div>
+      </div>
+
+      <div>
+        <div class="card" id="previewCard">
+          <h2>📋 <span id="previewTitle">实时生成的 mpv.conf</span></h2>
+          <div class="dirbar" id="profileBar" style="display:none">
+            <span class="note">这份文件里有 <b id="profileCount">0</b> 个 profile（只在条件满足时生效）：</span>
+            <select id="profileSel" style="flex:1"></select>
+            <button class="btn small" id="profileLoad">载入它的选项</button>
+          </div>
+          <pre class="conf" id="preview">（正在加载…）</pre>
+          <div id="diffBox" style="display:none"></div>
+          <div class="actions">
+            <button class="btn primary" onclick="applyConfig()" data-primary data-primary-icon="✅">✅ 生成配置</button>
+            <button class="btn" onclick="copyConf()">📋 复制</button>
+            <button class="btn" onclick="saveAs()">💾 另存为</button>
+            <button class="btn" id="diffToggle" style="display:none">🔀 逐行对比</button>
+          </div>
+          <p class="note" style="margin-top:10px">
+            改动 <b id="changeCount">0</b> 处 · 写入 <code id="previewFile">—</code><br>
+            写前自动备份；<span id="previewMode">独立 include 文件（想卸载删文件即可）</span>
+            <span id="encodingHint" class="muted"></span></p>
+          <p class="note" style="margin-top:4px" id="pendingHint"></p>
+          <p class="note" style="margin-top:4px" id="chainHint"></p>
+        </div>
+
+        <div class="card tight">
+          <h2>📊 评估与体检</h2>
+          <div id="scoreBox" class="muted">（等配置出来再算）</div>
+          <div id="issueBox" style="margin-top:8px"><p class="note">—</p></div>
+        </div>
+
+        <div class="card tight">
+          <h2>📤 写入方式</h2>
+          <div class="seg" id="writeSeg">
+            <button data-v="include" class="on">🧩 独立文件</button>
+            <button data-v="merge">📄 合并进 mpv.conf</button>
+          </div>
+          <p class="note" style="margin-top:8px" id="writeHint">
+            生成 <code>mpv-builder.conf</code>，并在主配置里加一行 include。</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<aside class="drawer" id="drawer">
+  <h3>说明 <span class="key"></span></h3>
+  <div class="sig"></div>
+  <div class="body"></div>
+  <div class="drawer-foot">
+    <p class="note">点别处 / 再点一次 i / Esc / 右键 都能关</p>
+    <div class="actions">
+      <button class="btn primary small" data-role="fill">填入建议值</button>
+      <button class="btn small ghost" onclick="closeDrawer()">关闭</button>
+    </div>
+  </div>
+</aside>
+
+<script src="api.js"></script>
+<script src="state.js"></script>
+<script>
+/* ============================================================
+   进阶模式：核心参数（精选层）+ shader 链 + 补帧脚本 + 写入
+   选项数据全部来自后端 /api/options，界面里不写死任何选项表
+   ============================================================ */
+
+const ICONS = {
+  '视频输出': '🖥️', '缩放': '🎨', '补帧': '⏱️', '字幕': '💬',
+  '音频': '🔊', '窗口': '🪟', '性能 / 缓存': '⚡'
+};
+
+/* 取元素的短助手。analyze.html 里是各自定义的局部 `el`，api.js 里没有 ——
+   这里也照同一套写一个，别指望全局有。 */
+const el = id => document.getElementById(id);
+
+let SECTIONS = [];
+let cur = 'preset';
+
+function buildSections() {
+  const groups = {};
+  (APP.options.core || []).forEach(it => {
+    (groups[it.group] = groups[it.group] || []).push(it);
+  });
+  SECTIONS = [
+    { id: 'preset', icon: '🚀', name: '快速预设', sub: '选一套现成的，再逐项微调' },
+    ...Object.keys(groups).map(g => ({
+      id: 'g:' + g, icon: ICONS[g] || '⚙️', name: g,
+      sub: '勾选即写入；不勾选的选项完全不会出现在配置里', items: groups[g]
+    })),
+    { id: 'shader', icon: '✨', name: 'Shader 锐化', sub: '顺序就是处理链顺序，越靠后越接近收尾' },
+    { id: 'memc', icon: '🎞️', name: '补帧脚本', sub: '只选一个：补帧与超分脚本不能同时叠加' },
+    { id: 'output', icon: '📤', name: '写入 / 输出', sub: '写到哪里、怎么写、怎么撤销' },
+    { id: 'tools', icon: '📦', name: '扫描与下载', sub: '看看本机到底有哪些 glsl / vpy' },
+    { id: 'about', icon: 'ℹ️', name: '关于 / 致谢', sub: '数据来源与许可' }
+  ];
+}
+
+function renderSidebar() {
+  document.getElementById('sidebar').innerHTML = SECTIONS.map(s => {
+    let n = '';
+    if (s.id === 'shader') n = APP.shaders.length || '';
+    else if (s.id === 'memc') n = APP.memc ? '1' : '';
+    else if (s.id.startsWith('g:')) n = (s.items || []).filter(x => isOn(x.key)).length || '';
+    return `<div class="side-item${s.id === cur ? ' active' : ''}" data-sec="${esc(s.id)}">
+      <span class="ico">${s.icon}</span>${esc(s.name)}
+      ${n ? `<span class="count">${n}</span>` : ''}</div>`;
+  }).join('');
+  document.getElementById('sidebar').onclick = e => {
+    const el = e.target.closest('.side-item');
+    if (!el) return;
+    cur = el.dataset.sec;
+    // 把当前分区写进地址栏：刷新不丢、也能把某一区直接分享给别人
+    // （以前只有 #combo= 会被读，分区锚点点了地址栏不变，链接发出去还是首页）
+    try { history.replaceState(null, '', '#' + encodeURIComponent(cur)); } catch (_e) {}
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+}
+
+function render() {
+  if (!SECTIONS.length) return;
+  const sec = SECTIONS.find(s => s.id === cur) || SECTIONS[0];
+  document.getElementById('secTitle').textContent = sec.icon + ' ' + sec.name;
+  document.getElementById('secSub').textContent = sec.sub || '';
+  const host = document.getElementById('panes');
+  if (sec.id.startsWith('g:')) {
+    host.innerHTML = '<div class="card" id="optbox"></div>';
+    mountOptions(document.getElementById('optbox'), sec.items || []);
+  } else {
+    host.innerHTML = PANES[sec.id] ? PANES[sec.id]() : '';
+    if (WIRE[sec.id]) WIRE[sec.id]();
+  }
+  renderSidebar();
+}
+
+/* ---------------- 各页面 ---------------- */
+
+const PANES = {
+  preset: () => `
+    <div class="card">
+      <h2>🌸 内容 × 档位</h2>
+      <p class="note">六个预设就是基础模式那六套。点一下把参数填进下面的页面，可以继续改。</p>
+      <div class="quick" id="presetBtns" style="margin-top:10px">（读取中…）</div>
+    </div>
+    <div class="card">
+      <h2>⚡ 一键组合</h2>
+      <p class="note">每个组合是「参数 + shader 链 + 补帧脚本」的成套搭配，按本机实际存在的文件解析。</p>
+      <div class="combo-grid" id="comboBtns">（解析中…）</div>
+      <div class="quick" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <button class="btn danger" onclick="clearAll()">🗑️ 清空全部选择</button>
+        <button class="btn" onclick="clearShaders()">🧹 只清 shader / 补帧脚本</button>
+        <span class="note" style="align-self:center">只清本软件里的选择，不动你的配置文件</span>
+      </div>
+    </div>
+    <div class="card" id="myPresetCard">
+      <h2>💾 我自己的预设</h2>
+      <p class="note">
+        上面那六套是内置的（代码里写死的）。这里存的是<b>你自己调好的一套</b> ——
+        参数、shader 链、补帧脚本、以及取消勾选的项一起存，放在
+        <code>presets/</code> 目录里。<b>刷新页面不会丢</b>，也能导出发给别人。
+      </p>
+      <div class="quick" style="margin-top:10px" id="myPresetBtns">（读取中…）</div>
+      <div class="dirbar" style="margin-top:12px">
+        <input type="text" id="myPresetName" placeholder="给这套起个名字，例如：看番用" style="min-width:200px">
+        <button class="btn primary" id="myPresetSave">💾 存下当前这一套</button>
+        <button class="btn" id="myPresetExport">⬇️ 导出成文件</button>
+        <button class="btn" id="myPresetImport">⬆️ 从文件导入</button>
+        <input type="file" id="myPresetFile" accept=".json,application/json" style="display:none">
+      </div>
+      <p class="note" id="myPresetHint" style="margin-top:8px"></p>
+    </div>`,
+
+  shader: () => {
+    const picked = APP.shaders;
+    const list = picked.length
+      ? picked.map((p, i) => `<div class="chain-item">
+          <span class="idx">${i + 1}</span>
+          <div style="min-width:0"><div>${esc(baseName(p))}</div><code>${esc(p)}</code></div>
+          <div class="right">
+            <button class="btn small ghost" onclick="moveShader(${i},-1)">↑</button>
+            <button class="btn small ghost" onclick="moveShader(${i},1)">↓</button>
+            <button class="btn small danger" onclick="delShader(${i})">✕</button>
+          </div></div>`).join('')
+      : '<div class="chain-empty">还没有选 shader，从下面挑一个加进来。</div>';
+    const opts = (APP.catalog.shaders || []).map(x =>
+      `<option value="${esc(x.path)}">${esc(x.name)} · ${esc(x.path)}</option>`).join('')
+      || '<option value="">（本机没扫到 glsl 文件，先去「扫描与下载」）</option>';
+    return `
+    <div class="card">
+      <h2>✨ 当前 shader 链（${picked.length}）</h2>
+      <div class="chain">${list}</div>
+      <div class="picker">
+        <select id="shaderPick">${opts}</select>
+        <button class="btn primary" id="shaderAdd">➕ 加到链尾</button>
+      </div>
+      <p class="note" style="margin-top:10px">
+        写入的是 <code>glsl-shaders</code>，顺序 = mpv 的处理顺序。常见顺序：
+        修复/去噪 → 放大 → 色度还原 → 收尾锐化（Adaptive_sharpen 放最后）。</p>
+    </div>
+    <div class="card">
+      <h2>📦 本机已有（${(APP.catalog.shaders || []).length}）</h2>
+      <div class="note">这些是从目标目录里实际扫出来的文件，不是网上抄的清单。</div>
+      <div class="chain" style="margin-top:10px">${(APP.catalog.shaders || []).map((x, i) =>
+        `<div class="chain-item"><div style="min-width:0"><div>${esc(x.name)}</div>
+          <code>${esc(x.path)}</code></div>
+          <div class="right"><button class="btn small" data-add="${i}">➕</button></div>
+        </div>`).join('') || '<div class="chain-empty">无</div>'}
+      </div>
+    </div>`;
+  },
+
+  memc: () => {
+    const list = (APP.catalog.memc || []);
+    const rows = list.map((x, i) => `<div class="radio-item${APP.memc === x.path ? ' on' : ''}" data-memc="${i}">
+        <input type="radio" ${APP.memc === x.path ? 'checked' : ''}>
+        <div style="min-width:0"><div>${esc(x.name)}</div><small>${esc(x.path)}</small></div>
+      </div>`).join('') || '<div class="chain-empty">本机没扫到 .vpy 脚本</div>';
+    return `
+    <div class="card">
+      <h2>🎞️ 选一个 VS 脚本</h2>
+      <p class="note">同一时刻只能挂一个 vapoursynth 脚本：要么补帧、要么超分、要么降噪。
+        想「补帧 + 超分」同时要，得选一个本身就包含多合一流程的脚本。</p>
+      <div class="radio-list" id="memcList" style="margin-top:10px">${rows}</div>
+      <div class="actions">
+        <button class="btn" onclick="setMemc('')">🚫 不挂脚本</button>
+        <span class="note">当前：<code>${esc(APP.memc || '（无）')}</code></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>ℹ️ 怎么挑</h2>
+      <p class="note">
+        <b>RIFE_NV / RIFE_DML</b>：AI 补帧，效果最好也最吃显卡；N 卡选 NV，其它卡选 DML。<br>
+        <b>MVT_LQ / MVT_MQ</b>：MVTools 运动补偿，通用、负载低。<br>
+        <b>SVP_*</b>：需要另外装 SVP 管理器。<br>
+        <b>SR_* / MIX_UAI_*</b>：超分/多合一脚本，别和 shader 超分链重复叠。</p>
+    </div>
+    ${fusionPanelHtml()}`;
+  },
+
+  output: () => `
+    <div class="card">
+      <h2>📤 写到哪</h2>
+      <div class="dirbar">
+        <input type="text" id="targetInput" value="${esc(APP.target)}" placeholder="C:\\...\\mpv-lazy\\portable_config">
+        <button class="btn" id="targetApply">应用目录</button>
+        <button class="btn ghost" id="targetDetect">🔍 自动探测</button>
+      </div>
+      <h2 style="margin-top:16px">📄 怎么写</h2>
+      <div class="row">
+        <label class="row" style="gap:6px"><input type="radio" name="wm" value="include"
+          ${APP.writeMode === 'include' ? 'checked' : ''}> 独立 include 文件（推荐）</label>
+        <label class="row" style="gap:6px"><input type="radio" name="wm" value="merge"
+          ${APP.writeMode === 'merge' ? 'checked' : ''}> 合并进现有 mpv.conf</label>
+      </div>
+      <div class="dirbar" style="margin-top:12px">
+        <select id="srcSelect" style="flex:1">${configOptions()}</select>
+        <button class="btn" id="srcLoad">📂 读取</button>
+      </div>
+      <p class="note">合并模式保留原文件里的其它内容与注释，只改我们勾选的键；
+        被取消勾选的键会被注释掉（不删除）。</p>
+    </div>
+    <div class="card">
+      <h2>↩️ 撤销</h2>
+      <p class="note">每次写入前都会生成 <code>xxx.bak-时间戳</code> 备份；
+        完全体里的「版本 / 回滚」页面可以直接一键回滚。</p>
+    </div>`,
+
+  tools: () => `
+    <div class="card">
+      <h2>🔍 扫描</h2>
+      <p class="note">扫描目标目录下的 <code>shaders/</code> 与 <code>vs/</code>，结果会进 shader / 补帧页面。</p>
+      <div class="actions">
+        <button class="btn primary" id="scanBtn">开始扫描</button>
+        <span class="note">目标：<code>${esc(APP.target || '未设置')}</code></span>
+      </div>
+      <pre class="conf" id="scanOut" style="margin-top:12px;max-height:34vh">（还没扫描）</pre>
+    </div>
+    <div class="card">
+      <h2>📦 下载</h2>
+      <p class="note">本软件不打包任何第三方二进制，链接全部指向官方发布页。</p>
+      <div class="quick" style="margin-top:10px">
+        <a class="btn" target="_blank" href="https://github.com/hooke007/mpv_PlayKit/releases">📥 mpv-lazy 发布页</a>
+        <a class="btn" target="_blank" href="https://github.com/stax76/mpv.net/releases">📥 mpv.net 发布页</a>
+        <a class="btn" target="_blank" href="https://hooke007.github.io/unofficial/mpv_shaders.html">📖 shader 搭配说明书</a>
+      </div>
+    </div>`,
+
+  about: () => `
+    <div class="card">
+      <h2>ℹ️ 这个软件是什么</h2>
+      <p class="note">它不播放视频，只负责把 mpv 配置写对：勾选项 → 生成 mpv.conf，写前备份，随时可撤。
+        所有选项说明来自 mpv 官方手册与社区整理。</p>
+      <div class="quick" style="margin-top:10px">
+        <a class="btn" href="guide.html?doc=guide">📖 入门指南（配置放哪儿 / 怎么写 / 怎么救）</a>
+        <a class="btn" href="analyze.html">🩺 配置体检</a>
+        <a class="btn" href="keys.html">⌨️ 改快捷键</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🙏 致谢</h2>
+      <p class="note">
+        <b>mpv</b> 与官方手册 · <b>hooke007</b> 的 mpv-lazy / mpv_PlayKit / shader 搭配说明书 ·
+        <b>Anime4K</b>、<b>FSRCNNX</b>、<b>RAVU</b>、<b>RIFE</b>、<b>MVTools</b>、<b>SVP</b> 等算法作者 ·
+        <b>mpv_doc-CN</b> 中文手册翻译组</p>
+      <div class="quick" style="margin-top:10px">
+        <a class="btn" href="guide.html?doc=thanks">🙏 完整致谢与许可</a>
+      </div>
+    </div>`
+};
+
+const WIRE = {
+  preset: () => { renderPresets(); renderCombos(); renderMyPresets(); },
+
+  shader: () => {
+    const add = document.getElementById('shaderAdd');
+    if (add) add.onclick = () => addShader(document.getElementById('shaderPick').value);
+    document.querySelectorAll('#panes [data-add]').forEach(b => {
+      b.onclick = () => addShader(APP.catalog.shaders[+b.dataset.add].path);
+    });
+  },
+
+  memc: () => {
+    const box = document.getElementById('memcList');
+    if (box) box.onclick = e => {
+      const el = e.target.closest('[data-memc]');
+      if (el) setMemc(APP.catalog.memc[+el.dataset.memc].path);
+    };
+    prepareFusion();
+  },
+
+  output: () => {
+    const a = document.getElementById('targetApply');
+    if (a) a.onclick = () => setTarget(document.getElementById('targetInput').value.trim());
+    const d = document.getElementById('targetDetect');
+    if (d) d.onclick = detectTarget;
+    const l = document.getElementById('srcLoad');
+    if (l) l.onclick = loadExisting;
+    document.querySelectorAll('input[name="wm"]').forEach(r => {
+      r.onchange = () => setWriteMode(r.value);
+    });
+  },
+
+  tools: () => {
+    const b = document.getElementById('scanBtn');
+    if (b) b.onclick = doScan;
+  }
+};
+
+/* ---------------- 我的预设（磁盘上存的，见 core/presetfile.py） ----------------
+ *
+ * 为什么要有：原来 saveLocal() 只存 target/writeMode/source/mode，
+ * **APP.values 根本没存** —— 刷新一下页面辛苦调好的一套就没了，
+ * 也没法发给别人。（300★ 的同类工具 Glow 早就支持导出/导入自定义预设。）
+ *
+ * 关键设计：**先预览再落盘**这件事在这里也一样 —— 导入只把内容套到当前状态，
+ * 想留成自己的预设得再点「存下当前这一套」。别人发来的一套你可能只想用一次。
+ */
+
+/** 把当前状态打包成预设要的 state（和 core/presetfile.build_preset 对齐）。 */
+function currentPresetState() {
+  return {
+    values: APP.values, shaders: APP.shaders, memc: APP.memc, disable: APP.disable
+  };
+}
+
+function countPresetItems(st) {
+  return Object.keys(st.values || {}).length
+    + (st.shaders || []).length + (st.memc ? 1 : 0);
+}
+
+async function renderMyPresets() {
+  const box = document.getElementById('myPresetBtns');
+  if (!box) return;
+  // 按钮/文件框的接线（每次渲染都接一次，元素是重渲染出来的）
+  const wire = (id, fn) => { const b = document.getElementById(id); if (b) b.onclick = fn; };
+  wire('myPresetSave', saveMyPreset);
+  wire('myPresetExport', () => exportMyPreset(''));
+  wire('myPresetImport', importMyPreset);
+  const fi = document.getElementById('myPresetFile');
+  if (fi) fi.onchange = onImportFilePicked;
+
+  const r = await API.userPresets().catch(() => ({ ok: false, presets: [] }));
+  const ps = (r && r.presets) || [];
+  if (!ps.length) {
+    box.innerHTML = '<span class="note">还没有存过预设。上面调好一套之后，' +
+      '在下面起个名字点「存下当前这一套」。</span>';
+  } else {
+    box.innerHTML = ps.map((p, i) => `<button class="combo" data-i="${i}" data-id="${esc(p.id)}">
+        <span class="ico">💾</span>
+        <span><b>${esc(p.name)}</b>
+          <small>${p.count} 个选项${p.shaders ? ` · ${p.shaders} 个 shader` : ''}${
+            p.memc ? ' · 含补帧脚本' : ''}${p.created ? ' · ' + esc(p.created.slice(0, 10)) : ''}</small>
+          ${p.note ? `<small>${esc(p.note)}</small>` : ''}
+        </span>
+        <span class="badge" data-op="export" data-id="${esc(p.id)}" title="导出成文件">⬇️</span>
+        <span class="badge color" data-op="del" data-id="${esc(p.id)}" title="删掉这个预设">✕</span>
+      </button>`).join('');
+  }
+  if (r && r.broken && r.broken.length) {
+    el('myPresetHint').innerHTML = `<span class="warn-text">⚠ 有 ${r.broken.length} 个预设文件读不动` +
+      `（${esc(r.broken.map(b => b.file).join('、'))}）—— 没有删掉它们，你可以自己看看</span>`;
+  }
+  box.onclick = async e => {
+    const op = e.target.closest('[data-op]');
+    if (op) {
+      e.stopPropagation();
+      if (op.dataset.op === 'del') return delMyPreset(op.dataset.id);
+      if (op.dataset.op === 'export') return exportMyPreset(op.dataset.id);
+      return;
+    }
+    const b = e.target.closest('button');
+    if (!b) return;
+    // ⚠ 三个坑叠在一起，这里必须按下面的顺序来：
+    //   ① 不能用渲染时闭包里的 `ps`。那是那一刻的快照，存完新预设再点，
+    //      闭包里还是旧的列表 —— 点了没反应，或者更糟：**套上一个错的预设**。
+    //   ② 更不能有 `|| ps[+b.dataset.i]` 这种下标兜底。索引和 id 一旦不同步，
+    //      它会安静地套上另一个预设（真踩过：列表里明明是新存的，
+    //      套上的却是上一次那个空的，还弹了个"已套用（0 项）"的提示）。
+    //   ③ 所以：闭包里找不到就按 id **重新拉一次**，还找不到就明说。
+    const pid = b.dataset.id;
+    let p = ps.find(x => x.id === pid);
+    if (!p) {
+      const fresh = await API.userPresets().catch(() => null);
+      p = fresh && fresh.ok ? (fresh.presets || []).find(x => x.id === pid) : null;
+    }
+    if (!p) { toast(`找不到预设「${pid}」，它可能刚被删掉了`, 'err'); return renderMyPresets(); }
+    applyMyPreset(p);
+  };
+}
+
+/** 把一份预设套到当前状态上。 */
+function applyPresetObject(p, label) {
+  const st = p.state || {};
+  APP.values = Object.assign({}, st.values || {});
+  APP.shaders = (st.shaders || []).slice();
+  APP.memc = st.memc || '';
+  APP.memcLabel = '';
+  APP.disable = (st.disable || []).slice();
+  APP.pending = [];
+  changed();
+  render();
+  toast(`✅ 已套用「${label}」（${countPresetItems(st)} 项）—— 记得看右边预览再生成`, 'ok');
+}
+
+function applyMyPreset(p) {
+  if (!p) return;
+  applyPresetObject(p, p.name || p.id);
+}
+
+async function saveMyPreset() {
+  const name = (el('myPresetName').value || '').trim();
+  const st = currentPresetState();
+  if (!name) { toast('给这套预设起个名字吧', 'err'); return; }
+  if (!countPresetItems(st)) { toast('一个选项都没勾，没什么可存的', 'err'); return; }
+  let r = await API.userPresetSave({ name, state: st });
+  if (!r.ok && /已经存在/.test(r.detail || '')) {
+    if (!confirm(`「${name}」已经存在了，覆盖它吗？`)) return;
+    r = await API.userPresetSave({ name, state: st, overwrite: true });
+  }
+  toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
+  if (r.ok) { el('myPresetName').value = ''; renderMyPresets(); }
+}
+
+async function delMyPreset(id) {
+  if (!confirm(`删掉预设「${id}」？\n\n只删这个文件，不动你的 mpv 配置。`)) return;
+  const r = await API.userPresetDelete({ id });
+  toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
+  renderMyPresets();
+}
+
+async function exportMyPreset(id) {
+  // 注意 body 的写法：要导出某个已存的预设就带上 id，
+  // 否则导出"当前状态"。后端两者都支持，别把 id 传成空串再指望它猜。
+  const body = id ? { id } : { name: (el('myPresetName').value || '').trim(),
+                               state: currentPresetState() };
+  const r = await API.userPresetExport(body);
+  if (!r.ok) { toast('❌ ' + (r.detail || '导出失败'), 'err'); return; }
+  // 走浏览器下载，不往任意路径写盘 —— 和「另存为」一个道理
+  const blob = new Blob([r.text], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = r.filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('✅ ' + r.detail + '，已开始下载 ' + r.filename, 'ok');
+}
+
+function importMyPreset() {
+  const f = el('myPresetFile');
+  if (f) f.click();
+}
+
+async function onImportFilePicked(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';                 // 同一个文件连选两次也要能触发
+  if (!file) return;
+  let text;
+  try { text = await file.text(); }
+  catch (e) { toast('❌ 读不了这个文件：' + e.message, 'err'); return; }
+  // ⚠ 把**内容**交给后端校验，不在前端自己判 kind ——
+  // 校验规则只有 core/presetfile.py 那一份，前端再抄一遍迟早对不上。
+  const r = await API.userPresetLoad({ text });
+  if (!r.ok) { toast('❌ ' + (r.detail || '导入失败'), 'err'); return; }
+  applyPresetObject(r.preset, r.preset.name || file.name.replace(/\.json$/i, ''));
+  toast('ℹ️ ' + r.detail, '');
+  el('myPresetHint').textContent = '要留成自己的预设，就起个名字点「存下当前这一套」。';
+}
+
+/* ---------------- 预设 / 组合 ---------------- */
+
+async function renderPresets() {
+  const box = document.getElementById('presetBtns');
+  if (!box) return;
+  const ps = await API.presets();
+  box.innerHTML = ps.map((p, i) =>
+    `<button class="btn" data-i="${i}" title="${esc(p.note)}">${p.content === '动画' ? '🌸' : '🎥'} ${esc(p.prefer)}</button>`).join('');
+  box.onclick = async e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const p = ps[+b.dataset.i];
+    const r = await API.basicPreview({ target: APP.target, content: p.content, prefer: p.prefer });
+    const params = Object.assign({}, r.params || {});
+    delete params['glsl-shaders'];
+    APP.values = Object.assign({}, APP.values, params);
+    APP.shaders = (r.shader_paths || []).slice();
+    APP.disable = []; APP.pending = [];
+    changed(); render();
+    let msg = `✅ 已套用「${p.content} · ${p.prefer}」`;
+    if (r.missing && r.missing.length) msg += `；本机缺少 ${r.missing.join('、')}`;
+    toast(msg, r.missing && r.missing.length ? '' : 'ok');
+  };
+}
+
+async function renderCombos() {
+  const box = document.getElementById('comboBtns');
+  if (!box) return;
+  const r = await API.get('/api/combos' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
+  if (!r.ok) { box.textContent = '组合加载失败：' + (r.detail || ''); return; }
+  box.innerHTML = r.combos.map((c, i) => `<button class="combo" data-i="${i}">
+      <span class="ico">${c.icon}</span>
+      <span><b>${esc(c.name)}</b>
+        <small>${esc(c.note)}</small>
+        ${(c.missing && c.missing.length)
+          ? `<small class="warn-text">⚠ 本机缺少：${esc(c.missing.join('、'))}</small>` : ''}
+        ${c.memc ? `<small>🎞️ ${esc(baseName(c.memc))}</small>` : ''}
+      </span>
+    </button>`).join('');
+  box.onclick = e => {
+    const b = e.target.closest('button');
+    if (b) applyCombo(r.combos[+b.dataset.i]);
+  };
+  // 支持用链接直接带一套组合进来：advanced.html#combo=sharp_anime
+  const want = new URLSearchParams(location.hash.replace(/^#/, '')).get('combo');
+  if (want) {
+    const c = r.combos.find(x => x.id === want);
+    if (c) setTimeout(() => applyCombo(c), 200);
+  }
+}
+
+/** 把一套组合填进当前状态（勾选 + shader 链 + 补帧脚本） */
+function applyCombo(c) {
+  if (!c) return;
+  APP.values = Object.assign({}, APP.values, c.params);
+  if (c.shaders.length) APP.shaders = c.shaders.slice();
+  if (c.memc) APP.memc = c.memc;
+  APP.disable = []; APP.pending = [];
+  changed(); render();
+  const miss = (c.missing && c.missing.length) ? `；本机缺少：${c.missing.join('、')}` : '';
+  toast(`✅ 已套用「${c.name}」${miss}`, miss ? '' : 'ok');
+  if (c.need) setTimeout(() => toast('⚠ ' + c.need, 'err'), 900);
+}
+
+/* ---------------- 动作 ---------------- */
+
+function baseName(p) { return String(p).split(/[\\/]/).pop(); }
+
+function clearAll() {
+  if (!confirm('清空所有勾选？（不会动你的配置文件）')) return;
+  APP.values = {}; APP.shaders = []; APP.memc = ''; APP.custom = '';
+  APP.disable = []; APP.pending = [];
+  changed(); render();
+}
+
+function clearShaders() {
+  APP.shaders = []; APP.memc = '';
+  changed(); render();
+  toast('已清空 shader 与补帧脚本', 'ok');
+}
+
+function setWriteMode(m) {
+  APP.writeMode = m;
+  saveLocal();
+  const h = document.getElementById('writeHint');
+  const t = document.getElementById('previewMode');
+  const inc = m === 'include';
+  if (h) h.innerHTML = inc
+    ? '生成 <code>mpv-builder.conf</code>，并在主配置里加一行 include。'
+    : '把勾选的键合并进现有 <code>mpv.conf</code>，取消勾选的键会被注释掉。';
+  if (t) t.textContent = inc ? '独立 include 文件（想卸载删文件即可）' : '合并进现有 mpv.conf';
+  document.querySelectorAll('#writeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === m));
+  doPreview();
+}
+
+async function loadExisting() {
+  const sel = document.getElementById('srcSelect');
+  let path = sel && sel.value ? sel.value : (APP.source || '');
+  if (!path) { toast('目录里没有可读取的配置文件', 'err'); return; }
+  const r = await loadExistingConfig(path);
+  if (r.ok) render();
+}
+
+async function detectTarget() {
+  const s = await API.status();
+  if (s.lazy_pc) { setTarget(s.lazy_pc); toast('已用探测到的目录：' + s.lazy_pc, 'ok'); }
+  else toast('没探测到 mpv-lazy，手动填吧', 'err');
+}
+
+async function doScan() {
+  const out = document.getElementById('scanOut');
+  if (!APP.target) { toast('先设置目标目录', 'err'); return; }
+  out.textContent = '扫描中…';
+  const r = await API.scan(APP.target);
+  if (!r.ok) { out.textContent = r.detail; return; }
+  out.textContent = `portable_config: ${r.pc}\n\nglsl (${r.shaders.length}):\n`
+    + r.shaders.map(x => '  ' + x).join('\n')
+    + `\n\nvpy (${r.vpy.length}):\n` + r.vpy.map(x => '  ' + x).join('\n');
+  await loadCatalog();
+  render();
+  toast(`扫到 ${r.shaders.length} 个 glsl、${r.vpy.length} 个 vpy`, 'ok');
+}
+
+async function copyConf() {
+  const t = document.getElementById('preview').innerText;
+  try { await navigator.clipboard.writeText(t); toast('已复制到剪贴板', 'ok'); }
+  catch (e) { toast('复制失败，请手动选中', 'err'); }
+}
+
+function saveAs() {
+  const t = document.getElementById('preview').innerText;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain' }));
+  a.download = 'mpv-builder.conf';
+  a.click();
+}
+
+/* ---------------- 启动 ---------------- */
+
+APP.onRender = render;
+APP.onCatalog = () => { if (cur === 'shader' || cur === 'memc') render(); };
+
+/** 从体检页跳过来的话，问一句要不要把那份配置带进「自定义层」，省得重新粘。 */
+function restoreHandoff() {
+  let h = null;
+  try { h = JSON.parse(localStorage.getItem('mpvcb-handoff') || 'null'); } catch (e) { h = null; }
+  if (!h || !h.text) return;
+  try { localStorage.removeItem('mpvcb-handoff'); } catch (e) { /* 忽略 */ }
+  const label = h.name || '刚才体检的那份配置';
+  if (!confirm(`把「${label}」的内容放进自定义层吗？\n\n`
+    + '放进自定义层 = 原样追加到生成结果末尾，本工具不解析、不改写它。\n'
+    + '选取消则什么都不做。')) return;
+  APP.custom = h.text;
+  changed();
+  toast('已放进自定义层（原样保留，不会被工具改写）', 'ok');
+}
+
+async function boot() {
+  loadLocal();
+  // 分区锚点：advanced.html#g:字幕明细 → 直接打开那一区
+  const hash = decodeURIComponent(location.hash.replace(/^#/, ''));
+  if (hash && !hash.startsWith('combo=')) cur = hash;
+  const [s] = await Promise.all([API.status(), loadOptions()]);
+  document.getElementById('ver').textContent = 'v' + s.version;
+  if (!APP.target && s.lazy_pc) APP.target = s.lazy_pc;
+  const tl = document.getElementById('targetLabel');
+  tl.textContent = APP.target ? shortPath(APP.target) : '未设置';
+  tl.title = APP.target || '';
+  buildSections();
+  renderSidebar();
+  await loadCatalog();
+  if (!APP.source) {
+    const cfg = (APP.catalog.configs || []).find(c => /mpv\.conf$/i.test(c.name));
+    if (cfg) APP.source = cfg.path;
+  }
+  render();
+  setWriteMode(APP.writeMode);
+  initModeBar();                       // R-26：接上「创建 / 修改」开关
+  const dt = document.getElementById('diffToggle');
+  if (dt) dt.onclick = toggleDiff;     // R-14：逐行对比
+  const lt = document.getElementById('loadTop');
+  if (lt) lt.onclick = () => { cur = 'output'; render(); loadExisting(); };
+  document.getElementById('writeSeg').onclick = e => {
+    const b = e.target.closest('button');
+    if (b) setWriteMode(b.dataset.v);
+  };
+  const pl = document.getElementById('profileLoad');
+  if (pl) pl.onclick = () => loadProfile(document.getElementById('profileSel').value);
+  doPreview();
+  restoreHandoff();
+}
+boot();
+</script>
+</body>
+</html>

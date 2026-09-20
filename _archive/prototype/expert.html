@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>完全体 · MPV Config Builder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">🧪 完全体</div>
+  <div class="target">目标：<code>portable_config</code> <button class="btn small ghost">更改</button></div>
+  <div class="spacer"></div>
+  <a class="btn small" href="index.html">🔀 切换模式</a>
+  <button class="btn small primary">✅ 应用修改</button>
+  <button class="btn small" onclick="toggleTheme()">🌓</button>
+</div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <div class="side-item"><span class="ico">🚀</span>快速预设</div>
+    <div class="side-group">选项</div>
+    <div class="side-item active"><span class="ico">📚</span>全部选项<span class="tag">829</span></div>
+    <div class="side-item"><span class="ico">🔍</span>搜索</div>
+    <div class="side-item"><span class="ico">🧩</span>自定义选项</div>
+    <div class="side-group">进阶功能</div>
+    <div class="side-item"><span class="ico">🧬</span>脚本融合<span class="tag">β</span></div>
+    <div class="side-item"><span class="ico">⚠️</span>冲突检测<span class="tag">2</span></div>
+    <div class="side-item"><span class="ico">🕘</span>版本 / 回滚</div>
+    <div class="side-group">工具</div>
+    <div class="side-item"><span class="ico">📦</span>下载与安装</div>
+    <div class="side-item"><span class="ico">🧪</span>配置分析</div>
+    <div class="side-item" style="margin-top:10px"><span class="ico">ℹ️</span>关于 / 致谢</div>
+  </nav>
+
+  <main class="content">
+    <h1>📚 全部选项</h1>
+    <p class="sub">来自你自己的 mpv 构建（v0.41.0 · 829 项）· 中文说明来自 mpv_doc-CN</p>
+
+    <div class="searchbar">
+      <input type="text" placeholder="🔍 搜索选项名或中文说明，例如 deband / 色带 / 字幕颜色">
+      <button class="btn">只看已改动</button>
+      <button class="btn">只看常用</button>
+    </div>
+
+    <div class="chips">
+      <span class="chip on">全部</span>
+      <span class="chip">🎬 视频</span>
+      <span class="chip">🔊 音频</span>
+      <span class="chip">💬 字幕</span>
+      <span class="chip">🪟 窗口</span>
+      <span class="chip">📸 截图</span>
+      <span class="chip">💾 缓存</span>
+      <span class="chip">🖥️ GPU 渲染</span>
+      <span class="chip">⏱️ 视频同步</span>
+    </div>
+
+    <div class="card">
+      <h2>🎬 视频</h2>
+
+      <div class="opt">
+        <div class="opt-head">
+          <input type="checkbox">
+          <label>去色带</label><span class="key">deband</span>
+          <span class="badge flag">开关</span>
+          <div class="right">
+            <span class="note">默认 no</span>
+            <select><option>no</option><option>yes</option></select>
+            <button class="icon-btn" onclick="openDrawer()">i</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="opt">
+        <div class="opt-head">
+          <input type="checkbox" checked>
+          <label>去色带次数</label><span class="key">deband-iterations</span>
+          <span class="badge int">整数 0–16</span>
+          <div class="right">
+            <span class="note">默认 1</span>
+            <input type="text" value="2" style="min-width:64px">
+            <button class="btn small ghost">恢复默认</button>
+            <button class="icon-btn" onclick="openDrawer()">i</button>
+          </div>
+        </div>
+        <div class="hint">每个采样执行多少步；>4 基本无效且更慢</div>
+      </div>
+
+      <div class="opt">
+        <div class="opt-head">
+          <input type="checkbox">
+          <label>去色带阈值</label><span class="key">deband-threshold</span>
+          <span class="badge int">整数 0–4096</span>
+          <div class="right">
+            <span class="note">默认 48</span>
+            <input type="text" placeholder="48" style="min-width:64px">
+            <button class="btn small ghost">恢复默认</button>
+            <button class="icon-btn" onclick="openDrawer()">i</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="opt">
+        <div class="opt-head">
+          <input type="checkbox">
+          <label>去色带半径</label><span class="key">deband-range</span>
+          <span class="badge int">小数 1–64</span>
+          <div class="right">
+            <span class="note">默认 16</span>
+            <input type="text" placeholder="16" style="min-width:64px">
+            <button class="icon-btn" onclick="openDrawer()">i</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="opt">
+        <div class="opt-head">
+          <input type="checkbox">
+          <label>抖动算法</label><span class="key">dither</span>
+          <span class="badge choice">枚举 4 值</span>
+          <div class="right">
+            <span class="note">默认 fruit</span>
+            <select><option>fruit</option><option>ordered</option><option>error-diffusion</option><option>no</option></select>
+            <button class="icon-btn" onclick="openDrawer()">i</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="opt">
+        <div class="opt-head">
+          <input type="checkbox">
+          <label>抖动矩阵大小</label><span class="key">dither-size-fruit</span>
+          <span class="badge int">整数 2–8</span>
+          <div class="right">
+            <span class="note">默认 6</span>
+            <input type="text" placeholder="6" style="min-width:64px">
+            <button class="icon-btn" onclick="openDrawer()">i</button>
+          </div>
+        </div>
+        <div class="hint">只能在 dither=fruit 下使用 · 矩阵越大启动越慢</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⚠️ 冲突检测</h2>
+      <p class="note warn">sigmoid-upscaling 与 linear-upscaling 互斥，当前只启用了 sigmoid（正常）</p>
+      <p class="note warn">icc-profile-auto 与 target-prim / target-trc 同时启用会互相覆盖 —— 建议二选一</p>
+      <p class="note">interpolation=yes 需要 video-sync=display-*（当前已满足 ✅）</p>
+    </div>
+  </main>
+</div>
+
+<aside class="drawer" id="drawer">
+  <h3>去色带次数 <span class="key">deband-iterations</span></h3>
+  <div class="sig">--deband-iterations=&lt;0..16&gt; · 默认 1</div>
+  <p class="muted">每个采样要执行去色带步骤的数量。每一步都会减少一点带状物，但需要时间来计算。
+    注意，每一步的强度下降得很快，所以较高数字（&gt;4）实际上是无用的。</p>
+  <div class="sec">
+    <h4>来源</h4>
+    <p class="muted">mpv --list-options（类型/范围/默认值）<br>mpv_doc-CN · GPL-3.0（中文说明）</p>
+  </div>
+  <div class="actions">
+    <button class="btn small ghost" onclick="closeDrawer()">关闭</button>
+  </div>
+</aside>
+
+<script>
+function openDrawer() { document.getElementById('drawer').classList.add('open'); }
+function closeDrawer() { document.getElementById('drawer').classList.remove('open'); }
+function toggleTheme() {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark';
+}
+</script>
+</body>
+</html>

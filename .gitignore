@@ -1,0 +1,59 @@
+# MPV Config Builder —— 版本控制忽略规则
+#
+# 原则：**只忽略产物，不忽略源材料**。
+# 拿不准的宁愿先提交（历史里有总比丢了好），真要排除再单独说。
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.manifest
+build/
+dist/
+*.spec
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ---------- PyInstaller 产物 ----------
+# 打包输出（build/ dist/ *.spec 上面已经盖住了）
+# 注意：不要忽略 data/ 与 *.md —— 它们是**发行必带**的源材料
+
+# ---------- Electron / Node ----------
+node_modules/
+electron/dist/
+electron/out/
+electron/release/
+npm-debug.log*
+yarn-error.log*
+.npm/
+
+# ---------- 运行时产物（会被工具重建） ----------
+# 截图：由 tools/check_ui.py 与 tools/check_presets.py 生成，随时可重跑
+_shots/
+
+# 用户预设的**旧位置**（W-2 之后改到 %LOCALAPPDATA% 了）。
+# 万一有人在这里留了东西，别提交上来 —— 那是他自己的配置。
+presets/
+
+# ---------- 编辑器 / 系统 ----------
+.vscode/
+.idea/
+*.swp
+*~
+Thumbs.db
+desktop.ini
+
+# ---------- 临时文件 ----------
+# 开发时随手写的探针脚本（约定用下划线开头）
+/_*.py
+/_*.txt
+/_*.json
+/_*.md
+# ⚠ 但这两个是**项目文件**，不是临时脚本 —— 必须显式放回来
+!_mpv_options_raw.txt
+!LICENSE

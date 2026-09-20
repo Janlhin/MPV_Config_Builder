@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>配置体检 · MPV Config Builder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">🩺 配置体检 <small id="ver"></small></div>
+  <div class="target">目标：<code id="targetLabel">未设置</code>
+    <button class="btn small ghost" id="pickDir">更改</button></div>
+  <div class="spacer"></div>
+  <a class="btn small" href="index.html">🔀 切换模式</a>
+  <a class="btn small" href="advanced.html">🎛️ 去进阶模式改</a>
+  <button class="btn small" data-theme-toggle>🌓</button>
+</div>
+
+<div class="content" style="max-width:1180px;margin:0 auto">
+
+  <div class="card">
+    <h2>📥 看哪一份配置</h2>
+    <p class="note">选文件或直接拖进来都行。分析全在本地做，不联网。</p>
+    <div class="dirbar" style="margin-top:10px">
+      <select id="fileSelect" style="flex:1"><option value="">（目标目录里的配置文件）</option></select>
+      <button class="btn primary" id="analyzeFile">📂 体检这份</button>
+    </div>
+    <div class="dirbar" id="dropZone" style="border-style:dashed;justify-content:center;color:var(--muted)">
+      把 mpv.conf 拖到这里，或者
+      <label class="btn small" style="cursor:pointer">选择文件
+        <input type="file" id="fileInput" accept=".conf,.txt,.cfg" style="display:none">
+      </label>
+    </div>
+    <details style="margin-top:10px">
+      <summary class="note" style="cursor:pointer">或者直接粘贴内容</summary>
+      <textarea class="raw" id="pasteBox" spellcheck="false" style="min-height:22vh"
+        placeholder="# 把配置粘在这里"></textarea>
+      <div class="actions"><button class="btn" id="analyzePaste">体检这段文本</button></div>
+    </details>
+  </div>
+
+  <div id="report"></div>
+
+</div>
+
+<script src="api.js"></script>
+<script src="state.js"></script>
+<script>
+/* 配置体检页：上传 / 选文件 → 出报告。不写任何配置，只读。 */
+const el = id => document.getElementById(id);
+const LvIcon = { error: '❌', warn: '⚠', info: 'ℹ️' };
+const LvCls = { error: 'danger', warn: 'warn', info: '' };
+
+// 最近一次体检的原文，给「拿去进阶模式改」和「补注释」用
+let ANALYZED_TEXT = '';
+let ANALYZED_NAME = '';
+let ANALYZED_PATH = '';   // 从文件来的才有路径；粘贴的没有
+
+/** 从体检页跳过来的话，自动把那一次的内容再体检一遍，省得重新选文件。 */
+function restoreHandoff() {
+  let h = null;
+  try { h = JSON.parse(localStorage.getItem('mpvcb-handoff') || 'null'); } catch (e) { h = null; }
+  if (!h || !h.text) return;
+  try { localStorage.removeItem('mpvcb-handoff'); } catch (e) { /* 忽略 */ }
+  el('pasteBox').value = h.text;
+  run({ text: h.text, name: h.name || '（从进阶模式带过来的内容）' });
+}
+
+async function boot() {
+  const s = await API.status();
+  el('ver').textContent = 'v' + s.version;
+  if (s.lazy_pc) {
+    APP.target = s.lazy_pc;
+    const t = el('targetLabel');
+    t.textContent = shortPath(s.lazy_pc);
+    t.title = s.lazy_pc;
+  } else {
+    el('targetLabel').textContent = '未设置';
+  }
+  await loadCatalog();
+  el('fileSelect').innerHTML = configOptions();
+  el('pickDir').onclick = () => promptTarget();
+  el('analyzeFile').onclick = () => {
+    const p = el('fileSelect').value;
+    if (!p) { toast('先选一个文件', 'err'); return; }
+    run({ path: p });
+  };
+  el('analyzePaste').onclick = () => {
+    const t = el('pasteBox').value;
+    if (!t.trim()) { toast('先粘点内容进来', 'err'); return; }
+    run({ text: t, name: '（粘贴的文本）' });
+  };
+  restoreHandoff();
+  el('fileInput').onchange = e => {
+    const f = e.target.files[0];
+    if (f) readLocal(f);
+  };
+  const dz = el('dropZone');
+  dz.ondragover = e => { e.preventDefault(); dz.style.borderColor = 'var(--accent)'; };
+  dz.ondragleave = () => { dz.style.borderColor = 'var(--border)'; };
+  dz.ondrop = e => {
+    e.preventDefault();
+    dz.style.borderColor = 'var(--border)';
+    const f = e.dataTransfer.files[0];
+    if (f) readLocal(f);
+  };
+}
+
+function readLocal(file) {
+  const fr = new FileReader();
+  fr.onload = () => run({ text: String(fr.result), name: file.name });
+  fr.onerror = () => toast('读不了这个文件', 'err');
+  fr.readAsText(file, 'utf-8');
+}
+
+async function run(body) {
+  el('report').innerHTML = '<div class="card"><p class="note">正在体检…</p></div>';
+  // 把原文留给「拿去进阶模式改」与「补注释」用（报告本身只回选项，不回原文）
+  if (typeof body.text === 'string') {
+    ANALYZED_TEXT = body.text;
+    ANALYZED_NAME = body.name || '';
+    ANALYZED_PATH = '';
+  } else {
+    ANALYZED_TEXT = '';
+    ANALYZED_NAME = body.path || '';
+    ANALYZED_PATH = body.path || '';
+  }
+  const r = await API.post('/api/report', body);
+  if (!r.ok) {
+    el('report').innerHTML = `<div class="card"><p class="note danger">❌ ${esc(r.detail)}</p></div>`;
+    return;
+  }
+  el('report').innerHTML = renderReport(r);
+  toast(`体检完成：${r.counts.options} 个选项，${r.issues.length} 条提示`, 'ok');
+}
+
+function renderReport(r) {
+  const s = r.source, c = r.counts, sc = r.scores;
+  const errs = r.issues.filter(x => x[0] === 'error').length;
+  const warns = r.issues.filter(x => x[0] === 'warn').length;
+  const infos = r.issues.filter(x => x[0] === 'info').length;
+
+  const health = errs ? ['❌', '有会出错的地方', 'danger']
+    : warns ? ['⚠️', '有需要留意的搭配', 'warn']
+    : ['✅', '没发现明显问题', ''];
+
+  return `
+  <div class="card">
+    <h2>${health[0]} ${esc(s.name)} <span class="muted" style="font-weight:400;font-size:12px">
+      ${esc(s.encoding)} · ${esc(s.newline)}${s.bom ? ' · 带 BOM' : ''}${s.lossy ? ' · ⚠ 有字节没解开' : ''}
+      · ${s.size} B · ${s.lines} 行</span></h2>
+    <div class="cols" style="gap:14px">
+      <div>
+        <div class="kv">
+          <span class="muted">综合</span><b>${r.overall} / 100 · ${esc(r.grade)}</b>
+          <span class="muted">清晰度</span><b>${sc.quality}</b>
+          <span class="muted">锐度</span><b>${sc.sharp}</b>
+          <span class="muted">流畅度</span><b>${sc.smooth}</b>
+          <span class="muted">色彩</span><b>${sc.color}</b>
+          <span class="muted">GPU 负载</span><b>${sc.load}</b>
+        </div>
+      </div>
+      <div>
+        <div class="kv">
+          <span class="muted">配置项</span><b>${c.options} 行</b>
+          <span class="muted">工具认识</span><b>${c.known}</b>
+          <span class="muted">标准但未收录</span><b>${c.unlisted}</b>
+          <span class="muted">完全不认识</span><b class="${c.unknown ? 'warn-text' : ''}">${c.unknown}</b>
+          <span class="muted">重复项</span><b class="${c.duplicates ? 'warn-text' : ''}">${c.duplicates}</b>
+          <span class="muted">profile / shader</span><b>${c.profiles} / ${c.shaders}</b>
+        </div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:10px">
+      ${errs ? `<span class="bad-text">❌ ${errs} 条错误</span> · ` : ''}
+      ${warns ? `<span class="warn-text">⚠ ${warns} 条警告</span> · ` : ''}
+      ℹ️ ${infos} 条提示 ·
+      评分为启发式估算，实际以 mpv 的 stats（按 <code>i</code> 再按 <code>2</code>）为准</p>
+    <div class="actions">
+      <button class="btn primary" id="toAdvanced">🎛️ 拿去进阶模式改</button>
+      <button class="btn" id="copyReport">📋 复制报告</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>✍️ 给这份配置补注释 <span class="muted" style="font-weight:400;font-size:12px">可选</span></h2>
+    <p class="note">
+      给每一行加上「这行是干什么的」中文说明。<b>只在你点下面这个按钮时才会做</b> ——
+      上传和体检本身一个字节都不改。<br>
+      已有注释的行绝不改动；查不到说明的行会留白并列出来（不编造）。
+    </p>
+    <details style="margin-top:10px">
+      <summary class="note" style="cursor:pointer">展开设置</summary>
+      <div class="dirbar" style="margin-top:10px">
+        <label class="note">注释位置</label>
+        <select id="anStyle">
+          <option value="inline">行尾注释（原文一字不动、行号不变）</option>
+          <option value="above">上方注释（适合长期维护）</option>
+        </select>
+        <label class="note" style="cursor:pointer">
+          <input type="checkbox" id="anOnlyMissing" checked> 只补没有注释的行
+        </label>
+      </div>
+    </details>
+    <div class="actions" style="margin-top:10px">
+      <button class="btn primary" id="anRun">✍️ 生成带注释的版本（只预览）</button>
+      <button class="btn" id="anCopy" style="display:none">📋 复制</button>
+      <button class="btn" id="anSaveAs" style="display:none">💾 另存为副本</button>
+    </div>
+    <div id="anOut" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🧹 清理重复的写入块 <span class="muted" style="font-weight:400;font-size:12px">可选</span></h2>
+    <p class="note">
+      本工具往配置里写的行会放在一个带抬头的块里（<code># 由 MPV Config Builder 写入 #</code>），
+      方便你一眼找到、手工回滚。<br>
+      <b>旧版本的缺陷</b>：每写一次就在末尾追加一整套抬头，写几次就有几个一模一样的块。
+      写入逻辑已经修好（以后只会有一个），<b>但已经攒出来的那几个得清一下</b>。<br>
+      这个动作只做一件事：把多个块的键汇总进第一个块、删掉多余的块。
+      <b>只在你点下面这个按钮时才会做</b> —— 上传和体检一个字节都不改。
+    </p>
+    <div class="actions" style="margin-top:10px">
+      <button class="btn" id="tdScan">🔍 检查有没有重复块（不写盘）</button>
+      <button class="btn primary" id="tdRun" style="display:none">🧹 写入修复</button>
+    </div>
+    <div id="tdOut" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🧪 问题与建议</h2>
+    ${r.issues.length
+      ? r.issues.map(([lv, msg]) =>
+          `<p class="note ${LvCls[lv] || ''}">${LvIcon[lv] || '·'} ${esc(msg)}</p>`).join('')
+      : '<p class="note">✅ 这份配置没检出问题。</p>'}
+    ${r.suggestions.length
+      ? `<details style="margin-top:10px"><summary class="note" style="cursor:pointer">
+           还有 ${r.suggestions.length} 条一般性建议</summary>
+           ${r.suggestions.map(x => `<p class="note" style="margin-left:14px">· ${esc(x)}</p>`).join('')}
+         </details>`
+      : ''}
+  </div>
+
+  ${conflictBlock(r)}
+
+  ${chainBlock(r)}
+
+  ${profileBlock(r)}
+
+  <div class="card">
+    <h2>🔍 逐项明细</h2>
+    <details open><summary class="note" style="cursor:pointer">工具认识的选项（${c.known}）</summary>
+      <div class="chain" style="margin-top:8px">${r.detail.known.map(k =>
+        `<div class="chain-item"><div style="min-width:0"><div>${esc(k.name)}
+          <span class="muted">${esc(k.key)}</span></div>
+          <code>${esc(String(k.value))}</code></div>
+          <div class="right"><span class="badge ${k.ok ? 'flag' : 'color'}">${k.ok ? '正常' : '非预设值'}</span></div>
+        </div>`).join('') || '<div class="chain-empty">无</div>'}
+      </div>
+    </details>
+    ${r.detail.unlisted.length ? `
+    <details style="margin-top:10px"><summary class="note" style="cursor:pointer">
+      标准 mpv 选项，但本工具还没做界面（${r.detail.unlisted.length}）</summary>
+      <p class="note" style="margin-top:6px">
+        ${r.detail.unlisted.map(([k, v]) => `<code>${esc(k)}=${esc(v)}</code>`).join('　')}</p>
+      <p class="note">这些不会被工具改动，原样保留在文件里。</p>
+    </details>` : ''}
+    ${r.detail.unknown.length ? `
+    <details style="margin-top:10px"><summary class="note warn-text" style="cursor:pointer">
+      ⚠ 完全不认识的键（${r.detail.unknown.length}）—— 可能是拼错，也可能是脚本自己的选项</summary>
+      <p class="note" style="margin-top:6px">
+        ${r.detail.unknown.map(([k, v, no]) => `<code>第${no}行 ${esc(k)}=${esc(v)}</code>`).join('<br>')}</p>
+    </details>` : ''}
+    ${r.detail.duplicates.length ? `
+    <details style="margin-top:10px"><summary class="note warn-text" style="cursor:pointer">
+      ⚠ 重复的选项（${r.detail.duplicates.length}）—— mpv 以后出现的为准</summary>
+      <p class="note" style="margin-top:6px">
+        ${r.detail.duplicates.map(([k, a, b]) => `<code>${esc(k)}：第 ${a} 行与第 ${b} 行</code>`).join('<br>')}</p>
+    </details>` : ''}
+  </div>`;
+}
+
+function conflictBlock(r) {
+  if (!r.conflicts || !r.conflicts.length) return '';
+  return `<div class="card">
+    <h2>⚠️ 搭配冲突（${r.conflicts.length}）</h2>
+    ${r.conflicts.map(x => `
+      <div class="opt ${x.level === 'error' ? 'bad' : x.level === 'warn' ? 'need' : ''}" style="padding-left:10px">
+        <div class="opt-head">
+          <span class="badge ${x.level === 'error' ? 'color' : 'choice'}">${
+            x.level === 'error' ? '❌ 会失效' : x.level === 'warn' ? '⚠ 打架' : 'ℹ️ 提示'}</span>
+          <label>${esc(x.title)}</label>
+        </div>
+        <div class="hint">${esc(x.detail)}</div>
+        ${x.fix ? `<div class="expand open">→ <b>怎么改</b>：${esc(x.fix)}</div>` : ''}
+        ${(x.keys && x.keys.length) ? `<div class="hint">涉及：${
+          x.keys.map(k => `<code>${esc(k)}</code>`).join(' ')}</div>` : ''}
+      </div>`).join('')}
+  </div>`;
+}
+
+function chainBlock(r) {
+  const files = (r.chain && r.chain.files) || [];
+  if (!files.length) return '';
+  const missing = files[0] && files[0].missing || [];
+  return `<div class="card">
+    <h2>🔗 include 链（mpv 实际会读这些文件）</h2>
+    <div class="chain" style="margin-top:8px">
+      ${files.map((f, i) => `<div class="chain-item">
+        <span class="idx">${i + 1}</span>
+        <div style="min-width:0"><div>${esc(f.name)}</div>
+          <code>${esc(shortPath(f.path, 18, 34))}</code></div>
+        <div class="right"><span class="note">${f.count} 项${f.profiles ? ` · ${f.profiles} profile` : ''}
+          · ${esc(f.encoding)}</span></div>
+      </div>`).join('')}
+    </div>
+    ${missing.length ? `<p class="note warn-text" style="margin-top:8px">⚠ 有 ${missing.length} 个 include 指向的文件不存在：${
+      missing.map(m => `<code>${esc(m.target)}</code>`).join('、')}</p>` : ''}
+    <p class="note" style="margin-top:8px">同名选项以后面的文件为准；本页评分按合并后的生效值算。</p>
+  </div>`;
+}
+
+function profileBlock(r) {
+  const ps = r.profiles || [];
+  if (!ps.length) return '';
+  return `<div class="card">
+    <h2>🧩 profile 小节（${ps.length}）—— 只在条件满足时生效，不参与上面的评分</h2>
+    <div class="chain" style="margin-top:8px">
+      ${ps.map(p => `<div class="chain-item">
+        <div style="min-width:0"><div>[${esc(p.name)}] ${p.desc ? `<span class="muted">${esc(p.desc)}</span>` : ''}
+          ${p.file ? `<span class="muted">· 来自 ${esc(p.file)}</span>` : ''}</div>
+          <code>${esc((p.keys || []).join('、') || '（没有可识别的选项）')}</code>
+          ${p.cond ? `<code>cond: ${esc(p.cond)}</code>` : ''}</div>
+      </div>`).join('')}
+    </div>
+    <p class="note" style="margin-top:8px">想把这些设置变成常驻，在进阶模式里用它右侧的 profile 选择器单独载入。</p>
+  </div>`;
+}
+
+/* ---------- 清理重复写入块（W-1 的收尾动作）----------
+   和补注释一个规矩：**用户主动点的动作**，而且先只检查、不写盘。
+   要落盘得再点一次「写入修复」。 */
+
+let TD_INFO = null;
+
+async function tidyScan() {
+  if (!ANALYZED_PATH) {
+    el('tdOut').innerHTML = '<p class="note">这个动作要直接看磁盘上的文件 —— ' +
+      '请用「选择配置文件」从文件体检，而不是粘贴文本。</p>';
+    return;
+  }
+  el('tdOut').innerHTML = '<p class="note">正在检查…</p>';
+  const r = await API.post('/api/config/tidy', { path: ANALYZED_PATH });
+  TD_INFO = r;
+  if (!r.ok) {
+    el('tdOut').innerHTML = `<p class="note danger">❌ ${esc(r.detail || '检查失败')}</p>`;
+    return;
+  }
+  if (!r.changed) {
+    el('tdOut').innerHTML = `<p class="note">✅ ${esc(r.detail)}（当前 ${r.blocks_before} 个）</p>`;
+    el('tdRun').style.display = 'none';
+    return;
+  }
+  el('tdOut').innerHTML = `
+    <p class="note warn-text">⚠ 发现 <b>${r.blocks_before}</b> 个写入块，
+      会合并成 1 个（删掉 ${r.dropped} 个多余的）。</p>
+    <pre class="conf" style="max-height:36vh;overflow:auto">${esc(r.text)}</pre>
+    <p class="note">这是<b>预览</b>，磁盘上还没动。确认没问题再点「写入修复」
+      （会先备份成 <code>.bak-时间戳</code>）。</p>`;
+  el('tdRun').style.display = '';
+}
+
+async function tidyWrite() {
+  if (!ANALYZED_PATH) return;
+  if (!confirm('写入修复？\n\n只做一件事：把多个「由 MPV Config Builder 写入」块合并成 1 个。\n' +
+    '其余内容一行都不动，写之前会先备份。')) return;
+  const r = await API.post('/api/config/tidy', { path: ANALYZED_PATH, write: true });
+  if (!r.ok) { toast('❌ ' + (r.detail || '修复失败'), 'err'); return; }
+  toast(`✅ ${r.detail}` + (r.backup ? '，已备份' : ''), 'ok');
+  el('tdRun').style.display = 'none';
+  el('tdOut').innerHTML = `<p class="note">✅ ${esc(r.detail)}。
+    备份：<code>${esc((r.backup || '').split(/[\\/]/).pop())}</code></p>`;
+}
+
+/* ---------- 补注释（R-28）----------
+   关键：这是「用户主动选的动作」。上传 / 体检永远不会走到这里，
+   而且默认只出预览 —— 落盘要再点一次。 */
+
+let AN_RESULT = null;
+
+async function runAnnotate() {
+  const body = { style: el('anStyle').value, only_missing: el('anOnlyMissing').checked };
+  // 用刚体检的那份内容（有路径就传路径，否则传文本）
+  if (ANALYZED_PATH) body.path = ANALYZED_PATH;
+  else if (ANALYZED_TEXT) body.text = ANALYZED_TEXT;
+  else { toast('先体检一份配置，再来补注释', 'err'); return; }
+
+  el('anOut').innerHTML = '<p class="note">正在生成…</p>';
+  const r = await API.post('/api/annotate', body);
+  if (!r.ok) {
+    el('anOut').innerHTML = `<p class="note danger">❌ ${esc(r.detail)}</p>`;
+    return;
+  }
+  AN_RESULT = r;
+  const s = r.stats;
+  const miss = (s.missing_keys || []).slice(0, 8);
+  el('anOut').innerHTML = `
+    <p class="note">共 ${s.lines} 行：加了 <b>${s.added}</b> 条注释，
+      跳过 ${s.skipped} 行（已有注释 / 空行 / 分隔线），
+      ${s.include_lines} 条 include，${s.section_lines} 个 profile 小节。</p>
+    ${s.missing ? `<p class="note warn-text">⚠ ${s.missing} 行查不到说明，已留白（不编造）：
+      <code>${esc(miss.join('、'))}${s.missing_keys.length > 8 ? ' …' : ''}</code></p>` : ''}
+    <pre class="conf" style="max-height:46vh;overflow:auto">${esc(r.text)}</pre>`;
+  el('anCopy').style.display = '';
+  if (ANALYZED_PATH) el('anSaveAs').style.display = '';
+  else el('anSaveAs').style.display = 'none';
+}
+
+async function saveAnnotated(ev) {
+  if (!AN_RESULT) return;
+  if (!ANALYZED_PATH) { toast('从文件选的配置才能另存副本', 'err'); return; }
+  if (ev.shiftKey) {
+    // 写回原文件：必须二次确认（会改到用户自己的文件）
+    if (!confirm('写回原文件？\n\n原文件会先备份成 .bak-时间戳，但仍然会覆盖它。\n' +
+      '如果只是想看看，点「取消」，改点「另存为副本」。')) return;
+    const r = await API.post('/api/annotate', {
+      path: ANALYZED_PATH, style: el('anStyle').value,
+      only_missing: el('anOnlyMissing').checked, write: true, write_back: true
+    });
+    toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
+    return;
+  }
+  const r = await API.post('/api/annotate', {
+    path: ANALYZED_PATH, style: el('anStyle').value,
+    only_missing: el('anOnlyMissing').checked, write: true
+  });
+  toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
+}
+
+document.addEventListener('click', async e => {
+  if (e.target.id === 'tdScan') { tidyScan(); return; }
+  if (e.target.id === 'tdRun') { tidyWrite(); return; }
+  if (e.target.id === 'toAdvanced') {
+    // 把刚体检的那份配置文本带过去 —— 以前只写了个 {from, at} 的时间戳，
+    // advanced 那边也没人读，按钮等于什么都不传。
+    try {
+      const text = (typeof ANALYZED_TEXT !== 'undefined' && ANALYZED_TEXT) || '';
+      localStorage.setItem('mpvcb-handoff', JSON.stringify({
+        from: 'analyze', at: Date.now(), text, name: ANALYZED_NAME || ''
+      }));
+    } catch (err) { /* 忽略：存储满了也不该挡住跳转 */ }
+    location.href = 'advanced.html';
+  }
+  if (e.target.id === 'copyReport') {
+    const text = document.getElementById('report').innerText;
+    try { await navigator.clipboard.writeText(text); toast('报告已复制', 'ok'); }
+    catch (err) { toast('复制失败，请手动选中', 'err'); }
+  }
+  if (e.target.id === 'anRun') runAnnotate();
+  if (e.target.id === 'anSaveAs') saveAnnotated(e);
+  if (e.target.id === 'anCopy') {
+    if (!AN_RESULT) return;
+    try { await navigator.clipboard.writeText(AN_RESULT.text); toast('已复制带注释的版本', 'ok'); }
+    catch (err) { toast('复制失败，请手动选中', 'err'); }
+  }
+});
+
+boot();
+</script>
+</body>
+</html>

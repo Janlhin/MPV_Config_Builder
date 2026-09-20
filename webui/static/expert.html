@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>完全体 · MPV Config Builder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">🧪 完全体 <small id="ver"></small></div>
+  <div class="target">目标：<code id="targetLabel">未设置</code>
+    <button class="btn small ghost" id="pickDir">更改</button></div>
+  <div class="spacer"></div>
+  <a class="btn small" href="index.html">🔀 切换模式</a>
+  <button class="btn small" id="loadTop">📂 读取现有配置</button>
+  <button class="btn small primary" id="applyTop" data-primary data-primary-icon="✅">✅ 生成配置</button>
+  <button class="btn small" data-theme-toggle>🌓</button>
+</div>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar"></nav>
+  <main class="content">
+    <div class="card tight" style="margin-bottom:12px">
+      <div class="seg" id="modeSeg" style="display:inline-flex">
+        <button data-mode="create">🆕 从零创建</button>
+        <button data-mode="edit">✏️ 改现有配置</button>
+      </div>
+      <p class="note" id="modeHint" style="margin-top:8px"></p>
+    </div>
+    <div class="cols">
+      <div>
+        <h1 id="secTitle">📚 全部选项</h1>
+        <p class="sub" id="secSub"></p>
+        <div id="panes"></div>
+      </div>
+
+      <div>
+        <div class="card" id="previewCard">
+          <h2>📋 <span id="previewTitle">实时生成的 mpv.conf</span></h2>
+          <div class="dirbar" id="profileBar" style="display:none">
+            <span class="note">这份文件里有 <b id="profileCount">0</b> 个 profile（只在条件满足时生效）：</span>
+            <select id="profileSel" style="flex:1"></select>
+            <button class="btn small" id="profileLoad">载入它的选项</button>
+          </div>
+          <pre class="conf" id="preview">（正在加载…）</pre>
+          <div id="diffBox" style="display:none"></div>
+          <div class="actions">
+            <button class="btn primary" onclick="applyConfig()" data-primary data-primary-icon="✅">✅ 生成配置</button>
+            <button class="btn" onclick="copyConf()">📋 复制</button>
+            <button class="btn" onclick="saveAs()">💾 另存为</button>
+            <button class="btn" id="diffToggle" style="display:none">🔀 逐行对比</button>
+          </div>
+          <p class="note" style="margin-top:10px">
+            写入 <code id="previewFile">—</code> · 改动 <b id="changeCount">0</b> 处<br>
+            <span id="previewMode">独立 include 文件</span>
+            <span id="encodingHint" class="muted"></span></p>
+          <p class="note" style="margin-top:4px" id="pendingHint"></p>
+          <p class="note" style="margin-top:4px" id="chainHint"></p>
+        </div>
+
+        <div class="card tight">
+          <h2>📊 评估与体检</h2>
+          <div id="scoreBox" class="muted">（等配置出来再算）</div>
+          <div id="issueBox" style="margin-top:8px"><p class="note">—</p></div>
+        </div>
+
+        <div class="card tight">
+          <h2>📤 写入方式</h2>
+          <div class="seg" id="writeSeg">
+            <button data-v="include" class="on">🧩 独立文件</button>
+            <button data-v="merge">📄 合并进 mpv.conf</button>
+          </div>
+          <div class="dirbar" style="margin-top:10px">
+            <select id="srcSelect" style="flex:1"></select>
+            <button class="btn small" id="srcLoad">📂 读取</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<aside class="drawer" id="drawer">
+  <h3>说明 <span class="key"></span></h3>
+  <div class="sig"></div>
+  <div class="body"></div>
+  <div class="drawer-foot">
+    <p class="note">点别处 / 再点一次 i / Esc / 右键 都能关</p>
+    <div class="actions">
+      <button class="btn primary small" data-role="fill">填入建议值</button>
+      <button class="btn small ghost" onclick="closeDrawer()">关闭</button>
+    </div>
+  </div>
+</aside>
+
+<script src="api.js"></script>
+<script src="state.js"></script>
+<script>
+/* ============================================================
+   完全体：核心参数 + 全部原生选项 + 自定义层 + 版本回滚
+   选项来自 /api/options（核心 28 + 原生 89），自定义层随便写
+   ============================================================ */
+
+const GROUP_ICONS = {
+  '视频输出': '🖥️', '缩放': '🎨', '补帧': '⏱️', '字幕': '💬', '音频': '🔊',
+  '窗口': '🪟', '性能 / 缓存': '⚡',
+  '画质细节': '🔬', '色彩 / HDR': '🌈', '字幕明细': '💬', '音频明细': '🎧',
+  '行为 / 界面': '🪟', '截图 / 其它': '📸'
+};
+
+let SECTIONS = [];
+let cur = 'all';
+let filter = '';
+
+function buildSections() {
+  const coreGroups = [...new Set((APP.options.core || []).map(x => x.group))];
+  const nativeGroups = (APP.options.groups && APP.options.groups.length)
+    ? APP.options.groups : [...new Set((APP.options.native || []).map(x => x.group))];
+  SECTIONS = [
+    { id: 'all', icon: '📚', name: '全部选项', sub: '' },
+    { id: 'custom', icon: '🧩', name: '自定义选项', sub: '数据库里没有的键，直接写' },
+    { id: 'backup', icon: '🕘', name: '版本 / 回滚', sub: '每次写入前的自动备份都在这里' },
+    ...coreGroups.map(g => ({ id: 'g:' + g, icon: GROUP_ICONS[g] || '⚙️', name: g, items: byGroup(g, 'core') })),
+    ...nativeGroups.map(g => ({ id: 'g:' + g, icon: GROUP_ICONS[g] || '⚙️', name: g, items: byGroup(g, 'native') })),
+    { id: 'shader', icon: '✨', name: 'Shader 链', sub: 'glsl-shaders 顺序' },
+    { id: 'tools', icon: '📦', name: '下载与安装', sub: '官方发布页与说明书' },
+    { id: 'about', icon: 'ℹ️', name: '关于 / 致谢', sub: '数据来源与许可' }
+  ];
+}
+
+function byGroup(group, kind) {
+  return (APP.options[kind] || []).filter(x => x.group === group);
+}
+
+function renderSidebar() {
+  document.getElementById('sidebar').innerHTML = SECTIONS.map(s => {
+    let n = '';
+    if (s.id === 'all') n = APP.dbCount || '';
+    else if (s.id === 'custom') n = APP.custom.trim() ? '有' : '';
+    else if (s.id === 'shader') n = APP.shaders.length || '';
+    else if (s.items) n = s.items.filter(x => isOn(x.key)).length || '';
+    return `<div class="side-item${s.id === cur ? ' active' : ''}" data-sec="${esc(s.id)}">
+      <span class="ico">${s.icon}</span>${esc(s.name)}
+      ${n ? `<span class="count">${n}</span>` : ''}</div>`;
+  }).join('');
+  document.getElementById('sidebar').onclick = e => {
+    const el = e.target.closest('.side-item');
+    if (!el) return;
+    cur = el.dataset.sec;
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+}
+
+function render() {
+  if (!SECTIONS.length) return;
+  const sec = SECTIONS.find(s => s.id === cur) || SECTIONS[0];
+  document.getElementById('secTitle').textContent = sec.icon + ' ' + sec.name;
+  document.getElementById('secSub').textContent = sec.sub || '';
+  const host = document.getElementById('panes');
+  if (sec.items) {
+    host.innerHTML = `<div class="card"><h2>${sec.icon} ${esc(sec.name)}
+      <span class="muted" style="font-weight:400;font-size:12px"> · ${sec.items.length} 项</span></h2>
+      <div id="optbox"></div></div>`;
+    mountOptions(document.getElementById('optbox'), sec.items);
+  } else {
+    host.innerHTML = PANES[sec.id] ? PANES[sec.id]() : '';
+    if (WIRE[sec.id]) WIRE[sec.id]();
+  }
+  const sel = document.getElementById('srcSelect');
+  if (sel) sel.innerHTML = configOptions();
+  renderSidebar();
+}
+
+/* ---------------- 各页面 ---------------- */
+
+const PANES = {
+  all: () => `
+    <div class="searchbar">
+      <input type="text" id="q" placeholder="🔍 搜全部 ${APP.dbCount || 829} 个选项：键名、中文名、中文说明都行，例如 deband / 色带 / 字幕颜色">
+      <button class="btn" id="qclear">清空</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <p class="note" id="dbStat" style="margin-bottom:10px"></p>
+    <div id="listHost"></div>
+    <div class="actions" id="moreBox" style="display:none">
+      <button class="btn" id="moreBtn">加载更多</button>
+      <span class="note" id="moreNote"></span>
+    </div>`,
+
+  custom: () => `
+    <div class="card">
+      <h2>🧩 自定义层</h2>
+      <p class="note">这里写的内容会原样追加到配置末尾，不做校验。
+        适合写 <code>profile-*</code>、<code>[xxx]</code> 小节，或数据库里暂时没有的键。</p>
+      <textarea class="raw" id="customBox" spellcheck="false"
+        placeholder="profile-cond=not playlist&#10;[my-profile]&#10;scale=spline36">${esc(APP.custom)}</textarea>
+      <div class="actions">
+        <button class="btn primary" id="customSave">💾 存进配置</button>
+        <button class="btn" id="customClear">🗑️ 清空</button>
+        <span class="note">修改实时反映在右侧预览</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>✍️ 单条写入</h2>
+      <div class="row">
+        <input type="text" id="ck" placeholder="键，如 glsl-shader-reload" style="flex:1">
+        <input type="text" id="cv" placeholder="值" style="flex:1">
+        <button class="btn" id="cadd">写入参数区</button>
+      </div>
+      <p class="note" style="margin-top:8px">这会把键值放进普通参数区（排好序、好读），和上面的自定义层不冲突。</p>
+    </div>`,
+
+  backup: () => `
+    <div class="card">
+      <h2>🕘 自动备份</h2>
+      <p class="note">每次写入前都会生成 <code>文件名.bak-时间戳</code>。点「回滚」会用备份覆盖当前文件，
+        覆盖前还会把当前版本再备份一次。</p>
+      <div class="actions"><button class="btn primary" id="bkLoad">🔄 刷新列表</button>
+        <span class="note">目录：<code>${esc(APP.target || '未设置')}</code></span></div>
+      <div id="bkList" style="margin-top:12px"><p class="note">（点刷新读一次）</p></div>
+    </div>`,
+
+  shader: () => `
+    <div class="card">
+      <h2>✨ glsl-shaders（${APP.shaders.length}）</h2>
+      <div class="chain">${APP.shaders.map((p, i) => `<div class="chain-item">
+        <span class="idx">${i + 1}</span>
+        <div style="min-width:0"><div>${esc(baseName(p))}</div><code>${esc(p)}</code></div>
+        <div class="right">
+          <button class="btn small ghost" onclick="moveShader(${i},-1)">↑</button>
+          <button class="btn small ghost" onclick="moveShader(${i},1)">↓</button>
+          <button class="btn small danger" onclick="delShader(${i})">✕</button>
+        </div></div>`).join('') || '<div class="chain-empty">（空）</div>'}</div>
+      <div class="picker">
+        <select id="shaderPick">${(APP.catalog.shaders || []).map(x =>
+          `<option value="${esc(x.path)}">${esc(x.name)} · ${esc(x.path)}</option>`).join('')
+          || '<option value="">（本机没扫到 glsl）</option>'}</select>
+        <button class="btn primary" id="shaderAdd">➕ 加到链尾</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🎞️ vf=vapoursynth（补帧 / 超分脚本）</h2>
+      <div class="radio-list" id="memcList">${(APP.catalog.memc || []).map((x, i) =>
+        `<div class="radio-item${APP.memc === x.path ? ' on' : ''}" data-memc="${i}">
+          <input type="radio" ${APP.memc === x.path ? 'checked' : ''}>
+          <div style="min-width:0"><div>${esc(x.name)}</div><small>${esc(x.path)}</small></div>
+        </div>`).join('') || '<div class="chain-empty">（本机没扫到 vpy）</div>'}</div>
+      <div class="actions"><button class="btn" onclick="setMemc('')">🚫 不挂</button>
+        <span class="note">当前：<code>${esc(APP.memc || '（无）')}</code></span></div>
+    </div>
+    ${fusionPanelHtml()}`,
+
+  tools: () => `
+    <div class="card">
+      <h2>📦 下载</h2>
+      <p class="note">本软件不打包任何第三方二进制，全部指向官方发布页。</p>
+      <div class="quick" style="margin-top:10px">
+        <a class="btn" target="_blank" href="https://github.com/hooke007/mpv_PlayKit/releases">📥 mpv-lazy</a>
+        <a class="btn" target="_blank" href="https://github.com/stax76/mpv.net/releases">📥 mpv.net</a>
+        <a class="btn" target="_blank" href="https://github.com/mpv-player/mpv/releases">📥 mpv 官方</a>
+        <a class="btn" target="_blank" href="https://hooke007.github.io/unofficial/mpv_shaders.html">📖 shader 说明书</a>
+        <a class="btn" target="_blank" href="https://mpv.io/manual/master/">📚 mpv 手册</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🔍 扫描本机文件</h2>
+      <div class="actions"><button class="btn primary" id="scanBtn">扫描 shaders / vs</button></div>
+      <pre class="conf" id="scanOut" style="margin-top:12px;max-height:32vh">（还没扫描）</pre>
+    </div>`,
+
+  about: () => `
+    <div class="card">
+      <h2>ℹ️ 数据来源</h2>
+      <p class="note">
+        <b>选项清单 / 默认值</b>：mpv 自带的 <code>--list-options</code>（本机 829 项）<br>
+        <b>中文说明</b>：mpv_doc-CN（社区翻译，GPL-3.0，已收录 726 条）<br>
+        <b>shader / vpy 列表</b>：从你自己的便携版目录实际扫描，不是固定清单<br>
+        <b>搭配建议</b>：hooke007 的《mpv shader 搭配说明书》</p>
+      <div class="quick" style="margin-top:10px">
+        <a class="btn" href="guide.html?doc=guide">📖 入门指南</a>
+        <a class="btn" href="guide.html?doc=shaders">✨ Shader 说明书</a>
+        <a class="btn" href="analyze.html">🩺 配置体检</a>
+        <a class="btn" href="keys.html">⌨️ 改快捷键</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🙏 致谢</h2>
+      <p class="note">mpv 及其贡献者 · hooke007（mpv-lazy / mpv_PlayKit / shader 说明书）·
+        Anime4K / FSRCNNX / RAVU / RIFE / MVTools / SVP 等算法作者 · mpv_doc-CN 翻译组 ·
+        以及所有在论坛和 issue 里踩过坑的人。</p>
+      <div class="quick" style="margin-top:10px">
+        <a class="btn" href="guide.html?doc=thanks">🙏 完整致谢与许可</a>
+        <a class="btn" href="guide.html?doc=roadmap">🗺️ 产品规划与路线图</a>
+      </div>
+    </div>`
+};
+
+const WIRE = {
+  all: () => {
+    renderChips();
+    const inp = document.getElementById('q');
+    inp.value = DB.q;
+    let timer = null;
+    inp.oninput = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { DB.q = inp.value.trim(); loadDb(true); }, 220);
+    };
+    document.getElementById('qclear').onclick = () => {
+      inp.value = ''; DB.q = ''; loadDb(true);
+    };
+    document.getElementById('moreBtn').onclick = () => loadDb(false);
+    loadDb(true);
+  },
+  custom: () => {
+    const box = document.getElementById('customBox');
+    document.getElementById('customSave').onclick = () => {
+      APP.custom = box.value; changed();
+      toast('已存进配置预览', 'ok');
+    };
+    document.getElementById('customClear').onclick = () => {
+      APP.custom = ''; box.value = ''; changed(); toast('已清空自定义层', 'ok');
+    };
+    document.getElementById('cadd').onclick = () => {
+      const k = document.getElementById('ck').value.trim();
+      const v = document.getElementById('cv').value.trim();
+      if (!k || !v) { toast('键和值都要填', 'err'); return; }
+      setOption(k, v); render();
+      toast(`已写入 ${k} = ${v}`, 'ok');
+    };
+  },
+  backup: () => { loadBackups(); },
+  shader: () => {
+    const add = document.getElementById('shaderAdd');
+    if (add) add.onclick = () => addShader(document.getElementById('shaderPick').value);
+    const box = document.getElementById('memcList');
+    if (box) box.onclick = e => {
+      const el = e.target.closest('[data-memc]');
+      if (el) setMemc(APP.catalog.memc[+el.dataset.memc].path);
+    };
+    prepareFusion();
+  },
+  tools: () => {
+    const b = document.getElementById('scanBtn');
+    if (b) b.onclick = doScan;
+  }
+};
+
+/* ---------------- 全量选项库（829 项） ---------------- */
+
+const DB = { q: '', group: '', items: [], total: 0, offset: 0, limit: 60,
+             loading: false, queued: false };
+const DB_GROUP_ICONS = {
+  '轨道选择': '🎯', '播放控制': '▶️', '程序行为': '⚙️', '稍后观看': '⏱️', '观看历史': '🕘',
+  '视频': '🎬', '音频': '🔊', '字幕': '💬', '窗口': '🪟', '光盘设备': '💿', '均衡器': '🎚️',
+  '解复用器': '📦', '输入': '⌨️', 'OSD': '📺', '屏幕截图': '📸', '软件缩放器': '🧮',
+  '音频重采样器': '🎵', '终端': '🖥️', '缓存': '💾', '网络': '🌐', 'GPU渲染选项': '🌈',
+  '视频同步': '🔄', '杂项': '🧩', '其它': '📎'
+};
+
+function renderChips() {
+  const box = document.getElementById('chips');
+  if (!box) return;
+  const groups = APP.dbGroups || [];
+  box.innerHTML = `<span class="chip${DB.group ? '' : ' on'}" data-g="">全部</span>`
+    + groups.map(g => `<span class="chip${DB.group === g ? ' on' : ''}" data-g="${esc(g)}">`
+      + `${DB_GROUP_ICONS[g] || '⚙️'} ${esc(g)}</span>`).join('');
+  box.onclick = e => {
+    const c = e.target.closest('.chip');
+    if (!c) return;
+    DB.group = c.dataset.g || '';
+    document.querySelectorAll('#chips .chip').forEach(x => x.classList.toggle('on', x === c));
+    loadDb(true);
+  };
+}
+
+async function loadDb(reset) {
+  // 防抖期间用户又敲了字：记下"还得重置"，等这一轮结束再补一次，
+  // 别直接 return 把重置丢掉（否则列表停在旧搜索结果上，q 已经变了）。
+  if (DB.loading) { DB.queued = DB.queued || reset; return; }
+  DB.loading = true;
+  if (reset) { DB.offset = 0; DB.items = []; }
+  const stat = document.getElementById('dbStat');
+  if (stat) stat.textContent = '正在读取选项库…';
+  const qs = new URLSearchParams({
+    q: DB.q, group: DB.group, offset: String(DB.offset), limit: String(DB.limit)
+  });
+  const r = await fetch('/api/db/options?' + qs).then(x => x.json()).catch(() => ({ ok: false }));
+  DB.loading = false;
+  const host = document.getElementById('listHost');
+  if (!host) return;
+  if (!r.ok) {
+    host.innerHTML = `<div class="card"><p class="note danger">❌ ${esc(r.detail || '选项库加载失败')}</p>
+      <p class="note">跑一次 <code>py -3 tools\\build_options_db.py</code> 就能生成。</p></div>`;
+    if (stat) stat.textContent = '';
+    return;
+  }
+  APP.dbGroups = r.groups || [];
+  indexDbItems(r.items);
+  DB.total = r.total;
+  DB.items = DB.items.concat(r.items);
+  DB.offset = DB.items.length;
+  if (reset) renderChips();
+
+  // 按分组分块渲染
+  const groups = {};
+  DB.items.forEach(x => (groups[x.group] = groups[x.group] || []).push(x));
+  host.innerHTML = Object.keys(groups).map(g =>
+    `<div class="card"><h2>${DB_GROUP_ICONS[g] || '⚙️'} ${esc(g)}
+      <span class="muted" style="font-weight:400;font-size:12px"> · ${groups[g].length} 项</span></h2>
+      <div data-mount="${esc(g)}"></div></div>`).join('')
+    || '<div class="card"><p class="note">没有匹配的选项。</p></div>';
+  Object.keys(groups).forEach(g => {
+    const box = host.querySelector(`[data-mount="${CSS.escape(g)}"]`);
+    if (box) mountOptions(box, groups[g]);
+  });
+
+  const meta = r.meta || {};
+  if (stat) {
+    stat.innerHTML = `选项库共 <b>${meta.count || r.total}</b> 项`
+      + `（有中文说明 ${meta.with_zh || 0} 项）· 当前${DB.q ? `搜索「${esc(DB.q)}」` : ''}`
+      + `${DB.group ? `分组「${esc(DB.group)}」` : ''}命中 <b>${r.total}</b> 项，已显示 ${DB.items.length} 项`;
+  }
+  const more = document.getElementById('moreBox');
+  if (more) {
+    more.style.display = DB.items.length < DB.total ? '' : 'none';
+    const note = document.getElementById('moreNote');
+    if (note) note.textContent = `还剩 ${Math.max(0, DB.total - DB.items.length)} 项`;
+  }
+  // 补上被丢掉的那次刷新（搜索防抖期间连打字的场景）
+  const queued = DB.queued;
+  DB.queued = false;
+  if (queued) loadDb(true);
+}
+
+/* ---------------- 备份 / 扫描 ---------------- */
+
+async function loadBackups() {
+  const box = document.getElementById('bkList');
+  if (!box) return;
+  box.innerHTML = '<p class="note">读取中…</p>';
+  const r = await API.get('/api/backups' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
+  if (!r.ok) { box.innerHTML = `<p class="note danger">${esc(r.detail)}</p>`; return; }
+  if (!r.backups.length) { box.innerHTML = '<p class="note">还没有备份（第一次写入时才会生成）。</p>'; return; }
+  box.innerHTML = r.backups.map((b, i) => `<div class="chain-item">
+      <div style="min-width:0"><div>${esc(b.name)}</div>
+        <code>原文件 ${esc(b.orig)} · ${b.size} B</code></div>
+      <div class="right"><button class="btn small" data-bk="${i}">↩️ 回滚</button></div>
+    </div>`).join('');
+  box.onclick = async e => {
+    const b = e.target.closest('[data-bk]');
+    if (!b) return;
+    const item = r.backups[+b.dataset.bk];
+    if (!confirm(`用 ${item.name} 覆盖 ${item.orig}？当前版本会再备份一次。`)) return;
+    const res = await API.post('/api/restore', { path: item.path, target: APP.target });
+    toast((res.ok ? '✅ ' : '❌ ') + res.detail, res.ok ? 'ok' : 'err');
+    if (res.ok) loadBackups();
+  };
+}
+
+async function doScan() {
+  const out = document.getElementById('scanOut');
+  if (!APP.target) { toast('先设置目标目录', 'err'); return; }
+  out.textContent = '扫描中…';
+  const r = await API.scan(APP.target);
+  if (!r.ok) { out.textContent = r.detail; return; }
+  out.textContent = `glsl (${r.shaders.length}):\n` + r.shaders.map(x => '  ' + x).join('\n')
+    + `\n\nvpy (${r.vpy.length}):\n` + r.vpy.map(x => '  ' + x).join('\n');
+  await loadCatalog();
+  render();
+  toast(`扫到 ${r.shaders.length} 个 glsl、${r.vpy.length} 个 vpy`, 'ok');
+}
+
+/* ---------------- 其它 ---------------- */
+
+function baseName(p) { return String(p).split(/[\\/]/).pop(); }
+
+async function copyConf() {
+  try { await navigator.clipboard.writeText(document.getElementById('preview').innerText); toast('已复制', 'ok'); }
+  catch (e) { toast('复制失败，请手动选中', 'err'); }
+}
+
+function saveAs() {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([document.getElementById('preview').innerText], { type: 'text/plain' }));
+  a.download = 'mpv-builder.conf';
+  a.click();
+}
+
+function setWriteMode(m) {
+  APP.writeMode = m;
+  saveLocal();
+  const t = document.getElementById('previewMode');
+  if (t) t.textContent = m === 'include' ? '独立 include 文件' : '合并进现有 mpv.conf';
+  document.querySelectorAll('#writeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === m));
+  doPreview();
+}
+
+/* ---------------- 启动 ---------------- */
+
+APP.onRender = render;
+APP.onCatalog = () => { if (cur === 'shader') render(); };
+
+async function boot() {
+  loadLocal();
+  const [s] = await Promise.all([API.status(), loadOptions()]);
+  document.getElementById('ver').textContent = 'v' + s.version;
+  APP.dbCount = (APP.options.db && APP.options.db.count) || 0;
+  APP.dbGroups = (APP.options.db && APP.options.db.groups) || [];
+  if (!APP.target && s.lazy_pc) APP.target = s.lazy_pc;
+  const tl = document.getElementById('targetLabel');
+  tl.textContent = APP.target ? shortPath(APP.target) : '未设置';
+  tl.title = APP.target || '';
+  buildSections();
+  renderSidebar();
+  await loadCatalog();
+  if (!APP.source) {
+    const cfg = (APP.catalog.configs || []).find(c => /mpv\.conf$/i.test(c.name));
+    if (cfg) APP.source = cfg.path;
+  }
+  // 从地狱模式带过来的草稿：整段放进「自定义选项」，不解析、不猜
+  if (new URLSearchParams(location.search).get('from') === 'hell') {
+    let draft = null;
+    try { draft = localStorage.getItem('mpvcb-hell-draft'); } catch (e) { draft = null; }
+    if (draft) {
+      APP.custom = draft;
+      cur = 'custom';
+      toast('已把地狱模式的草稿放进「自定义选项」，检查完再决定怎么用', 'ok');
+    }
+  }
+  render();
+  setWriteMode(APP.writeMode);
+  initModeBar();                       // R-26：接上「创建 / 修改」开关
+  const dt = document.getElementById('diffToggle');
+  if (dt) dt.onclick = toggleDiff;     // R-14：逐行对比
+  document.getElementById('writeSeg').onclick = e => {
+    const b = e.target.closest('button');
+    if (b) setWriteMode(b.dataset.v);
+  };
+  const lt = document.getElementById('loadTop');
+  if (lt) lt.onclick = async () => {
+    const r = await loadExistingConfig(APP.source || '');
+    if (r.ok) render();
+  };
+  const sl = document.getElementById('srcLoad');
+  if (sl) sl.onclick = async () => {
+    const r = await loadExistingConfig(document.getElementById('srcSelect').value);
+    if (r.ok) render();
+  };
+  const pl = document.getElementById('profileLoad');
+  if (pl) pl.onclick = () => loadProfile(document.getElementById('profileSel').value);
+  doPreview();
+}
+boot();
+</script>
+</body>
+</html>

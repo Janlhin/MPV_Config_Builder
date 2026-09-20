@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>地狱模式 · MPV Config Builder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">😈 地狱模式 <small>彩蛋 · 没有护栏</small></div>
+  <div class="target">文件：<code id="fileLabel">未选择</code></div>
+  <div class="spacer"></div>
+  <a class="btn small" href="index.html">🔀 切换模式</a>
+  <button class="btn small" id="reload">🔄 重新读取</button>
+  <button class="btn small" data-theme-toggle>🌓</button>
+</div>
+
+<div class="content" style="max-width:1100px;margin:0 auto">
+
+  <div class="hell-banner">
+    🔥 <b>这里没有护栏</b>：不校验语法、不合并、不提示冲突、不做中文解释。
+    写坏了 mpv 打不开属于正常现象，请自己留好退路。
+  </div>
+
+  <div class="card">
+    <h2>📂 选文件</h2>
+    <div class="dirbar">
+      <input type="text" id="targetInput" placeholder="C:\...\mpv-lazy\portable_config" style="flex:1">
+      <button class="btn" id="scanDir">列出目录里的配置文件</button>
+    </div>
+    <div class="dirbar">
+      <select id="fileSelect" style="flex:1"><option value="">（先列出目录）</option></select>
+      <button class="btn primary" id="openFile">打开</button>
+    </div>
+    <p class="note">读进来的是什么，保存下去就是什么 —— 中间没有任何加工。</p>
+  </div>
+
+  <div class="card">
+    <h2>📝 裸写</h2>
+    <textarea class="raw" id="rawBox" spellcheck="false" placeholder="# 直接写 mpv.conf 的内容&#10;vo=gpu-next&#10;scale=ewa_lanczos4sharpest"></textarea>
+    <div class="row" style="margin-top:12px;justify-content:space-between">
+      <label class="row" style="gap:8px">
+        <input type="checkbox" id="confirm">
+        <span>我确认知道我在做什么，出问题自己负责</span>
+      </label>
+      <span class="note" id="sizeHint">0 行</span>
+    </div>
+    <div class="actions">
+      <button class="btn danger" id="save" disabled>💥 直接覆盖写入</button>
+      <button class="btn" id="copy">📋 复制全文</button>
+      <button class="btn" id="dl">💾 下载为文件</button>
+      <button class="btn ghost" id="toExpert">🧪 拿去完全体里检查</button>
+    </div>
+    <p class="note danger" style="margin-top:12px">
+      ⚠ 不校验、不解释。唯一的保险是写入前自动生成的 <code>.bak-时间戳</code> 文件
+      （想彻底裸写，自己把备份删掉即可）。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>🧭 为什么会有这一页</h2>
+    <p class="note">有人不需要向导、不需要中文说明、不需要冲突检测 —— 他们要的就是一个直接编辑目标文件的
+      文本框和一个不啰嗦的窗口。把这些人塞进完全体里天天点确认弹窗，反而更烦。</p>
+    <p class="note" style="margin-top:8px">所以这一页的定位是：<b>把所有护栏都拿掉的那一档</b>。</p>
+  </div>
+
+</div>
+
+<script src="api.js"></script>
+<script src="state.js"></script>
+<script>
+/* 地狱模式：不解析、不合并，直接读写原始文件 */
+let curPath = '';
+
+async function listDir() {
+  const dir = document.getElementById('targetInput').value.trim();
+  if (!dir) { toast('先填目录', 'err'); return; }
+  APP.target = dir; saveLocal();
+  const r = await loadCatalog();
+  const sel = document.getElementById('fileSelect');
+  const list = (r.configs || []);
+  sel.innerHTML = list.length
+    ? list.map(c => `<option value="${esc(c.path)}">${esc(c.name)} · ${c.size} B</option>`).join('')
+    : '<option value="">（这个目录里没有 mpv.conf / profiles.conf）</option>';
+  if (list.length) openFile();
+}
+
+async function openFile() {
+  const p = document.getElementById('fileSelect').value;
+  if (!p) { toast('没有可打开的文件', 'err'); return; }
+  const r = await API.rawRead(p);
+  if (!r.ok) { toast('❌ ' + r.detail, 'err'); return; }
+  curPath = r.path;
+  document.getElementById('rawBox').value = r.text;
+  document.getElementById('fileLabel').textContent = r.path;
+  document.getElementById('confirm').checked = false;
+  document.getElementById('save').disabled = true;
+  updateSize();
+  toast(`已读取 ${r.size} B`, 'ok');
+}
+
+function updateSize() {
+  const t = document.getElementById('rawBox').value;
+  document.getElementById('sizeHint').textContent =
+    t.split('\n').length + ' 行 · ' + t.length + ' 字符' + (t.includes('\t') ? ' · 含 Tab' : '');
+}
+
+async function save() {
+  if (!curPath) { toast('还没打开文件', 'err'); return; }
+  if (!document.getElementById('confirm').checked) { toast('请先勾选确认', 'err'); return; }
+  const text = document.getElementById('rawBox').value;
+  const r = await API.rawSave(curPath, text);
+  toast((r.ok ? '✅ ' : '❌ ') + r.detail, r.ok ? 'ok' : 'err');
+}
+
+function toExpert() {
+  try { localStorage.setItem('mpvcb-hell-draft', document.getElementById('rawBox').value); } catch (e) {}
+  location.href = 'expert.html?from=hell';
+}
+
+document.getElementById('scanDir').onclick = listDir;
+document.getElementById('openFile').onclick = openFile;
+document.getElementById('reload').onclick = openFile;
+document.getElementById('save').onclick = save;
+document.getElementById('confirm').onchange = e => {
+  document.getElementById('save').disabled = !e.target.checked;
+};
+document.getElementById('rawBox').oninput = updateSize;
+document.getElementById('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(document.getElementById('rawBox').value); toast('已复制', 'ok'); }
+  catch (e) { toast('复制失败，请手动选中', 'err'); }
+};
+document.getElementById('dl').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([document.getElementById('rawBox').value], { type: 'text/plain' }));
+  a.download = 'mpv.conf';
+  a.click();
+};
+document.getElementById('toExpert').onclick = toExpert;
+
+(async function boot() {
+  loadLocal();
+  document.getElementById('targetInput').value = APP.target || '';
+  if (!APP.target) {
+    const s = await API.status();
+    if (s.lazy_pc) {
+      APP.target = s.lazy_pc;
+      document.getElementById('targetInput').value = s.lazy_pc;
+    }
+  }
+  if (APP.target) await listDir();
+})();
+</script>
+</body>
+</html>

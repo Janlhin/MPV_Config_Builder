@@ -1,0 +1,439 @@
+{
+  "meta": {
+    "source": "mpv --input-cmdlist",
+    "mpv": "mpv v0.41.0-615-g7b057f66f Copyright © 2000-2026 mpv/MPlayer/mplayer2 projects",
+    "count": 86
+  },
+  "commands": [
+    {
+      "name": "ignore",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "seek",
+      "sig": "",
+      "desc": "target=Time [flags=Flags] [legacy=Choice]"
+    },
+    {
+      "name": "revert-seek",
+      "sig": "",
+      "desc": "[flags=Flags]"
+    },
+    {
+      "name": "quit",
+      "sig": "",
+      "desc": "[code=Integer]"
+    },
+    {
+      "name": "quit-watch-later",
+      "sig": "",
+      "desc": "[code=Integer]"
+    },
+    {
+      "name": "stop",
+      "sig": "",
+      "desc": "[flags=Flags]"
+    },
+    {
+      "name": "frame-step",
+      "sig": "",
+      "desc": "[frames=Integer] [flags=Choice]"
+    },
+    {
+      "name": "frame-back-step",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "playlist-next",
+      "sig": "",
+      "desc": "[flags=Choice]"
+    },
+    {
+      "name": "playlist-prev",
+      "sig": "",
+      "desc": "[flags=Choice]"
+    },
+    {
+      "name": "playlist-next-playlist",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "playlist-prev-playlist",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "playlist-play-index",
+      "sig": "",
+      "desc": "index=Choice [preserve-options=Flag]"
+    },
+    {
+      "name": "playlist-shuffle",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "playlist-unshuffle",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "sub-step",
+      "sig": "",
+      "desc": "skip=Integer [flags=Choice]"
+    },
+    {
+      "name": "sub-seek",
+      "sig": "",
+      "desc": "skip=Integer [flags=Choice]"
+    },
+    {
+      "name": "print-text",
+      "sig": "",
+      "desc": "text=String"
+    },
+    {
+      "name": "show-text",
+      "sig": "",
+      "desc": "text=String [duration=Integer] [level=Integer]"
+    },
+    {
+      "name": "expand-text",
+      "sig": "",
+      "desc": "text=String"
+    },
+    {
+      "name": "expand-path",
+      "sig": "",
+      "desc": "text=String"
+    },
+    {
+      "name": "normalize-path",
+      "sig": "",
+      "desc": "filename=String"
+    },
+    {
+      "name": "escape-ass",
+      "sig": "",
+      "desc": "text=String"
+    },
+    {
+      "name": "show-progress",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "sub-add",
+      "sig": "",
+      "desc": "url=String [flags=Flags] [title=String] [lang=String]"
+    },
+    {
+      "name": "audio-add",
+      "sig": "",
+      "desc": "url=String [flags=Flags] [title=String] [lang=String]"
+    },
+    {
+      "name": "video-add",
+      "sig": "",
+      "desc": "url=String [flags=Flags] [title=String] [lang=String] [albumart=Flag]"
+    },
+    {
+      "name": "sub-remove",
+      "sig": "",
+      "desc": "[id=Integer]"
+    },
+    {
+      "name": "audio-remove",
+      "sig": "",
+      "desc": "[id=Integer]"
+    },
+    {
+      "name": "video-remove",
+      "sig": "",
+      "desc": "[id=Integer]"
+    },
+    {
+      "name": "sub-reload",
+      "sig": "",
+      "desc": "[id=Integer]"
+    },
+    {
+      "name": "audio-reload",
+      "sig": "",
+      "desc": "[id=Integer]"
+    },
+    {
+      "name": "video-reload",
+      "sig": "",
+      "desc": "[id=Integer]"
+    },
+    {
+      "name": "rescan-external-files",
+      "sig": "",
+      "desc": "[flags=Choice]"
+    },
+    {
+      "name": "screenshot",
+      "sig": "",
+      "desc": "[flags=Flags] [legacy=Choice]"
+    },
+    {
+      "name": "screenshot-to-file",
+      "sig": "",
+      "desc": "filename=String [flags=Choice]"
+    },
+    {
+      "name": "screenshot-raw",
+      "sig": "",
+      "desc": "[flags=Choice] [format=Choice]"
+    },
+    {
+      "name": "loadfile",
+      "sig": "",
+      "desc": "url=String [flags=Flags] [index=Integer] [options=Key/value list]"
+    },
+    {
+      "name": "loadlist",
+      "sig": "",
+      "desc": "url=String [flags=Flags] [index=Integer]"
+    },
+    {
+      "name": "playlist-clear",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "playlist-remove",
+      "sig": "",
+      "desc": "index=Choice"
+    },
+    {
+      "name": "playlist-move",
+      "sig": "",
+      "desc": "index1=Integer index2=Integer"
+    },
+    {
+      "name": "run",
+      "sig": "",
+      "desc": "command=String args=String..."
+    },
+    {
+      "name": "subprocess",
+      "sig": "",
+      "desc": "args=String list [playback_only=Flag] [capture_size=ByteSize] [capture_stdout=Flag] [capture_stderr=Flag] [detach=Flag] [env=String list] [stdin_data=String] [passthrough_stdin=Flag]"
+    },
+    {
+      "name": "set",
+      "sig": "",
+      "desc": "name=String value=String"
+    },
+    {
+      "name": "del",
+      "sig": "",
+      "desc": "name=String"
+    },
+    {
+      "name": "change-list",
+      "sig": "",
+      "desc": "name=String operation=String value=String"
+    },
+    {
+      "name": "add",
+      "sig": "",
+      "desc": "name=String [value=Double]"
+    },
+    {
+      "name": "cycle",
+      "sig": "",
+      "desc": "name=String [value=up|down]"
+    },
+    {
+      "name": "multiply",
+      "sig": "",
+      "desc": "name=String value=Double"
+    },
+    {
+      "name": "cycle-values",
+      "sig": "",
+      "desc": "arg0=String arg1=String argN=String..."
+    },
+    {
+      "name": "enable-section",
+      "sig": "",
+      "desc": "name=String [flags=Flags]"
+    },
+    {
+      "name": "disable-section",
+      "sig": "",
+      "desc": "name=String"
+    },
+    {
+      "name": "define-section",
+      "sig": "",
+      "desc": "name=String contents=String [flags=Choice]"
+    },
+    {
+      "name": "ab-loop",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "drop-buffers",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "af",
+      "sig": "",
+      "desc": "operation=String value=String"
+    },
+    {
+      "name": "vf",
+      "sig": "",
+      "desc": "operation=String value=String"
+    },
+    {
+      "name": "af-command",
+      "sig": "",
+      "desc": "label=String command=String argument=String [target=String]"
+    },
+    {
+      "name": "vf-command",
+      "sig": "",
+      "desc": "label=String command=String argument=String [target=String]"
+    },
+    {
+      "name": "ao-reload",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "script-binding",
+      "sig": "",
+      "desc": "name=String [arg=String]"
+    },
+    {
+      "name": "script-message",
+      "sig": "",
+      "desc": "args=String..."
+    },
+    {
+      "name": "script-message-to",
+      "sig": "",
+      "desc": "target=String args=String..."
+    },
+    {
+      "name": "overlay-add",
+      "sig": "",
+      "desc": "id=Integer x=Integer y=Integer file=String offset=Integer fmt=String w=Integer h=Integer stride=Integer [dw=Integer] [dh=Integer]"
+    },
+    {
+      "name": "overlay-remove",
+      "sig": "",
+      "desc": "id=Integer"
+    },
+    {
+      "name": "osd-overlay",
+      "sig": "",
+      "desc": "id=Integer64 format=Choice data=String [res_x=Integer] [res_y=Integer] [z=Integer] [hidden=Flag] [compute_bounds=Flag]"
+    },
+    {
+      "name": "write-watch-later-config",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "delete-watch-later-config",
+      "sig": "[filename=String]",
+      "desc": ""
+    },
+    {
+      "name": "mouse",
+      "sig": "",
+      "desc": "x=Integer y=Integer [button=Integer] [mode=Choice]"
+    },
+    {
+      "name": "keybind",
+      "sig": "",
+      "desc": "name=String cmd=String [comment=String]"
+    },
+    {
+      "name": "keypress",
+      "sig": "",
+      "desc": "name=String [scale=Double]"
+    },
+    {
+      "name": "keydown",
+      "sig": "",
+      "desc": "name=String"
+    },
+    {
+      "name": "keyup",
+      "sig": "",
+      "desc": "[name=String]"
+    },
+    {
+      "name": "apply-profile",
+      "sig": "",
+      "desc": "name=String [mode=Choice]"
+    },
+    {
+      "name": "load-config-file",
+      "sig": "",
+      "desc": "filename=String"
+    },
+    {
+      "name": "load-input-conf",
+      "sig": "",
+      "desc": "filename=String"
+    },
+    {
+      "name": "load-script",
+      "sig": "",
+      "desc": "filename=String"
+    },
+    {
+      "name": "dump-cache",
+      "sig": "",
+      "desc": "start=Time end=Time filename=String"
+    },
+    {
+      "name": "ab-loop-dump-cache",
+      "sig": "",
+      "desc": "filename=String"
+    },
+    {
+      "name": "ab-loop-align-cache",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "begin-vo-dragging",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "update-clipboard",
+      "sig": "",
+      "desc": "type=Choice [timeout=Integer]"
+    },
+    {
+      "name": "context-menu",
+      "sig": "",
+      "desc": ""
+    },
+    {
+      "name": "flush-status-line",
+      "sig": "",
+      "desc": "clear=Flag"
+    },
+    {
+      "name": "notify-property",
+      "sig": "",
+      "desc": "property=String"
+    }
+  ]
+}

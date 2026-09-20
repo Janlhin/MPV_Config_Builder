@@ -1,0 +1,77 @@
+MPV Config Builder —— 许可与第三方归属
+==========================================
+
+一、本项目自身的许可
+--------------------
+
+**GNU General Public License v3.0（GPL-3.0）**，全文见同目录 `LICENSE`。
+
+**为什么是 GPL-3.0 而不是更宽松的许可**：本仓库随包分发
+`data/mpv_options_zh.json`，其中内嵌 **726 条中文选项说明**，来自
+mpv_doc-CN（GPL-3.0）。GPL-3.0 具传染性 —— 分发这份衍生数据，整个分发物
+就要按 GPL-3.0 条款走。
+（决定记录在《产品规划与路线图.md》§11.5 待决策第 1 项，2026-09-14 拍板。）
+
+许可证副本的校验信息（防止被误改）：
+
+    来源   https://raw.githubusercontent.com/spdx/license-list-data/main/text/GPL-3.0-only.txt
+    字节   34674
+    sha256 fb981668c18a279e285fc4d83fba1e836cc84dd4daa73c9697d3cfd2d8aca6e0
+
+许可证正文一字未改，只在末尾附加了上面那段本项目自己的说明。
+
+
+二、内置数据：来源与许可
+------------------------
+
+| 内容 | 体量 | 来源 | 许可 |
+|---|---|---|---|
+| 中文选项说明 | 726 条 | mpv_doc-CN（mpv 官方手册中文翻译，hooke007 维护） | **GPL-3.0** |
+| 选项表（键名 / 类型 / 范围 / 默认值） | 829 条（界面可用 813 条） | 原版 mpv 的 `mpv --list-options` 输出 | mpv 项目许可 |
+| 内置默认键位 | 209 条 | 原版 mpv 的 `input-bindings` 导出 | mpv 项目许可 |
+| mpv 命令 | 86 条 | 原版 mpv 的 `--input-cmdlist` | mpv 项目许可 |
+
+`data/mpv_options_zh.json` 的 meta 里保留了它自己的 `license_note`（记录数据来源），
+**不要去改它** —— 那是来源声明，不是本项目的许可声明。
+
+
+三、运行时从各项目官方地址下载的东西
+------------------------------------
+
+下载中心与一键安装**不内置、不转发**任何第三方文件，只在用户点击时从各项目
+**官方地址**取。下载之后它们归各自的许可管，与本仓库无关：
+
+| 项目 | 许可 |
+|---|---|
+| mpv（及其 Windows 构建 mpv-lazy） | mpv 项目许可（LGPL-2.1+ / 部分 GPL） |
+| uosc | MIT（内含 ziggy，见其仓库） |
+| thumbfast（po5） | MIT |
+| LXGW WenKai Lite | SIL OFL 1.1 |
+| mpv 官方 `TOOLS/lua` 脚本（autoload / autodeint / autocrop …） | mpv 项目许可 |
+
+每一条的许可都写在 `core/dlcenter.py` 的清单里，界面上也会显示。
+
+
+四、参考过但没有引入代码的项目
+------------------------------
+
+- **haasnhoff/mpvconfigurator**（GPL-**2.0-only**）：只读了它的源码与内置手册做对比
+  分析，**一行代码都没有移植** —— GPL-2.0-only 与 GPL-3.0 **不兼容**，
+  粘过来就是许可污染。分析记录见 `_reference/mpvconfigurator-0.2-评估.md`。
+- **MattMcManis/Glow**（GPL-3.0）：只做功能对比，未引入代码。
+  其图标等资源有独立版权，**未使用**。对比记录见 `_reference/GitHub同类项目调查.md`。
+
+
+五、分发安装包时
+----------------
+
+打包产物**必须**一并带上：
+
+1. `LICENSE`（GPL-3.0 全文）
+2. 本文件 `NOTICE.txt`（第三方归属）
+3. 界面里的「致谢与许可」页（`致谢与许可.md`）—— 面向最终用户；
+   本文件面向**分发者**，两者不重复。
+
+GPL-3.0 第 6 条要求以目标代码形式分发时提供对应源代码。本项目的源码即本仓库，
+用 PyInstaller / electron-builder 打包的产物属于"同一份源码的另一种形式"，
+分发时给出仓库地址即可。

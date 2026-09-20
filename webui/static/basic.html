@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>基础模式 · MPV Config Builder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">🧭 基础模式 <small id="ver"></small></div>
+  <div class="target">目标：<code id="targetLabel">检测中…</code></div>
+  <div class="spacer"></div>
+  <a class="btn small" href="index.html">🔀 切换模式</a>
+  <button class="btn small" data-theme-toggle>🌓</button>
+</div>
+
+<div class="content" style="max-width:900px;margin:0 auto">
+
+  <div class="steps">
+    <div class="step-dot on" id="d1">1</div><div class="step-line"></div>
+    <div class="step-dot" id="d2">2</div><div class="step-line"></div>
+    <div class="step-dot" id="d3">3</div><div class="step-line"></div>
+    <div class="step-dot" id="d4">4</div>
+  </div>
+
+  <div class="card">
+    <h2>🧭 你是从零开始，还是改现有配置？</h2>
+    <div class="seg" id="modeSeg" style="display:inline-flex">
+      <button data-mode="create" class="on">🆕 从零创建</button>
+      <button data-mode="edit">✏️ 改现有配置</button>
+    </div>
+    <p class="note" id="modeHint" style="margin-top:8px">
+      🆕 从零创建：生成一份新配置。取消勾选只是<b>不写这一项</b>，不会去动你已有的文件。
+    </p>
+    <div id="readBox" style="display:none;margin-top:10px">
+      <button class="btn primary" id="readBtn">📂 读取现有配置</button>
+      <span class="note" id="readInfo">先读一遍，才知道你原来设了什么。</span>
+    </div>
+  </div>
+
+  <div class="card pane on" id="p1">
+    <h2>① 你的 mpv 配置目录在哪？</h2>
+    <p class="sub">没装也没关系，可以一键装一个配好的 mpv-lazy（该功能目前在旧版界面里）</p>
+    <div class="row">
+      <input type="text" id="target" style="flex:1" placeholder="例如 C:\Program Files\mpv-lazy\portable_config">
+      <button class="btn" onclick="applyDetected()">🔍 自动探测</button>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="toast('一键安装目前只在旧版界面里：双击 启动.bat → 「一键安装 mpv-lazy」', '')">📦 下载并安装 mpv-lazy</button>
+      <span class="note">检测到：<span id="lazyHint" class="muted">…</span></span>
+    </div>
+  </div>
+
+  <div class="card pane" id="p2">
+    <h2>② 你的设备？</h2>
+    <p class="sub">已经自动检测好了，不对可以改</p>
+    <div class="kv">
+      <span class="muted">分辨率</span><div class="row"><input type="text" id="hwRes" placeholder="1920x1080"></div>
+      <span class="muted">刷新率</span><div class="row"><input type="text" id="hwHz" style="min-width:80px" placeholder="60"><span class="note">Hz</span></div>
+      <span class="muted">显卡</span><div class="row"><input type="text" id="hwGpu" style="flex:1" placeholder="自动检测"></div>
+    </div>
+    <p class="note" style="margin-top:10px">这一步目前只做展示，还没写进配置（预设暂不区分分辨率与刷新率）</p>
+  </div>
+
+  <div class="card pane" id="p3">
+    <h2>③ 主要看什么？</h2>
+    <p class="sub">这会影响 shader 与缩放算法的选择</p>
+    <div class="big-choice" id="contentChoices">
+      <div class="pick on" data-value="动画" onclick="pick(this)"><div class="emoji">🌸</div><b>动画</b><span>番剧、动画电影</span></div>
+      <div class="pick" data-value="真人影视" onclick="pick(this)"><div class="emoji">🎥</div><b>真人影视</b><span>电影、剧集、纪录片</span></div>
+    </div>
+  </div>
+
+  <div class="card pane" id="p4">
+    <h2>④ 更在意什么？</h2>
+    <p class="sub">决定预设档位</p>
+    <div class="big-choice" id="preferChoices">
+      <div class="pick" data-value="省电流畅" onclick="pick(this)"><div class="emoji">🔋</div><b>省电流畅</b><span>核显 / 笔记本 / 老机器</span></div>
+      <div class="pick on" data-value="均衡" onclick="pick(this)"><div class="emoji">⚖️</div><b>均衡</b><span>画质与性能折中</span></div>
+      <div class="pick" data-value="最高画质" onclick="pick(this)"><div class="emoji">💎</div><b>最高画质</b><span>独显，追求细节</span></div>
+    </div>
+
+    <h2 style="margin-top:20px">写入方式</h2>
+    <div class="big-choice" id="writeChoices">
+      <div class="pick on" data-value="include" onclick="pick(this)"><div class="emoji">🧩</div><b>独立 include 文件</b><span>推荐 · 想卸载删文件即可</span></div>
+      <div class="pick" data-value="merge" onclick="pick(this)"><div class="emoji">📄</div><b>直接合并进 mpv.conf</b><span>只有一个文件</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📋 将写入的内容 <span class="muted" id="presetNote" style="font-weight:400;font-size:12.5px"></span></h2>
+    <pre class="conf" id="preview">（正在计算…）</pre>
+    <div class="actions">
+      <button class="btn primary" id="applyBtn" onclick="doApply()">✅ 生成配置</button>
+      <span class="note" id="applyHint">写前会自动备份原文件</span>
+    </div>
+  </div>
+
+  <div class="row" style="justify-content:space-between;margin-top:6px">
+    <button class="btn" id="prev" onclick="step(-1)" disabled>← 上一步</button>
+    <button class="btn primary" id="next" onclick="step(1)">下一步 →</button>
+  </div>
+
+</div>
+
+<script src="api.js"></script>
+<script>
+let cur = 1;
+let lazyPc = '';
+/* R-26：基础模式也有「从零创建 / 改现有配置」两种语义。
+   以前它有 merge 开关却没有读取入口 —— 等于能偷偷改现有 mpv.conf 而用户不知道。 */
+let MODE = 'create';
+let READ_DONE = false;
+
+function isEdit() { return MODE === 'edit'; }
+
+function setMode(m) {
+  MODE = m === 'edit' ? 'edit' : 'create';
+  READ_DONE = false;
+  try { localStorage.setItem('mpvcb-basic-mode', MODE); } catch (e) {}
+  const seg = document.getElementById('modeSeg');
+  if (seg) seg.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.mode === MODE));
+  const hint = document.getElementById('modeHint');
+  const box = document.getElementById('readBox');
+  if (box) box.style.display = isEdit() ? '' : 'none';
+  if (hint) {
+    hint.innerHTML = isEdit()
+      ? '✏️ 改现有配置：先点下面的「读取现有配置」。合并写入只改勾选的键，'
+        + '原文件里其它内容与注释都保留。'
+      : '🆕 从零创建：生成一份新配置。取消勾选只是<b>不写这一项</b>，不会去动你已有的文件。';
+    hint.className = isEdit() ? 'note warn-text' : 'note';
+  }
+  // 改现有配置默认用合并写入；从零创建默认独立文件
+  const want = isEdit() ? 'merge' : 'include';
+  const choices = document.getElementById('writeChoices');
+  if (choices) {
+    [...choices.children].forEach(c =>
+      c.classList.toggle('on', c.dataset.value === want));
+  }
+  const apply = document.getElementById('applyBtn');
+  if (apply) apply.disabled = isEdit() && !READ_DONE;
+  const info = document.getElementById('readInfo');
+  if (info && !isEdit()) info.textContent = '';
+  refresh();
+}
+
+/** 读一遍现有的 mpv.conf —— 只是让用户看到"原来是什么"，不改任何文件。 */
+async function readExisting() {
+  const target = document.getElementById('target').value.trim();
+  if (!target) { toast('先填目标配置目录', 'err'); return; }
+  const r = await API.post('/api/config/load', { path: target + '\\mpv.conf' });
+  if (!r.ok) { toast('❌ ' + r.detail, 'err'); return; }
+  READ_DONE = true;
+  const info = document.getElementById('readInfo');
+  if (info) {
+    info.innerHTML = `已读取 <b>${esc(r.name)}</b>：${esc(r.summary)}`
+      + (r.profiles && r.profiles.length
+          ? `；另有 ${r.profiles.length} 个 profile 不参与（只改全局项）` : '');
+  }
+  const apply = document.getElementById('applyBtn');
+  if (apply) apply.disabled = false;
+  toast(`✅ 已读取 ${r.name}，可以开始改了`, 'ok');
+}
+
+function render() {
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('p' + i).classList.toggle('on', i === cur);
+    document.getElementById('d' + i).classList.toggle('on', i <= cur);
+  }
+  document.getElementById('prev').disabled = cur === 1;
+  document.getElementById('next').textContent = cur === 4 ? '完成 🎉' : '下一步 →';
+}
+function step(d) { cur = Math.min(4, Math.max(1, cur + d)); render(); }
+function pick(el) {
+  [...el.parentElement.children].forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  refresh();
+}
+
+function currentState() {
+  return {
+    target: document.getElementById('target').value.trim(),
+    content: pickValue('contentChoices') || '动画',
+    prefer: pickValue('preferChoices') || '均衡',
+    write_mode: pickValue('writeChoices') || 'include'
+  };
+}
+
+async function refresh() {
+  const st = currentState();
+  if (!st.target) { document.getElementById('preview').textContent = '（先填目标目录）'; return; }
+  const r = await API.basicPreview(st);
+  document.getElementById('preview').innerHTML = paintConf(r.text);
+  document.getElementById('presetNote').textContent = r.note ? '· ' + r.note : '';
+  document.getElementById('applyHint').innerHTML =
+    (r.missing && r.missing.length)
+      ? `<span class="note warn">⚠ 本机缺少 shader：${esc(r.missing.join('、'))}（生成时会跳过）</span>`
+      : '写前会自动备份原文件';
+}
+
+async function doApply() {
+  const st = currentState();
+  if (!st.target) { toast('请先填目标配置目录', 'err'); return; }
+  if (isEdit() && !READ_DONE) {
+    toast('「改现有配置」模式下要先点「读取现有配置」', 'err');
+    return;
+  }
+  const btn = document.getElementById('applyBtn');
+  btn.disabled = true;
+  const r = await API.basicApply(st);
+  btn.disabled = false;
+  if (r.ok) { toast('✅ ' + r.detail, 'ok'); refresh(); }
+  else { toast('❌ ' + r.detail, 'err'); }
+}
+
+function applyDetected() {
+  if (!lazyPc) { toast('没有探测到 mpv-lazy，请手动填写目录', 'err'); return; }
+  document.getElementById('target').value = lazyPc;
+  refresh();
+}
+
+async function boot() {
+  render();
+  const s = await API.status();
+  document.getElementById('ver').textContent = 'v' + s.version;
+  lazyPc = s.lazy_pc || '';
+  document.getElementById('lazyHint').textContent = lazyPc || '未找到 mpv-lazy（可手动填写）';
+  document.getElementById('targetLabel').textContent = s.target || '未设置';
+  if (lazyPc) document.getElementById('target').value = lazyPc;
+  const hw = s.hardware || {};
+  document.getElementById('hwRes').value = hw.resolution || '';
+  document.getElementById('hwHz').value = hw.refresh || '';
+  document.getElementById('hwGpu').value = hw.gpu || '';
+  document.getElementById('target').addEventListener('input', refresh);
+  const seg = document.getElementById('modeSeg');
+  if (seg) seg.onclick = e => {
+    const b = e.target.closest('button');
+    if (b) setMode(b.dataset.mode);
+  };
+  const rb = document.getElementById('readBtn');
+  if (rb) rb.onclick = readExisting;
+  let saved = 'create';
+  try { saved = localStorage.getItem('mpvcb-basic-mode') || 'create'; } catch (e) {}
+  setMode(saved);
+  refresh();
+}
+boot();
+</script>
+</body>
+</html>

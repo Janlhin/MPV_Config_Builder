@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>下载中心 · MPV Config Builder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">📦 下载中心 <small id="ver"></small></div>
+  <div class="target">装到：<code id="targetLabel">未设置</code>
+    <button class="btn small ghost" id="pickDir">更改</button></div>
+  <div class="spacer"></div>
+  <a class="btn small" href="index.html">🔀 切换模式</a>
+  <a class="btn small" href="advanced.html">🎛️ 去进阶模式改</a>
+  <button class="btn small" data-theme-toggle>🌓</button>
+</div>
+
+<div class="content" style="max-width:1180px;margin:0 auto">
+
+  <div class="card">
+    <h2>🚀 一键安装 mpv-lazy <span class="muted" style="font-weight:400;font-size:12px">整包</span></h2>
+    <p class="note">
+      本工具是以 <b>mpv-lazy</b> 为底座的。这台机器还没装的话，这里可以直接装 ——
+      从 <a href="https://github.com/hooke007/mpv_PlayKit" target="_blank" rel="noopener">官方 release</a>
+      取最新版，<b>不内置也不转发</b>任何文件。<br>
+      流程：读取最新版本 → 下载到暂存目录 → 校验 → 解压 → 把 <code>portable_config</code>
+      放到目标目录。<b>每一步都会显示进度，可以随时关掉页面（半个包会留着，下次接着下）</b>。
+    </p>
+    <div class="dirbar" style="margin-top:10px">
+      <label class="note">装到</label>
+      <input type="text" id="lzTarget" style="min-width:320px" placeholder="（点「检查」自动填默认位置）">
+      <button class="btn" id="lzPlan">🔍 检查（不下载）</button>
+      <button class="btn primary" id="lzGo" style="display:none">🚀 开始安装</button>
+    </div>
+    <div id="lzOut" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>📦 mpv 脚本与字幕字体</h2>
+    <p class="note">
+      这里只装<b>单文件</b>的东西：脚本进 <code>scripts\</code>，字体进 <code>fonts\</code>。
+      全部从各项目的<b>官方地址</b>下载，本工具不内置、不转发任何第三方文件。<br>
+      装过什么会记在本机清单里，列表上直接能看能卸。
+      <b>只有点「下载」才会联网</b>，其余操作全程离线。
+    </p>
+    <div class="actions" style="margin-top:10px">
+      <button class="btn" id="refresh">🔄 刷新状态</button>
+      <button class="btn" id="checkLinks">🔗 校验清单链接</button>
+      <span class="note" id="stat"></span>
+    </div>
+    <div id="linkOut" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🧩 选择分类</h2>
+    <div class="seg" id="kindSeg" style="display:inline-flex">
+      <button data-k="" class="on">全部</button>
+      <button data-k="script">mpv 脚本</button>
+      <button data-k="font">字幕字体</button>
+    </div>
+    <label class="note" style="margin-left:14px;cursor:pointer">
+      <input type="checkbox" id="overwrite"> 覆盖已存在的文件（会先备份）
+    </label>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="card">
+    <h2>❓ 说明</h2>
+    <ul class="note" style="margin:0;padding-left:20px">
+      <li><b>装到哪儿</b>：<code>scripts\</code> 与 <code>fonts\</code> 就在你选的配置目录里。
+        脚本放进去后 mpv 下次启动就会加载；字体还要在 <code>mpv.conf</code> 里写
+        <code>sub-font=字体名</code> 才会用上。</li>
+      <li><b>「已装（未校验）」是什么意思</b>：上游没公开提供 sha256，我们无法验证文件完整性。
+        但安装清单里记了<b>你装到的那份文件的哈希</b> —— 所以至少能判断"装完之后有没有被改过"。</li>
+      <li><b>为什么列表里没有 uosc</b>：它现在只以 <code>.zip</code> 发布（仓库里没有单文件），
+        属于下一阶段（L2「压缩包里挑文件」）的活。这一阶段故意不放必然 404 的条目。</li>
+      <li><b>VapourSynth 插件（滤镜）不在这里</b>：那些 <code>.dll</code> 必须安装到 mpv 配置目录
+        <b>之外</b>，而且有版本与依赖要求，风险高一个量级，安排在 L3。</li>
+    </ul>
+  </div>
+
+</div>
+
+<script src="api.js"></script>
+<script src="state.js"></script>
+<script>
+/* 下载中心（R-8x · L1）：mpv 脚本 + 字幕字体，单文件、可卸载。 */
+const el = id => document.getElementById(id);
+const DL = { kind: '', items: [], poll: null, lazy: null };
+
+
+const STATE_TEXT = {
+  not_installed:    ['', '未安装'],
+  installed:        ['ok', '已安装'],
+  modified:         ['warn', '已安装（文件被改过）'],
+  missing:          ['danger', '记录在，文件没了'],
+  present_untracked:['warn', '文件在，但不是这里装的'],
+  broken:           ['danger', '目标目录不可用'],
+};
+
+function kindIcon(kind) { return kind === 'font' ? '🔤' : '🧩'; }
+
+function renderList() {
+  const box = el('list');
+  if (!DL.items.length) {
+    box.innerHTML = '<div class="card"><p class="note">这个分类下没有条目。</p></div>';
+    return;
+  }
+  const byKind = {};
+  DL.items.forEach(x => (byKind[x.kind] = byKind[x.kind] || []).push(x));
+  box.innerHTML = Object.keys(byKind).map(k => `
+    <div class="card">
+      <h2>${kindIcon(k)} ${k === 'font' ? '字幕字体' : 'mpv 脚本'}
+        <span class="muted" style="font-weight:400;font-size:12px"> · ${byKind[k].length} 项</span></h2>
+      ${byKind[k].map(rowHtml).join('')}
+    </div>`).join('');
+  box.onclick = onListClick;
+}
+
+function rowHtml(it) {
+  const [cls, label] = STATE_TEXT[it.state] || ['', it.state];
+  const installed = it.state === 'installed' || it.state === 'modified';
+  const ver = it.verified ? '' :
+    '<span class="badge" title="上游没有提供 sha256，无法验证完整性">未校验</span>';
+  const when = it.installed_at
+    ? `<small class="muted">装于 ${esc(it.installed_at)}</small>` : '';
+  const need = it.needs ? `<small class="muted">需要：${esc(it.needs)}</small>` : '';
+  // archive 型（L2）：装的是一棵目录树，把"装了几个文件、有没有被改过"说清楚
+  const arc = it.archive
+    ? `<span class="badge choice" title="这是一个压缩包，按白名单挑文件装进去">整包</span>`
+      + (it.file_count ? `<small class="muted" style="margin-left:6px">${it.file_count} 个文件`
+          + (it.files_changed ? ` · <span class="warn-text">${it.files_changed} 个被改过</span>` : '')
+          + (it.files_missing ? ` · <span class="bad-text">${it.files_missing} 个不见了</span>` : '')
+          + `</small>` : '')
+    : '';
+  const where = it.dest_rel ? `<code>${esc(it.dest_rel)}</code>` : '<span class="muted">配置目录根</span>';
+  return `
+  <div class="opt${installed ? ' on' : ''}" style="align-items:flex-start">
+    <div style="flex:1;min-width:0">
+      <div><b>${esc(it.name)}</b> ${ver} ${arc}
+        <span class="${cls === 'danger' ? 'bad-text' : cls === 'warn' ? 'warn-text' : 'muted'}"
+          style="font-size:12px">${esc(label)}</span></div>
+      <div class="note" style="margin:2px 0 4px">${esc(it.note || '')}</div>
+      ${it.note_extra ? `<div class="note" style="margin:2px 0 4px">${esc(it.note_extra)}</div>` : ''}
+      <small class="muted">${where}
+        · ${esc(it.author || '')} · ${esc(it.license || '')}</small>
+      ${when ? ' · ' + when : ''}
+      ${it.version_note ? `<br><small class="warn-text">${esc(it.version_note)}</small>` : ''}
+      ${need ? '<br>' + need : ''}
+    </div>
+    <div class="right" style="display:flex;flex-direction:column;gap:6px;min-width:104px">
+      <button class="btn small primary" data-dl="${esc(it.id)}">
+        ${installed ? '⬇️ 重新下载' : '⬇️ 下载'}</button>
+      ${installed || it.state === 'missing'
+        ? `<button class="btn small danger" data-rm="${esc(it.id)}">🗑️ 卸载</button>` : ''}
+      <a class="btn small ghost" href="${esc(it.home || '#')}" target="_blank"
+         rel="noopener">项目主页</a>
+    </div>
+  </div>`;
+}
+
+async function load() {
+  if (!APP.target) {
+    el('list').innerHTML = '<div class="card"><p class="note warn-text">' +
+      '先设置目标目录（配置目录一般是 portable_config）。</p></div>';
+    return;
+  }
+  el('stat').textContent = '读取中…';
+  const r = await API.get('/api/downloads?target=' + encodeURIComponent(APP.target)
+    + (DL.kind ? '&kind=' + encodeURIComponent(DL.kind) : ''));
+  if (!r.ok) {
+    el('list').innerHTML = `<div class="card"><p class="note danger">❌ ${esc(r.detail)}</p></div>`;
+    el('stat').textContent = '';
+    return;
+  }
+  DL.items = r.items || [];
+  el('stat').textContent = `共 ${r.counts.total} 项，已安装 ${r.counts.installed} 项`;
+  renderList();
+}
+
+function onListClick(e) {
+  const d = e.target.closest('[data-dl]');
+  if (d) return doDownload(d.dataset.dl);
+  const rm = e.target.closest('[data-rm]');
+  if (rm) return doRemove(rm.dataset.rm);
+}
+
+async function doDownload(id) {
+  const it = DL.items.find(x => x.id === id);
+  const overwrite = el('overwrite').checked;
+  if (overwrite && it && (it.state === 'installed' || it.state === 'modified')) {
+    if (!confirm(`覆盖 ${it.dest_rel}？\n\n原文件会先备份成 .bak-时间戳。`)) return;
+  } else if (it && it.state === 'present_untracked' && !overwrite) {
+    toast('这个文件已经在了。要换成清单里的版本，请先勾选「覆盖已存在的文件」', 'err');
+    return;
+  }
+  const r = await API.post('/api/download/start',
+    { target: APP.target, id, overwrite });
+  if (!r.ok) { toast('❌ ' + r.detail, 'err'); return; }
+  pollJob(r.job, r.name);
+}
+
+/** 轮询下载进度 —— 下载是长任务，不能卡住界面。 */
+function pollJob(jid, name) {
+  if (DL.poll) clearInterval(DL.poll);
+  const box = el('stat');
+  DL.poll = setInterval(async () => {
+    const r = await API.get('/api/download/job?id=' + encodeURIComponent(jid));
+    if (!r.ok) {
+      clearInterval(DL.poll); DL.poll = null;
+      box.textContent = r.detail || '任务丢了';
+      return;
+    }
+    const j = r.job;
+    if (j.state === 'running') {
+      box.textContent = `⬇️ ${name}：${j.detail || ''} ${j.percent ? '· ' + j.percent + '%' : ''}`;
+      return;
+    }
+    clearInterval(DL.poll); DL.poll = null;
+    toast((j.state === 'ok' ? '✅ ' : '❌ ') + (j.detail || ''), j.state === 'ok' ? 'ok' : 'err');
+    load();
+  }, 700);
+}
+
+async function doRemove(id) {
+  const it = DL.items.find(x => x.id === id);
+  if (!confirm(`卸载 ${it ? it.dest_rel : id}？\n\n删之前会备份一份 .bak-时间戳。\n` +
+    '如果你自己改过这个文件，工具会拒绝删除并提示你。')) return;
+  let r = await API.post('/api/download/remove', { target: APP.target, id });
+  if (!r.ok && r.modified) {
+    if (!confirm((r.detail || '') + '\n\n确定要强制删除吗？')) return;
+    r = await API.post('/api/download/remove', { target: APP.target, id, force: true });
+  }
+  toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
+  load();
+}
+
+/* ---------------- 一键装 mpv-lazy（R-8w） ----------------
+   两步走：先「检查」（只算不动，能看清装什么、装到哪、盘够不够），
+   再「开始安装」。规矩和 R-28 补注释、W-1 清理写入块一致：
+   对用户磁盘动手必须是显式动作，而且要先能预览。 */
+
+function fmtSize(n) {
+  n = Number(n) || 0;
+  if (n >= 1 << 30) return (n / (1 << 30)).toFixed(2) + ' GB';
+  if (n >= 1 << 20) return (n / (1 << 20)).toFixed(1) + ' MB';
+  if (n >= 1 << 10) return (n / (1 << 10)).toFixed(0) + ' KB';
+  return n + ' B';
+}
+
+async function lazyPlan() {
+  const out = el('lzOut');
+  const target = (el('lzTarget').value || '').trim();
+  out.innerHTML = '<p class="note">正在读取最新版本…（要联网）</p>';
+  const r = await API.installPlan(target, '');
+  if (!r.ok) {
+    out.innerHTML = `<p class="note danger">❌ ${esc(r.detail || '读取失败')}</p>`;
+    return;
+  }
+  if (!el('lzTarget').value) el('lzTarget').value = r.target;
+  const sp = r.space || {};
+  const a = r.asset || {};
+  const rows = [
+    ['最新版本', r.tag || '（没读到）'],
+    ['要下的包', `${a.name} · ${fmtSize(a.size)}`
+      + (a.split ? `（分卷 ${a.volumes} 个，会依次下载）` : '')],
+    ['sha256', a.digest ? a.digest.slice(0, 16) + '…' : '⚠ 这个 release 没给，装完只能报「未校验」'],
+    ['装到', r.target + (r.target_exists ? '' : '（目录还不存在，会创建）')],
+    ['空间', sp.free == null ? '拿不到剩余空间'
+      : `需要约 ${fmtSize(sp.need)}（按包大小 2 倍算）／可用 ${fmtSize(sp.free)}`],
+  ];
+  const opts = (r.options || []).length > 1
+    ? `<details style="margin-top:8px"><summary class="note" style="cursor:pointer">
+         这个 release 里还有别的包（点开看）</summary>
+         <table class="kv" style="margin-top:6px;width:100%">
+         ${r.options.map(o => `<tr>
+           <td><code>${esc(o.name)}</code></td>
+           <td class="muted">${fmtSize(o.size)}</td>
+           <td>${o.compact ? '⚠ 不含 VapourSynth（补帧/融合用不了）'
+                           : (o.has_vapoursynth ? '✅ 含 VapourSynth' : '')}
+               ${o.split ? ` · ${o.volumes} 个分卷` : ''}
+               ${o.complete ? '' : ` · ❌ 缺第 ${o.missing_volumes} 卷`}</td>
+         </tr>`).join('')}
+         </table></details>`
+    : '';
+  out.innerHTML = `
+    <p class="note">${esc(r.reason || '')}</p>
+    <table class="kv" style="width:100%">
+      ${rows.map(([k, v]) => `<tr><td class="muted" style="white-space:nowrap">${esc(k)}</td>
+        <td>${esc(String(v))}</td></tr>`).join('')}
+    </table>
+    ${opts}
+    ${(r.notes || []).map(n => `<p class="note" style="margin-top:6px">ℹ️ ${esc(n)}</p>`).join('')}
+    ${r.already_installed
+      ? '<p class="note warn-text" style="margin-top:8px">⚠ 这个目录下已经有 portable_config 了 —— ' +
+        '一键安装<b>不会覆盖</b>它。想重装请自己先挪走或删掉。</p>'
+      : (r.space_ok ? '' : `<p class="note danger" style="margin-top:8px">❌ ${esc(r.space_detail)}</p>`)}`;
+  el('lzGo').style.display = (r.already_installed || !r.space_ok) ? 'none' : '';
+}
+
+async function lazyGo() {
+  const target = (el('lzTarget').value || '').trim();
+  const r = await API.installStart({ target });
+  if (!r.ok) { toast('❌ ' + (r.detail || '启动失败'), 'err'); return; }
+  el('lzGo').style.display = 'none';
+  el('lzOut').innerHTML = '<p class="note" id="lzProg">准备中…</p>';
+  lazyPoll(r.job);
+}
+
+function lazyPoll(jid) {
+  if (DL.lazy) clearInterval(DL.lazy);
+  DL.lazy = setInterval(async () => {
+    const r = await API.get('/api/download/job?id=' + encodeURIComponent(jid));
+    const box = el('lzProg') || el('lzOut');
+    if (!r.ok) {
+      clearInterval(DL.lazy); DL.lazy = null;
+      box.innerHTML = `<p class="note danger">任务丢了：${esc(r.detail || '')}</p>`;
+      return;
+    }
+    const j = r.job;
+    if (j.state === 'running') {
+      box.innerHTML = `<b>${j.percent || 0}%</b> · ${esc(j.detail || '')}
+        <div style="margin-top:6px;height:6px;border-radius:3px;background:var(--panel-2)">
+          <div style="height:6px;border-radius:3px;background:var(--accent);width:${j.percent || 0}%"></div>
+        </div>`;
+      return;
+    }
+    clearInterval(DL.lazy); DL.lazy = null;
+    const res = j.result || {};
+    if (j.state === 'ok') {
+      box.innerHTML = `<p class="note">✅ ${esc(j.detail || '')}</p>
+        <p class="note">配置目录：<code>${esc(res.portable_config || '')}</code><br>
+        下载线路：${esc(res.mirror || '-')} · 解压方式：${esc(res.method || '-')}</p>
+        <p class="note">接下来去 <a href="index.html">入口页</a> 或基础模式，把目标目录设成那个
+        <code>portable_config</code> 就行。</p>`;
+    } else {
+      box.innerHTML = `<p class="note danger">❌ ${esc(j.detail || '安装失败')}</p>
+        ${res.staged ? `<p class="note">半个包留在 <code>${esc(res.staged)}</code>，
+          下次装会接着下（断点续传），确认不要了可以自己删。</p>` : ''}`;
+    }
+    toast((j.state === 'ok' ? '✅ ' : '❌ ') + (j.detail || ''), j.state === 'ok' ? 'ok' : 'err');
+  }, 800);
+}
+
+async function checkLinks() {
+  const box = el('linkOut');
+  box.innerHTML = '<p class="note">正在逐条校验下载地址…（要联网，可能要十几秒）</p>';
+  const r = await API.post('/api/download/check', {});
+  const rows = r.results || [];
+  const bad = rows.filter(x => !x.ok);
+  box.innerHTML = `<p class="note ${bad.length ? 'warn-text' : ''}">
+      ${rows.length} 条地址，${bad.length ? `❌ ${bad.length} 条失效` : '✅ 全部可用'}</p>`
+    + (bad.length ? '<pre class="conf">' + bad.map(x =>
+        `${x.id}  ${x.detail}\n  ${x.url}`).join('\n\n') + '</pre>' : '');
+}
+
+async function boot() {
+  const s = await API.status();
+  el('ver').textContent = 'v' + s.version;
+  if (!APP.target && s.lazy_pc) APP.target = s.lazy_pc;
+  const tl = el('targetLabel');
+  tl.textContent = APP.target ? shortPath(APP.target) : '未设置';
+  tl.title = APP.target || '';
+  el('pickDir').onclick = () => promptTarget();
+  el('refresh').onclick = () => load();
+  el('checkLinks').onclick = () => checkLinks();
+  el('lzPlan').onclick = () => lazyPlan();
+  el('lzGo').onclick = () => lazyGo();
+  el('kindSeg').onclick = e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    DL.kind = b.dataset.k || '';
+    el('kindSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    load();
+  };
+  load();
+}
+boot();
+</script>
+</body>
+</html>

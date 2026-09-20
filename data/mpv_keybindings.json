@@ -1,0 +1,2107 @@
+{
+  "meta": {
+    "source": "mpv --no-config --idle --script=_dump_bindings.lua（读 input-bindings 属性）",
+    "mpv": "mpv v0.41.0-615-g7b057f66f Copyright © 2000-2026 mpv/MPlayer/mplayer2 projects",
+    "count": 209,
+    "sections": [
+      "default",
+      "encode",
+      "input",
+      "showhide",
+      "showhide_wc",
+      "window-controls"
+    ]
+  },
+  "bindings": [
+    {
+      "key": "!",
+      "cmd": "add chapter -1",
+      "comment": "seek to the previous chapter",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "*",
+      "cmd": "add volume  2",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": ",",
+      "cmd": "frame-back-step",
+      "comment": "go back by one frame and pause",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": ".",
+      "cmd": "frame-step",
+      "comment": "advance one frame and pause",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "/",
+      "cmd": "add volume -2",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "0",
+      "cmd": "add volume  2",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "1",
+      "cmd": "add contrast -1",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "2",
+      "cmd": "add contrast 1",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "3",
+      "cmd": "add brightness -1",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "4",
+      "cmd": "add brightness 1",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "5",
+      "cmd": "add gamma -1",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "6",
+      "cmd": "add gamma 1",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "7",
+      "cmd": "add saturation -1",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "8",
+      "cmd": "add saturation 1",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "9",
+      "cmd": "add volume -2",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "<",
+      "cmd": "playlist-prev",
+      "comment": "skip to the previous file",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": ">",
+      "cmd": "playlist-next",
+      "comment": "skip to the next file",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "?",
+      "cmd": "script-binding stats/display-page-4-toggle",
+      "comment": "toggle displaying key bindings",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "@",
+      "cmd": "add chapter 1",
+      "comment": "seek to the next chapter",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "A",
+      "cmd": "cycle-values video-aspect-override \"16:9\" \"4:3\" \"2.35:1\" \"no\"",
+      "comment": "cycle the video aspect ratio",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt++",
+      "cmd": "add video-zoom   0.1",
+      "comment": "zoom in",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+-",
+      "cmd": "add video-zoom  -0.1",
+      "comment": "zoom out",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+0",
+      "cmd": "set window-scale 0.5",
+      "comment": "halve the window size",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+1",
+      "cmd": "set window-scale 1",
+      "comment": "reset the window size",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+2",
+      "cmd": "set window-scale 2",
+      "comment": "double the window size",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+BS",
+      "cmd": "set video-zoom 0; no-osd set panscan 0; no-osd set video-pan-x 0; no-osd set video-pan-y 0; no-osd set video-align-x 0; no-osd set video-align-y 0",
+      "comment": "reset zoom and pan settings",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+DOWN",
+      "cmd": "add video-pan-y -0.1",
+      "comment": "move the video up",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+KP1",
+      "cmd": "add video-rotate -1",
+      "comment": "rotate video counterclockwise by 1 degree",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+KP3",
+      "cmd": "add video-rotate  1",
+      "comment": "rotate video clockwise by 1 degree",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+KP5",
+      "cmd": "set video-rotate  0",
+      "comment": "reset rotation",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+KP_ADD",
+      "cmd": "add video-zoom  0.1",
+      "comment": "zoom in",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+KP_SUBTRACT",
+      "cmd": "add video-zoom -0.1",
+      "comment": "zoom out",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+LEFT",
+      "cmd": "add video-pan-x  0.1",
+      "comment": "move the video right",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+RIGHT",
+      "cmd": "add video-pan-x -0.1",
+      "comment": "move the video left",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+UP",
+      "cmd": "add video-pan-y  0.1",
+      "comment": "move the video down",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+s",
+      "cmd": "screenshot each-frame",
+      "comment": "automatically screenshot every frame; issue this command again to stop taking screenshots",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Alt+v",
+      "cmd": "cycle secondary-sub-visibility",
+      "comment": "hide or show the secondary subtitles",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "BS",
+      "cmd": "set speed 1",
+      "comment": "reset the speed to normal",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "CLOSE_WIN",
+      "cmd": "quit",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl++",
+      "cmd": "add audio-delay  0.1",
+      "comment": "change audio/video sync by delaying the audio",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+-",
+      "cmd": "add audio-delay -0.1",
+      "comment": "change audio/video sync by shifting the audio earlier",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP1",
+      "cmd": "add video-pan-x -0.01; add video-pan-y  0.01",
+      "comment": "move video left and down",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP2",
+      "cmd": "add video-pan-y  0.01",
+      "comment": "move video down",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP3",
+      "cmd": "add video-pan-x  0.01; add video-pan-y  0.01",
+      "comment": "move video right and down",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP4",
+      "cmd": "add video-pan-x -0.01",
+      "comment": "move video left",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP5",
+      "cmd": "set video-pan-x  0.00; set video-pan-y  0.00",
+      "comment": "reset video position",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP6",
+      "cmd": "add video-pan-x  0.01",
+      "comment": "move video right",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP7",
+      "cmd": "add video-pan-x -0.01; add video-pan-y -0.01",
+      "comment": "move video left and up",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP8",
+      "cmd": "add video-pan-y -0.01",
+      "comment": "move video up",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP9",
+      "cmd": "add video-pan-x  0.01; add video-pan-y -0.01",
+      "comment": "move video right and up",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_ADD",
+      "cmd": "add audio-delay  0.1",
+      "comment": "change audio/video sync by delaying the audio",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_BEGIN",
+      "cmd": "set video-align-x  0.00; set video-align-y  0.00",
+      "comment": "reset video alignment",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_DOWN",
+      "cmd": "add video-align-y  0.01",
+      "comment": "align video down",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_END",
+      "cmd": "add video-align-x -0.01; add video-align-y  0.01",
+      "comment": "align video left and down",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_HOME",
+      "cmd": "add video-align-x -0.01; add video-align-y -0.01",
+      "comment": "align video left and up",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_LEFT",
+      "cmd": "add video-align-x -0.01",
+      "comment": "align video left",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_PGDWN",
+      "cmd": "add video-align-x  0.01; add video-align-y  0.01",
+      "comment": "align video right and down",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_PGUP",
+      "cmd": "add video-align-x  0.01; add video-align-y -0.01",
+      "comment": "align video right and up",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_RIGHT",
+      "cmd": "add video-align-x  0.01",
+      "comment": "align video right",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_SUBTRACT",
+      "cmd": "add audio-delay -0.1",
+      "comment": "change audio/video sync by shifting the audio earlier",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+KP_UP",
+      "cmd": "add video-align-y -0.01",
+      "comment": "align video up",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+LEFT",
+      "cmd": "no-osd sub-seek -1",
+      "comment": "seek to the previous subtitle",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+MBTN_LEFT",
+      "cmd": "script-binding positioning/drag-to-pan",
+      "comment": "pan around the clicked point",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+RIGHT",
+      "cmd": "no-osd sub-seek  1",
+      "comment": "seek to the next subtitle",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+WHEEL_DOWN",
+      "cmd": "script-binding positioning/cursor-centric-zoom -0.1",
+      "comment": "zoom out towards the cursor",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+WHEEL_UP",
+      "cmd": "script-binding positioning/cursor-centric-zoom  0.1",
+      "comment": "zoom in towards the cursor",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+c",
+      "cmd": "quit 4",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+h",
+      "cmd": "cycle-values hwdec no auto",
+      "comment": "toggle hardware decoding",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+p",
+      "cmd": "script-binding select/menu",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+r",
+      "cmd": "set file-local-options/start ${=time-pos}; playlist-play-index current yes; show-text \"Reloading current file...\"",
+      "comment": "reload the current file",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+s",
+      "cmd": "screenshot window",
+      "comment": "take a screenshot of the window with OSD and subtitles",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+v",
+      "cmd": "update-clipboard text; loadfile ${clipboard/text} append-play; show-text '+ ${clipboard/text}'",
+      "comment": "append the copied path",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Ctrl+w",
+      "cmd": "quit",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "DEL",
+      "cmd": "script-binding osc/visibility",
+      "comment": "cycle OSC visibility between never, auto (mouse-move) and always",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "DOWN",
+      "cmd": "seek -60",
+      "comment": "seek 1 minute backward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "E",
+      "cmd": "cycle edition",
+      "comment": "switch edition",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "ENTER",
+      "cmd": "playlist-next",
+      "comment": "skip to the next file",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "ESC",
+      "cmd": "set fullscreen no",
+      "comment": "leave fullscreen",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "F",
+      "cmd": "add sub-scale -0.1",
+      "comment": "decrease the subtitle font size",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "F8",
+      "cmd": "show-text ${playlist}",
+      "comment": "show the playlist",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "F9",
+      "cmd": "show-text ${track-list}",
+      "comment": "show the list of video, audio and sub tracks",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "FORWARD",
+      "cmd": "seek 60",
+      "comment": "seek 1 minute forward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "G",
+      "cmd": "add sub-scale  0.1",
+      "comment": "increase the subtitle font size",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "HOME",
+      "cmd": "seek 0 absolute",
+      "comment": "seek to the start",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "I",
+      "cmd": "script-binding stats/display-stats-toggle",
+      "comment": "toggle displaying information and statistics",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "J",
+      "cmd": "cycle sub down",
+      "comment": "switch subtitle track backwards",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "KP1",
+      "cmd": "add video-zoom    -0.01",
+      "comment": "zoom out video",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "KP2",
+      "cmd": "add video-scale-y -0.01",
+      "comment": "scale down video vertically",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "KP4",
+      "cmd": "add video-scale-x -0.01",
+      "comment": "scale down video horizontally",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "KP5",
+      "cmd": "set video-scale-x  1.00; set video-scale-y 1; set video-zoom 0",
+      "comment": "reset video scale",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "KP6",
+      "cmd": "add video-scale-x  0.01",
+      "comment": "scale up video horizontally",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "KP8",
+      "cmd": "add video-scale-y  0.01",
+      "comment": "scale up video vertically",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "KP9",
+      "cmd": "add video-zoom     0.01",
+      "comment": "zoom in video",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "KP_DIVIDE",
+      "cmd": "add volume -2",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "KP_MULTIPLY",
+      "cmd": "add volume 2",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "L",
+      "cmd": "cycle-values loop-file inf no",
+      "comment": "toggle infinite looping",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "LEFT",
+      "cmd": "seek -5",
+      "comment": "seek 5 seconds backward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "MBTN_BACK",
+      "cmd": "playlist-prev",
+      "comment": "skip to the previous file",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "MBTN_FORWARD",
+      "cmd": "playlist-next",
+      "comment": "skip to the next file",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "MBTN_LEFT",
+      "cmd": "ignore",
+      "comment": "don't do anything",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "MBTN_LEFT_DBL",
+      "cmd": "cycle fullscreen",
+      "comment": "toggle fullscreen",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "MBTN_RIGHT",
+      "cmd": "cycle pause",
+      "comment": "toggle pause/playback mode",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "MENU",
+      "cmd": "script-binding select/context-menu",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "MUTE",
+      "cmd": "cycle mute",
+      "comment": "toggle mute",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "NEXT",
+      "cmd": "playlist-next",
+      "comment": "skip to the next file",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "O",
+      "cmd": "no-osd cycle-values osd-level 3 1",
+      "comment": "toggle displaying the OSD on user interaction or always",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "P",
+      "cmd": "show-progress",
+      "comment": "show playback progress",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "PAUSE",
+      "cmd": "cycle pause",
+      "comment": "toggle pause/playback mode",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "PAUSEONLY",
+      "cmd": "set pause yes",
+      "comment": "pause",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "PGDWN",
+      "cmd": "add chapter -1",
+      "comment": "seek to the previous chapter",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "PGUP",
+      "cmd": "add chapter 1",
+      "comment": "seek to the next chapter",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "PLAY",
+      "cmd": "cycle pause",
+      "comment": "toggle pause/playback mode",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "PLAYONLY",
+      "cmd": "set pause no",
+      "comment": "unpause",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "PLAYPAUSE",
+      "cmd": "cycle pause",
+      "comment": "toggle pause/playback mode",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "POWER",
+      "cmd": "quit",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "PREV",
+      "cmd": "playlist-prev",
+      "comment": "skip to the previous file",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Q",
+      "cmd": "quit-watch-later",
+      "comment": "exit and remember the playback position",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "R",
+      "cmd": "add sub-pos +1",
+      "comment": "move subtitles down",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "REWIND",
+      "cmd": "seek -60",
+      "comment": "seek 1 minute backward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "RIGHT",
+      "cmd": "seek  5",
+      "comment": "seek 5 seconds forward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "S",
+      "cmd": "screenshot video",
+      "comment": "take a screenshot of the video in its original resolution without subtitles",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "SHARP",
+      "cmd": "cycle audio",
+      "comment": "switch audio track",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "SPACE",
+      "cmd": "cycle pause",
+      "comment": "toggle pause/playback mode",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "STOP",
+      "cmd": "quit",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+BS",
+      "cmd": "revert-seek",
+      "comment": "undo the previous (or marked) seek",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+Ctrl+BS",
+      "cmd": "revert-seek mark",
+      "comment": "mark the position for revert-seek",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+Ctrl+LEFT",
+      "cmd": "sub-step -1",
+      "comment": "change subtitle timing such that the previous subtitle is displayed",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+Ctrl+RIGHT",
+      "cmd": "sub-step 1",
+      "comment": "change subtitle timing such that the next subtitle is displayed",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+DOWN",
+      "cmd": "no-osd seek -5 exact",
+      "comment": "seek exactly 5 seconds backward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+END",
+      "cmd": "no-osd set playlist-pos-1 ${playlist-count}",
+      "comment": "skip to the last file",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+F10",
+      "cmd": "script-binding select/context-menu",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+HOME",
+      "cmd": "no-osd set playlist-pos 0",
+      "comment": "skip to the first file",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+LEFT",
+      "cmd": "no-osd seek -1 exact",
+      "comment": "seek exactly 1 second backward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+PGDWN",
+      "cmd": "seek -600",
+      "comment": "seek 10 minutes backward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+PGUP",
+      "cmd": "seek  600",
+      "comment": "seek 10 minutes forward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+RIGHT",
+      "cmd": "no-osd seek  1 exact",
+      "comment": "seek exactly 1 second forward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Shift+UP",
+      "cmd": "no-osd seek  5 exact",
+      "comment": "seek exactly 5 seconds forward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "T",
+      "cmd": "cycle ontop",
+      "comment": "toggle placing the video on top of other windows",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "UP",
+      "cmd": "seek  60",
+      "comment": "seek 1 minute forward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "V",
+      "cmd": "cycle sub-ass-use-video-data",
+      "comment": "cycle which video data gets used in ASS rendering to fix broken files",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "VOLUME_DOWN",
+      "cmd": "add volume -2",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "VOLUME_UP",
+      "cmd": "add volume 2",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "W",
+      "cmd": "add panscan +0.1",
+      "comment": "shrink black bars by cropping the video",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "WHEEL_DOWN",
+      "cmd": "add volume -2",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "WHEEL_LEFT",
+      "cmd": "seek -10",
+      "comment": "seek 10 seconds backward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "WHEEL_RIGHT",
+      "cmd": "seek  10",
+      "comment": "seek 10 seconds forward",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "WHEEL_UP",
+      "cmd": "add volume  2",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "Z",
+      "cmd": "add sub-delay  0.1",
+      "comment": "delay subtitles by 100 ms",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "ZOOMIN",
+      "cmd": "add video-zoom   0.1",
+      "comment": "zoom in",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "ZOOMOUT",
+      "cmd": "add video-zoom  -0.1",
+      "comment": "zoom out",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "[",
+      "cmd": "multiply speed 1/1.1",
+      "comment": "decrease the playback speed",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "]",
+      "cmd": "multiply speed 1.1",
+      "comment": "increase the playback speed",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "_",
+      "cmd": "cycle video",
+      "comment": "switch video track",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "`",
+      "cmd": "script-binding commands/open",
+      "comment": "open the console",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "b",
+      "cmd": "cycle deband",
+      "comment": "toggle the debanding filter",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "d",
+      "cmd": "cycle deinterlace",
+      "comment": "cycle the deinterlacing filter",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "e",
+      "cmd": "add panscan +0.1",
+      "comment": "shrink black bars by cropping the video",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "f",
+      "cmd": "cycle fullscreen",
+      "comment": "toggle fullscreen",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g",
+      "cmd": "ignore",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-L",
+      "cmd": "script-binding select/select-secondary-subtitle-line",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-S",
+      "cmd": "script-binding select/select-secondary-sid",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-a",
+      "cmd": "script-binding select/select-aid",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-b",
+      "cmd": "script-binding select/select-binding",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-c",
+      "cmd": "script-binding select/select-chapter",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-d",
+      "cmd": "script-binding select/select-audio-device",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-e",
+      "cmd": "script-binding select/select-edition",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-h",
+      "cmd": "script-binding select/select-watch-history",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-l",
+      "cmd": "script-binding select/select-subtitle-line",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-m",
+      "cmd": "script-binding select/menu",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-p",
+      "cmd": "script-binding select/select-playlist",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-r",
+      "cmd": "script-binding select/show-properties",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-s",
+      "cmd": "script-binding select/select-sid",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-t",
+      "cmd": "script-binding select/select-track",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-v",
+      "cmd": "script-binding select/select-vid",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "g-w",
+      "cmd": "script-binding select/select-watch-later",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "i",
+      "cmd": "script-binding stats/display-stats",
+      "comment": "display information and statistics",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "j",
+      "cmd": "cycle sub",
+      "comment": "switch subtitle track",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "l",
+      "cmd": "ab-loop",
+      "comment": "set/clear A-B loop points",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "m",
+      "cmd": "cycle mute",
+      "comment": "toggle mute",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "o",
+      "cmd": "show-progress",
+      "comment": "show playback progress",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "p",
+      "cmd": "cycle pause",
+      "comment": "toggle pause/playback mode",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "q",
+      "cmd": "quit",
+      "comment": "",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "r",
+      "cmd": "add sub-pos -1",
+      "comment": "move subtitles up",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "s",
+      "cmd": "screenshot",
+      "comment": "take a screenshot of the video in its original resolution with subtitles",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "t",
+      "cmd": "add sub-pos +1",
+      "comment": "move subtitles down",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "u",
+      "cmd": "cycle-values sub-ass-override \"force\" \"scale\"",
+      "comment": "toggle overriding SSA/ASS subtitle styles with the normal styles",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "v",
+      "cmd": "cycle sub-visibility",
+      "comment": "hide or show the subtitles",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "w",
+      "cmd": "add panscan -0.1",
+      "comment": "decrease panscan",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "x",
+      "cmd": "add sub-delay  0.1",
+      "comment": "delay subtitles by 100 ms",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "z",
+      "cmd": "add sub-delay -0.1",
+      "comment": "shift subtitles 100 ms earlier",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "{",
+      "cmd": "multiply speed 0.5",
+      "comment": "halve the playback speed",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "}",
+      "cmd": "multiply speed 2.0",
+      "comment": "double the playback speed",
+      "section": "default",
+      "label": "mpv 内置",
+      "priority": 0,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "MBTN_LEFT",
+      "cmd": "script-binding osc/__keybinding11",
+      "comment": "",
+      "section": "window-controls",
+      "label": "内置脚本 window-controls",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "MOUSE_LEAVE",
+      "cmd": "script-binding osc/__keybinding2",
+      "comment": "",
+      "section": "showhide",
+      "label": "显示/隐藏",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "MOUSE_LEAVE",
+      "cmd": "script-binding osc/__keybinding4",
+      "comment": "",
+      "section": "showhide_wc",
+      "label": "显示/隐藏",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "MOUSE_MOVE",
+      "cmd": "script-binding osc/__keybinding1",
+      "comment": "",
+      "section": "showhide",
+      "label": "显示/隐藏",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "MOUSE_MOVE",
+      "cmd": "script-binding osc/__keybinding3",
+      "comment": "",
+      "section": "showhide_wc",
+      "label": "显示/隐藏",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "CLOSE_WIN",
+      "cmd": "quit 4",
+      "comment": "",
+      "section": "encode",
+      "label": "编码模式",
+      "priority": -1,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "ESC",
+      "cmd": "quit 4",
+      "comment": "",
+      "section": "encode",
+      "label": "编码模式",
+      "priority": -1,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "q",
+      "cmd": "quit 4",
+      "comment": "",
+      "section": "encode",
+      "label": "编码模式",
+      "priority": -1,
+      "weak": true,
+      "owned": false
+    },
+    {
+      "key": "MBTN_LEFT",
+      "cmd": "script-binding osc/__keybinding5",
+      "comment": "",
+      "section": "input",
+      "label": "输入区",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "MBTN_LEFT_DBL",
+      "cmd": "ignore",
+      "comment": "",
+      "section": "input",
+      "label": "输入区",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "MBTN_MID",
+      "cmd": "script-binding osc/__keybinding6",
+      "comment": "",
+      "section": "input",
+      "label": "输入区",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "MBTN_RIGHT",
+      "cmd": "script-binding osc/__keybinding7",
+      "comment": "",
+      "section": "input",
+      "label": "输入区",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "MBTN_RIGHT_DBL",
+      "cmd": "ignore",
+      "comment": "",
+      "section": "input",
+      "label": "输入区",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "Shift+MBTN_LEFT",
+      "cmd": "script-binding osc/__keybinding8",
+      "comment": "",
+      "section": "input",
+      "label": "输入区",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "Shift+MBTN_LEFT_DBL",
+      "cmd": "ignore",
+      "comment": "",
+      "section": "input",
+      "label": "输入区",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "WHEEL_DOWN",
+      "cmd": "script-binding osc/__keybinding10",
+      "comment": "",
+      "section": "input",
+      "label": "输入区",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    },
+    {
+      "key": "WHEEL_UP",
+      "cmd": "script-binding osc/__keybinding9",
+      "comment": "",
+      "section": "input",
+      "label": "输入区",
+      "priority": -1,
+      "weak": false,
+      "owned": true
+    }
+  ]
+}

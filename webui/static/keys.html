@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>快捷键 · MPV Config Builder</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .rows { display: flex; flex-direction: column; }
+  .row {
+    display: grid; grid-template-columns: 26px 130px minmax(0, 1fr) 190px 34px;
+    gap: 8px; align-items: center; padding: 5px 6px; border-bottom: 1px solid var(--border);
+  }
+  .row:hover { background: var(--panel-2); }
+  .row.head {
+    color: var(--muted); font-size: 11.5px; border-bottom: 1px solid var(--accent);
+    position: sticky; top: 49px; background: var(--bg-soft); z-index: 3;
+  }
+  .row.off input { opacity: .55; }
+  .row.off { background: rgba(255, 255, 255, .015); }
+  .row input[type="text"] { width: 100%; min-width: 0; padding: 4px 7px; font-size: 12.5px; }
+  .row .sep {
+    grid-column: 1 / -1; color: var(--muted); font-size: 12px; padding: 6px 0 2px;
+    border-bottom: 1px dashed var(--border); font-family: Consolas, monospace;
+    white-space: pre; overflow: hidden; text-overflow: ellipsis;
+  }
+  .row .sep.blank { padding: 3px 0; border: 0; }
+  .keycell { font-family: Consolas, monospace; }
+  .cmdcell { font-family: Consolas, monospace; font-size: 12.5px; }
+  .ref { max-height: 46vh; overflow: auto; }
+  .ref .row { grid-template-columns: 130px minmax(0, 1fr) 200px; }
+  .ref .row.hit { background: rgba(106, 168, 255, .08); }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">⌨️ 快捷键 <small id="ver"></small></div>
+  <div class="target">目标：<code id="targetLabel">未设置</code>
+    <button class="btn small ghost" id="pickDir">更改</button></div>
+  <div class="spacer"></div>
+  <a class="btn small" href="index.html">🔀 切换模式</a>
+  <button class="btn small" id="addBtn">➕ 加一条</button>
+  <button class="btn small primary" id="saveBtn">💾 保存</button>
+  <button class="btn small" data-theme-toggle>🌓</button>
+</div>
+
+<div class="content" style="max-width:1280px;margin:0 auto">
+  <div class="card" id="intro">
+    <h2>📄 <span id="fileName">正在读取…</span></h2>
+    <p class="note" id="fileInfo"></p>
+    <div class="toolbar">
+      <select id="fileSelect" style="min-width:220px"></select>
+      <input type="text" id="q" placeholder="🔍 搜键位 / 命令 / 说明" style="min-width:220px;flex:1">
+      <label class="row" style="gap:6px"><input type="checkbox" id="onlyMine"> 只看我改过的</label>
+      <label class="row" style="gap:6px"><input type="checkbox" id="onlyOff"> 只看未启用</label>
+      <span class="note" id="count"></span>
+    </div>
+    <div id="warn"></div>
+    <div id="promoteBox"></div>
+  </div>
+
+  <div class="card" style="padding:0">
+    <div class="rows" id="rows"></div>
+  </div>
+
+  <div class="card">
+    <h2>📚 mpv 内置默认键位（<span id="defCount">0</span> 条，只读参考）</h2>
+    <p class="note">这是从你自己的 mpv 里问出来的（<code>input-bindings</code> 属性），
+      带真实命令。左边那份配置里如果绑了同一个键，这里会标出来 ——
+      注意 mpv-lazy 默认关了内置键位（<code>input-builtin-bindings=no</code>），
+      所以这些是「原版 mpv 的默认值」，仅供对照。</p>
+    <div class="toolbar" style="margin-top:10px">
+      <input type="text" id="q2" placeholder="🔍 搜内置键位" style="flex:1;min-width:200px">
+      <label class="row" style="gap:6px"><input type="checkbox" id="onlyHit"> 只看被覆盖的</label>
+    </div>
+    <div class="rows ref" id="ref"></div>
+  </div>
+</div>
+
+<datalist id="cmdList"></datalist>
+
+<script src="api.js"></script>
+<script src="state.js"></script>
+<script>
+/* 快捷键页：编辑 mpv 的 input.conf / input_uosc.conf
+   规则：没动过的行原样写回，只有改过/新增的行才会重排 —— 后端也是这么做的 */
+
+/* 用 var：顶层 var 会挂到 window 上，便于调试与自动化检查 */
+var KEY = { main: '', files: [], rows: [], defaults: [], commands: [], warnings: [], dirty: false };
+
+async function boot() {
+  const s = await API.status();
+  document.getElementById('ver').textContent = 'v' + s.version;
+  if (!APP.target && s.lazy_pc) APP.target = s.lazy_pc;
+  const tl = document.getElementById('targetLabel');
+  tl.textContent = APP.target ? shortPath(APP.target) : '未设置';
+  tl.title = APP.target || '';
+  document.getElementById('pickDir').onclick = () => promptTarget();
+  document.getElementById('saveBtn').onclick = save;
+  document.getElementById('addBtn').onclick = addRow;
+  document.getElementById('q').oninput = renderRows;
+  document.getElementById('onlyMine').onchange = renderRows;
+  document.getElementById('onlyOff').onchange = renderRows;
+  document.getElementById('q2').oninput = renderRef;
+  document.getElementById('onlyHit').onchange = renderRef;
+  document.getElementById('fileSelect').onchange = e => loadFile(e.target.value);
+  document.getElementById('rows').oninput = onEdit;
+  document.getElementById('rows').onchange = onEdit;
+  document.getElementById('rows').onclick = onRowClick;
+  await load();
+}
+
+async function load() {
+  const r = await API.get('/api/keys' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
+  if (!r.ok) { toast('❌ ' + (r.detail || '读取失败'), 'err'); return; }
+  KEY.defaults = r.defaults || [];
+  KEY.commands = r.commands || [];
+  KEY.files = r.files || [];
+  KEY.warnings = r.warnings || [];
+  document.getElementById('defCount').textContent = KEY.defaults.length;
+  const dl = document.getElementById('cmdList');
+  dl.innerHTML = KEY.commands.map(c =>
+    `<option value="${esc(c.name)}">${esc(c.desc || c.sig || '')}</option>`).join('');
+  document.getElementById('fileSelect').innerHTML = KEY.files.map(f =>
+    `<option value="${esc(f.path)}"${f.path === r.main ? ' selected' : ''}>`
+    + `${esc(f.name)}${f.active ? '（mpv 正在用这个）' : ''} · ${f.rows.filter(x => x.kind === 'bind').length} 条</option>`).join('')
+    || '<option value="">（目录里还没有 input 文件，保存时会新建 input.conf）</option>';
+  KEY.main = r.main || (APP.target ? APP.target.replace(/[\\/]$/, '') + '\\input.conf' : '');
+  const f = KEY.files.find(x => x.path === r.main) || KEY.files[0];
+  KEY.rows = f ? f.rows : [];
+  KEY.encoding = f ? f.encoding : 'UTF-8（新建）';
+  document.getElementById('fileName').textContent = f ? f.name : 'input.conf（将新建）';
+  document.getElementById('fileInfo').innerHTML =
+    `mpv 读的是：<code>${esc((f && f.path) || KEY.main)}</code> · ${esc(KEY.encoding)} · `
+    + `来源：${esc(r.source || '（没有 input-conf 设置）')}`;
+  renderWarn();
+  renderPromote(r);
+  renderRows();
+  renderRef();
+}
+
+/** R-24：正在改自带的键位表时，提示「另存为自己的」。
+ *  自带文件升级会被覆盖 —— 不提示的话用户改的键会在某次升级后静默消失。 */
+function renderPromote(r) {
+  const box = document.getElementById('promoteBox');
+  if (!box) return;
+  if (!r.needs_promote) { box.innerHTML = ''; return; }
+  box.innerHTML = `
+    <div class="note warn-text" style="margin-top:10px;padding:10px 12px;
+      border:1px solid var(--border);border-radius:10px">
+      ⚠ <b>你改的是播放器自带的键位表</b>（<code>${esc(KEY.main.split(/[\\/]/).pop())}</code>）。
+      升级 mpv-lazy 时它会被<b>覆盖回去</b>，你的改动就没了，而且不会有任何提示。<br>
+      建议另存为 <code>${esc(r.promote_name || 'input-user.conf')}</code>：
+      会生成一份属于你的键位表，并把 <code>mpv.conf</code> 的
+      <code>input-conf</code> 指过去（原自带文件一个字节都不动）。
+      <div class="actions" style="margin-top:8px">
+        <button class="btn primary" id="promoteBtn">💾 另存为我自己的键位表</button>
+      </div>
+    </div>`;
+  const b = document.getElementById('promoteBtn');
+  if (b) b.onclick = doPromote;
+}
+
+async function doPromote() {
+  if (!APP.target) { toast('先设置目标目录', 'err'); return; }
+  if (KEY.dirty) {
+    toast('有未保存的改动，先点「保存」再另存', 'err');
+    return;
+  }
+  if (!confirm('会做两件事：\n\n'
+    + `① 生成 ${KEY.main ? KEY.main.split(/[\\/]/).pop() : ''} 的副本作为你自己的键位表\n`
+    + '② 把 mpv.conf 里的 input-conf 指到它（mpv.conf 会先备份）\n\n'
+    + 'mpv-lazy 自带的原文件不会被改动。要继续吗？')) return;
+  const r = await API.post('/api/keys/promote', { target: APP.target, rows: KEY.rows });
+  toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
+  if (r.ok) load();
+}
+
+function loadFile(path) {
+  const f = KEY.files.find(x => x.path === path);
+  if (!f) return;
+  if (KEY.dirty && !confirm('这份文件有未保存的改动，切换会丢弃。继续？')) return;
+  KEY.main = f.path;
+  KEY.rows = f.rows;
+  KEY.dirty = false;
+  document.getElementById('fileName').textContent = f.name;
+  renderRows();
+}
+
+function renderWarn() {
+  const box = document.getElementById('warn');
+  box.innerHTML = (KEY.warnings || []).map(w => `<p class="note warn-text">⚠ ${esc(w)}</p>`).join('');
+}
+
+function visible(i) {
+  const r = KEY.rows[i];
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  if (document.getElementById('onlyOff').checked && !(r.kind === 'bind' && !r.enabled)) return false;
+  if (document.getElementById('onlyMine').checked && !(r.kind === 'bind' && r.orig &&
+      (r.orig.key !== r.key || r.orig.cmd !== r.cmd || r.orig.comment !== r.comment || r.orig.enabled !== r.enabled))) return false;
+  if (q) {
+    const hay = [r.key, r.cmd, r.comment, r.raw].join(' ').toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+  return true;
+}
+
+function renderRows() {
+  const host = document.getElementById('rows');
+  let shown = 0, binds = 0;
+  const html = KEY.rows.map((r, i) => {
+    binds += (r.kind === 'bind') ? 1 : 0;
+    if (!visible(i)) return '';
+    shown++;
+    if (r.kind !== 'bind') {
+      const cls = r.kind === 'blank' ? 'sep blank' : 'sep';
+      return `<div class="row"><div class="${cls}">${esc(r.raw || ' ')}</div></div>`;
+    }
+    return `<div class="row${r.enabled ? '' : ' off'}" data-i="${i}">
+      <input type="checkbox" data-role="on" ${r.enabled ? 'checked' : ''} title="取消勾选 = 注释掉这行">
+      <input type="text" class="keycell" data-role="key" value="${esc(r.key)}" placeholder="（没绑键）">
+      <input type="text" class="cmdcell" data-role="cmd" value="${esc(r.cmd)}" list="cmdList" placeholder="命令">
+      <input type="text" data-role="comment" value="${esc(r.comment)}" placeholder="分类 > 说明">
+      <button class="icon-btn" data-role="del" title="删掉这一行">✕</button>
+    </div>`;
+  }).join('');
+  host.innerHTML = `<div class="row head"><span></span><span>键位</span><span>命令</span>
+      <span>分类 &gt; 说明</span><span></span></div>` + html;
+  document.getElementById('count').textContent =
+    `${binds} 条绑定 · 显示 ${shown} 行` + (KEY.dirty ? ' · ⚠ 有未保存改动' : '');
+}
+
+function onEdit(ev) {
+  const row = ev.target.closest('[data-i]');
+  if (!row) return;
+  const r = KEY.rows[+row.dataset.i];
+  const role = ev.target.dataset.role;
+  if (role === 'on') r.enabled = ev.target.checked;
+  else if (role) r[role] = ev.target.value;
+  KEY.dirty = true;
+  if (role === 'on') {
+    row.classList.toggle('off', !r.enabled);
+    renderRows();
+  }
+  document.getElementById('count').textContent =
+    document.getElementById('count').textContent.replace(/ · ⚠.*$/, '') + ' · ⚠ 有未保存改动';
+}
+
+function onRowClick(ev) {
+  if (ev.target.dataset.role !== 'del') return;
+  const row = ev.target.closest('[data-i]');
+  const i = +row.dataset.i;
+  const r = KEY.rows[i];
+  if (!confirm(`删掉这一行？\n${r.key || '（无键位）'}  ${r.cmd}`)) return;
+  KEY.rows.splice(i, 1);
+  KEY.dirty = true;
+  renderRows();
+}
+
+function addRow() {
+  KEY.rows.push({ kind: 'bind', enabled: true, key: '', cmd: '', comment: '', line: 0, raw: '' });
+  KEY.dirty = true;
+  document.getElementById('q').value = '';
+  document.getElementById('onlyMine').checked = false;
+  document.getElementById('onlyOff').checked = false;
+  renderRows();
+  const rows = document.querySelectorAll('#rows .row[data-i]');
+  const last = rows[rows.length - 1];
+  if (last) last.querySelector('[data-role="key"]').focus();
+}
+
+async function save() {
+  if (!KEY.main) { toast('没有可保存的文件', 'err'); return; }
+  const r = await API.post('/api/keys/save', { path: KEY.main, rows: KEY.rows });
+  toast((r.ok ? '✅ ' : '❌ ') + r.detail, r.ok ? 'ok' : 'err');
+  if (r.ok) { KEY.dirty = false; await load(); }
+}
+
+/* ---------------- 内置默认键位（参考） ---------------- */
+
+function renderRef() {
+  const q = document.getElementById('q2').value.trim().toLowerCase();
+  const onlyHit = document.getElementById('onlyHit').checked;
+  const host = document.getElementById('ref');
+  const mine = {};
+  KEY.rows.forEach(r => {
+    if (r.kind === 'bind' && r.key && r.enabled) mine[r.key] = r.cmd;
+  });
+  const list = KEY.defaults.filter(d => {
+    const hit = mine[d.key] !== undefined;
+    if (onlyHit && !hit) return false;
+    if (q && !(d.key + ' ' + d.cmd + ' ' + d.comment).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  host.innerHTML = list.map(d => {
+    const hit = mine[d.key] !== undefined;
+    return `<div class="row${hit ? ' hit' : ''}">
+      <div class="keycell">${esc(d.key)} ${hit ? '<span class="badge choice">已被覆盖</span>' : ''}</div>
+      <div class="cmdcell">${esc(mine[d.key] !== undefined ? mine[d.key] : d.cmd)}</div>
+      <div class="note">${esc(d.comment || '')} <span class="muted">${esc(d.label || '')}</span></div>
+    </div>`;
+  }).join('') || '<div class="row"><div class="note">没有匹配的。</div></div>';
+}
+
+boot();
+</script>
+</body>
+</html>
