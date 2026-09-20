@@ -3,7 +3,7 @@
 
 为什么要有这个功能：原来 `saveLocal()` 只存 `target`/`writeMode`/`source`/`mode`，
 **`APP.values` 根本没存** —— 刷新一下页面调好的一套就没了，也没法发给别人。
-见 `_reference/GitHub同类项目调查.md`（300★ 的 Glow 早就支持导出/导入自定义预设）。
+同类里 300★ 的 Glow 早就支持导出/导入自定义预设 —— 这是我们的缺口。
 
 ⚠ 所有测试都先把注册表指到临时目录（`set_registry_dir`），
 **绝不往仓库的 `presets/` 里写东西**。
