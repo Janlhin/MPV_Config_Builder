@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-"""P3-4：版本号只有一个来源。
+"""版本号只有一个来源。
 
-以前的毛病：`core/schema.py` 写 "MPV Config Builder 2.0"、`mpv_config_builder.py`
-又手写一遍同一个字符串，而 `VERSION` 是 "0.1.0" —— 标题写 2.0、版本说 0.1.0，
-没人说得清到底几版。现在分成两个概念：
-    APP_VERSION = "2.0"    产品代数（标题栏、给用户看的）
-    VERSION     = "0.1.0"  软件版本（打包 / Release / 更新检测）
+原来的毛病：`core/schema.py` 里 `VERSION` 是 "0.1.0"，但标题用的是另一个常数
+`APP_VERSION = "2.0"` —— 界面上同时出现两个版本号，用户会以为装了两个东西。
+
+2026-09-14 用户定：**界面只显示软件版本**，`APP_VERSION` 退成「只给 legacy 用」，
+`FULL_TITLE` 不再拼它。并且版本号只有 `core/schema.py` 一个来源，
+`electron/package.json` 那边靠 `tools/sync_version.py` 同步（下面有测试钉住）。
 """
+import os
 import re
 import sys
 import unittest
@@ -26,10 +28,30 @@ from core import schema                                                      # n
 class VersionSourceTest(unittest.TestCase):
     def test_constants(self):
         self.assertTrue(schema.APP_TITLE)
-        self.assertTrue(schema.APP_VERSION)
         self.assertTrue(schema.VERSION)
-        self.assertEqual(schema.FULL_TITLE,
-                         f"{schema.APP_TITLE} {schema.APP_VERSION}")
+        # ⚠ 2026-09-14 起 FULL_TITLE **不再拼 APP_VERSION**（用户要求界面只显示
+        #    软件版本，不要"2.0"）。APP_VERSION 现在只给 legacy/ 那个旧界面用。
+        self.assertEqual(schema.FULL_TITLE, schema.APP_TITLE)
+
+    def test_app_version_still_exists_for_legacy(self):
+        """APP_VERSION 是给 legacy/ 留的，**不能删** —— 删了旧界面 import 就崩。
+
+        （我删过一次，legacy 立刻 ImportError。这条测试就是防这个。
+        它纯粹是给不维护的旧代码用的显示常数，主界面不该再拼它。）
+        """
+        self.assertTrue(schema.APP_VERSION)
+        src = TK.read_text(encoding="utf-8")
+        self.assertIn("APP_VERSION", src,
+                      "legacy 不再用 APP_VERSION 了？那这条测试可以删")
+
+    def test_main_ui_does_not_show_generation_number(self):
+        """主界面（webui / electron）不许再出现"产品代数"这种东西。"""
+        for f in list((ROOT / "webui").glob("*.py")) + \
+                list((ROOT / "webui" / "static").glob("*.html")) + \
+                list((ROOT / "webui" / "static").glob("*.js")):
+            src = f.read_text(encoding="utf-8")
+            self.assertNotIn("APP_VERSION", src,
+                             f"{f.name} 又在用 APP_VERSION 了 —— 主界面只用 VERSION")
 
     def test_dunder_version_matches(self):
         """打包工具认 __version__，它必须和 VERSION 一致。"""
@@ -40,6 +62,36 @@ class VersionSourceTest(unittest.TestCase):
 
     def test_version_is_semverish(self):
         self.assertRegex(schema.VERSION, r"^\d+\.\d+(\.\d+)?$")
+
+    def test_package_json_version_matches(self):
+        """版本号只有一个来源：`core/schema.py`。
+
+        electron/package.json 那边打包时要用（决定安装包文件名），
+        它必须跟着走。两边不一致的话会出现「安装包叫 0.2.0-Setup.exe，
+        软件里却显示 0.1.0」—— **两边都看起来正常**，特别难发现。
+
+        改完 schema.py 记得跑：py tools/sync_version.py
+        """
+        import json
+        pkg = ROOT / "electron" / "package.json"
+        if not pkg.is_file():
+            self.skipTest("没有 electron/package.json")
+        data = json.loads(pkg.read_text(encoding="utf-8"))
+        self.assertEqual(
+            data.get("version"), schema.VERSION,
+            "electron/package.json 的 version 和 core/schema.py 不一致"
+            " —— 跑一下 py tools/sync_version.py")
+
+    def test_sync_script_agrees(self):
+        """同步脚本的 --check 必须是绿的（它还会检查文件真的存在）。"""
+        import subprocess
+        r = subprocess.run([sys.executable, "-X", "utf8",
+                            str(ROOT / "tools" / "sync_version.py"), "--check"],
+                           capture_output=True, cwd=str(ROOT),
+                           env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        self.assertEqual(r.returncode, 0,
+                         r.stdout.decode("utf-8", "replace")
+                         + r.stderr.decode("utf-8", "replace"))
 
     def test_no_hardcoded_title_left(self):
         """源码里不该再手写完整的 "MPV Config Builder 2.0"。"""

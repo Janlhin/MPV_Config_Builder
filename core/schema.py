@@ -8,14 +8,35 @@ from .paths import user_data_dir
 
 
 APP_TITLE = "MPV Config Builder"
-# 产品代数（写进标题、给用户看的"第几代"）
+# 产品代数 —— **只给 legacy/ 那个旧 Tkinter 界面用**，主界面不再显示它。
+#
+# 为什么还留着：legacy/mpv_config_builder.py 有 4 处 import 并在标题里拼它。
+# 那个文件已定「保留但不维护」，为了一个显示用的常数去改它不值得。
+# 主界面（webui / electron）**不要用它** —— 见下面 FULL_TITLE 的说明。
 APP_VERSION = "2.0"
-# 软件版本号（打包 / Release / 更新检测用）
+# 软件版本号（打包 / Release / 更新检测用）。**主界面唯一的版本号来源。**
+#
+# 规则（2026-09-14 定）：
+#     小更新（改文案、修 bug）  0.1.0 → 0.1.1 → 0.1.2
+#     大更新（加功能）          0.1.x → 0.2.0 → 0.3.0
+#     觉得能正式推荐给别人了     0.x   → 1.0.0
+#
+# ⚠ 改这里之后要跑一次 `py tools/sync_version.py`，
+#   把版本刷进 electron/package.json（那边打包时要用）。
+#   tests/test_version.py 有一条测试钉住两边相等，忘了会红。
 VERSION = "0.1.0"
 #: 打包工具（PyInstaller / setuptools）习惯认这个名字
 __version__ = VERSION
-#: 标题栏 / 关于页统一用这个，别再各处手写 "MPV Config Builder 2.0"
-FULL_TITLE = f"{APP_TITLE} {APP_VERSION}"
+#: 标题栏 / 关于页 / 生成的配置抬头统一用这个。
+#
+# 2026-09-14：**去掉了「2.0」**。原来这里拼的是 "MPV Config Builder 2.0"，
+# 于是界面上同时出现两个版本号（顶栏 v0.1.0、标题 MPV Config Builder 2.0），
+# 用户会以为装了两个东西。用户决定只留软件版本。
+#
+# ⚠ 生成配置的抬头因此从 `# MPV Config Builder 2.0` 变成了 `# MPV Config Builder`。
+#   合并写入**不受影响** —— 它认的是 writer.MERGE_MARKER（「由 MPV Config Builder 写入」），
+#   跟这条抬头无关。
+FULL_TITLE = APP_TITLE
 TITLE = FULL_TITLE                      # 旧名字，保留兼容
 
 SETTINGS_PATH = user_data_dir() / "settings.json"

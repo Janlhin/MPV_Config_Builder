@@ -155,6 +155,8 @@ MPV Config Builder 2.0
       check_stdio_ui.py   实机验证 9 个页面能跑在 stdio 通道上（同上；
                           会拦截 fetch 记账，任何漏到 HTTP 的 API 调用都算失败）
       check_pack.py       验证打包产物（要先打包；21 项，跑在真 exe 上）
+      sync_version.py     把版本号从 core\schema.py 刷进 electron\package.json
+                          （版本号只有一个来源，改完 schema.py 就跑它）
       check_electron.py   实机验证 Electron 外壳（19 项，要装了 electron/node_modules）
       check_electron_packaged.py 实机验证打包后的 Electron 应用（13 项）
       make_icon.py        重新生成应用图标（零依赖手写 ico，不引 Pillow）
@@ -169,7 +171,7 @@ MPV Config Builder 2.0
       scripts\sync-renderer.js  把 webui\static 复制到 electron\renderer（单一来源）
       renderer\           构建期复制产物，**不要手改、不入库**
       用法：cd electron && npm install && npm run dist
-  tests\                  单元测试（650 项，含接口端到端与真实脚本测试）
+  tests\                  单元测试（654 项，含接口端到端与真实脚本测试）
   legacy\                 旧界面（Tkinter）。保留但不维护，见 legacy\README.md
       mpv_config_builder.py   主程序（要 import core\，所以启动器会先回仓库根）
       启动.bat                旧版启动器
