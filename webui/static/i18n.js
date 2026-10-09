@@ -47,7 +47,7 @@
   /* 运行时才填的占位名 —— 值由调用方传进来（`t(key, {changes: 3})`），
      这里只登记名字，让 `verify.py i18n` 的占位符检查认得它们、
      不去误报成漏填。别把默认值写在这里：那会变成第二个真相源。 */
-  var RUNTIME_VARS = ['changes'];
+  var RUNTIME_VARS = ['changes', 'size', 'lines', 'chars'];
 
   var DICT = {
     'zh-CN': {
@@ -102,6 +102,20 @@
       'mode.hell.li1': '不校验、不解释、不拦你',
       'mode.hell.li2': '写入前仍留一份 .bak 备份',
       'mode.hell.li3': '给真的知道自己要干什么的人',
+
+      // 地狱模式页的整句。这三句在 HTML 里都是**完整的一段**（只含 <code> / <b>
+      // 内联标签），所以走 data-i18n / data-i18n-html 套整句，不进词条表 ——
+      // 词条表按原文精确匹配，被标签截断的半句译出来会「语法对、意思不通」。
+      'hell.dangerNote': '⚠ 不校验、不解释。唯一的保险是写入前自动生成的 <code>.bak-时间戳</code> 文件（想彻底裸写，自己把备份删掉即可）。',
+      'hell.whoP': '有人不需要向导、不需要中文说明、不需要冲突检测 —— 他们要的就是一个直接编辑目标文件的文本框和一个不啰嗦的窗口。把这些人塞进完全体里天天点确认弹窗，反而更烦。',
+      'hell.positionP': '所以这一页的定位是：<b>把所有护栏都拿掉的那一档</b>。',
+      // 这三条是**运行时拼出来的**（行数 / 字符数 / 文件大小），只能走键位表 + 占位符。
+      // 数字一律用花括号占位符引用、值由调用方传进来 —— 不在语言表里写死（§2.6 同款毛病）。
+      // ⚠ 注释里别写「大括号 + 中文」当示例：`verify.py i18n` 扫占位符的正则是
+      //    \{(\w+)\}，而 Python 的 \w **匹配中文**，会把注释里的示例当成真占位符报红。
+      'hell.readOk': '已读取 {size} B',
+      'hell.sizeHint': '{lines} 行 · {chars} 字符',
+      'hell.sizeHintTab': '{lines} 行 · {chars} 字符 · 含 Tab',
 
       'card.guide.h2': '🧭 第一次用？先看这个',
       'card.guide.note': '不知道 <code>mpv.conf</code> 该放哪儿、配置怎么写、改坏了怎么救 —— 这篇入门指南从「文件放哪儿」讲到「三条退路」，都是人话。',
@@ -190,6 +204,13 @@
       'mode.hell.li1': 'No validation, no explanation, nothing stops you',
       'mode.hell.li2': 'Still writes a .bak before touching anything',
       'mode.hell.li3': 'For people who actually know what they are doing',
+
+      'hell.dangerNote': '⚠ No validation, no explanation. The only safety net is the <code>.bak-timestamp</code> file written automatically before saving (delete the backup yourself if you want it truly raw).',
+      'hell.whoP': 'Some people need no wizard, no Chinese explanations, no conflict detection — what they want is a text box straight onto the target file and a window that does not nag. Shoving them into Full mode to dismiss confirmation dialogs all day is far more annoying.',
+      'hell.positionP': 'So this page is: <b>the tier with every guardrail removed</b>.',
+      'hell.readOk': 'Read {size} B',
+      'hell.sizeHint': '{lines} lines · {chars} chars',
+      'hell.sizeHintTab': '{lines} lines · {chars} chars · contains tabs',
 
       'card.guide.h2': '🧭 First time here? Start with this',
       'card.guide.note': 'Not sure where <code>mpv.conf</code> goes, how to write it, or how to recover if you break it — this guide walks from "where does the file live" to "your three ways back out", in plain language.',

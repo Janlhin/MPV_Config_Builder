@@ -52,7 +52,7 @@
       <button class="btn" id="dl">💾 下载为文件</button>
       <button class="btn ghost" id="toExpert">🧪 拿去完全体里检查</button>
     </div>
-    <p class="note danger" style="margin-top:12px">
+    <p class="note danger" style="margin-top:12px" data-i18n-html="hell.dangerNote">
       ⚠ 不校验、不解释。唯一的保险是写入前自动生成的 <code>.bak-时间戳</code> 文件
       （想彻底裸写，自己把备份删掉即可）。
     </p>
@@ -60,9 +60,9 @@
 
   <div class="card">
     <h2>🧭 为什么会有这一页</h2>
-    <p class="note">有人不需要向导、不需要中文说明、不需要冲突检测 —— 他们要的就是一个直接编辑目标文件的
+    <p class="note" data-i18n="hell.whoP">有人不需要向导、不需要中文说明、不需要冲突检测 —— 他们要的就是一个直接编辑目标文件的
       文本框和一个不啰嗦的窗口。把这些人塞进完全体里天天点确认弹窗，反而更烦。</p>
-    <p class="note" style="margin-top:8px">所以这一页的定位是：<b>把所有护栏都拿掉的那一档</b>。</p>
+    <p class="note" style="margin-top:8px" data-i18n-html="hell.positionP">所以这一页的定位是：<b>把所有护栏都拿掉的那一档</b>。</p>
   </div>
 
 </div>
@@ -99,14 +99,22 @@ async function openFile() {
   document.getElementById('confirm').checked = false;
   document.getElementById('save').disabled = true;
   updateSize();
-  toast(`已读取 ${r.size} B`, 'ok');
+  // 走键位表而不是拼字符串：拼出来的 '已读取 4925 B' 会被词条表的子串匹配切坏 ——
+  // '读取' → 'Read' 命中了 '已读取' 的中间，界面上就成了「已Read 4925 B」。
+  toast(I18N.t('hell.readOk', { size: r.size }), 'ok');
 }
 
 function updateSize() {
   const t = document.getElementById('rawBox').value;
+  const n = { lines: t.split('\n').length, chars: t.length };
   document.getElementById('sizeHint').textContent =
-    t.split('\n').length + ' 行 · ' + t.length + ' 字符' + (t.includes('\t') ? ' · 含 Tab' : '');
+    I18N.t(t.includes('\t') ? 'hell.sizeHintTab' : 'hell.sizeHint', n);
 }
+
+// 切语言后要重刷：sizeHint 是 JS 拼出来再写进 DOM 的，**不在任何 data-i18n 属性上**，
+// apply() 刷不到它 —— 不监听的话它会一直停在加载时那门语言上。
+// i18n.js 的 setLang 会派 i18n:change，就是给这类动态文案用的。
+document.addEventListener('i18n:change', updateSize);
 
 async function save() {
   if (!curPath) { toast('还没打开文件', 'err'); return; }
