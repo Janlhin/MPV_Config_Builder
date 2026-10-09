@@ -342,7 +342,7 @@ function initLangToggle() {
    新建 statusbar.js 就得给 9 份 HTML 各加一个 script 标签，
    以后改一处要记得改 9 处 —— 正是顶栏那条注释里写过的教训。
 
-   可测试性：`APP.ping()` 单独暴露出来，测试里把 `API.status` 换成抛错的桩
+   可测试性：`MPVCB.ping()` 单独暴露出来，测试里把 `API.status` 换成抛错的桩
    就能验证离线横幅。别想着"把后端进程杀掉再测" —— 服务没了页面也加载不出来。 */
 
 const SB = {
@@ -397,10 +397,10 @@ function paintStatusbar() {
 }
 
 /** 页面用这个告诉状态栏：目标是谁、改了几处 */
-window.APP = window.APP || {};
-APP.setTarget = function (p) { SB.target = p || ''; paintStatusbar(); };
-APP.setChanges = function (n) { SB.changes = (n === null || n === undefined) ? null : n; paintStatusbar(); };
-APP.busy = function (on) {
+window.MPVCB = window.MPVCB || {};
+MPVCB.setTarget = function (p) { SB.target = p || ''; paintStatusbar(); };
+MPVCB.setChanges = function (n) { SB.changes = (n === null || n === undefined) ? null : n; paintStatusbar(); };
+MPVCB.busy = function (on) {
   SB.inflight = Math.max(0, SB.inflight + (on ? 1 : -1));
   if (SB.busy) SB.busy.style.width = SB.inflight > 0 ? '60%' : '100%';
   if (SB.inflight === 0 && SB.busy) {
@@ -416,11 +416,11 @@ APP.busy = function (on) {
     所以在这里包一层，全站都有反馈，不用每个页面自己写 */
 const _rawInvoke = API.invoke.bind(API);
 API.invoke = async function (method, url, body) {
-  APP.busy(true);
+  MPVCB.busy(true);
   try {
     return await _rawInvoke(method, url, body);
   } finally {
-    APP.busy(false);
+    MPVCB.busy(false);
   }
 };
 
@@ -431,7 +431,7 @@ function showOffline() {
   b.innerHTML = '<span class="ob-text"></span><button class="btn small ob-retry"></button>';
   document.body.appendChild(b);
   SB.banner = b;
-  b.querySelector('.ob-retry').onclick = function () { APP.ping(); };
+  b.querySelector('.ob-retry').onclick = function () { MPVCB.ping(); };
   paintBanner();
   document.addEventListener('i18n:change', paintBanner);
 }
@@ -448,7 +448,7 @@ function hideOffline() {
 }
 
 /** 探一次后端。抛错 = 离线：状态栏变红 + 顶部横幅 */
-APP.ping = async function () {
+MPVCB.ping = async function () {
   try {
     const r = await API.status();
     SB.alive = !!(r && r.title);
@@ -471,8 +471,124 @@ APP.ping = async function () {
 };
 
 function initBackendWatch() {
-  APP.ping();
-  if (!SB.timer) SB.timer = setInterval(function () { APP.ping(); }, 15000);
+  MPVCB.ping();
+  if (!SB.timer) SB.timer = setInterval(function () { MPVCB.ping(); }, 15000);
+}
+
+/* ---------- 右键菜单 ----------
+
+   起因（待做.md §一）：「想恢复默认 / 复制选项名 / 看手册原文，无从下手」。
+   做成**通用组件** `MPVCB.contextMenu(items, x, y)`，任何页面都能用；
+   右键 `.opt` 行的默认菜单在这里定义 —— 一处定义，expert / advanced 都生效。
+
+   ⚠ 动作全靠**模拟已有控件的点击**（勾选框 / 那个 `i` 按钮），
+     不去碰 state.js 的内部状态 —— 否则这里就得知道选项怎么算值，
+     而那正是 §2.10 警告过的"顺手统一"。 */
+
+function escTxt(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+}
+
+const CTX = { el: null };
+
+function closeContextMenu() {
+  if (!CTX.el) return;
+  CTX.el.remove();
+  CTX.el = null;
+  document.removeEventListener('click', onDocClickCtx, true);
+  document.removeEventListener('keydown', onKeyCtx, true);
+}
+
+function onDocClickCtx() { closeContextMenu(); }
+function onKeyCtx(e) {
+  if (e.key === 'Escape') { e.stopPropagation(); closeContextMenu(); }
+}
+
+window.MPVCB.contextMenu = function (items, x, y) {
+  closeContextMenu();
+  const list = (items || []).filter(Boolean);
+  if (!list.length) return;
+  const m = document.createElement('div');
+  m.className = 'ctx-menu';
+  m.setAttribute('role', 'menu');
+  m.innerHTML = list.map(function (it) {
+    return '<button class="ctx-item" role="menuitem" data-act="' + escTxt(it.act) + '">'
+      + escTxt(it.label) + '</button>';
+  }).join('');
+  document.body.appendChild(m);
+  // 别跑出视口：先量一次再定位
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(4, Math.min(x, window.innerWidth - r.width - 8)) + 'px';
+  m.style.top = Math.max(4, Math.min(y, window.innerHeight - r.height - 8)) + 'px';
+  m.addEventListener('click', function (ev) {
+    const b = ev.target.closest('.ctx-item');
+    if (!b) return;
+    const it = list.filter(function (i) { return i.act === b.dataset.act; })[0];
+    closeContextMenu();
+    if (it && typeof it.run === 'function') it.run();
+  });
+  CTX.el = m;
+  // 延后一帧再挂"点别处就关"的监听：否则打开菜单的那次 click 自己就会把它关掉
+  setTimeout(function () {
+    document.addEventListener('click', onDocClickCtx, true);
+    document.addEventListener('keydown', onKeyCtx, true);
+  }, 0);
+};
+
+function copyText(t) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).catch(function () { copyFallback(t); });
+    return;
+  }
+  copyFallback(t);
+}
+
+function copyFallback(t) {
+  const ta = document.createElement('textarea');
+  ta.value = t;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  ta.remove();
+}
+
+/** 右键 .opt 行的菜单项。动作全部委托给已有控件，不碰 state.js 的内部状态 */
+function optMenuItems(row) {
+  const key = row.dataset.key || '';
+  const items = [
+    { act: 'copykey', label: SBT('ctx.copyKey', '复制选项名'), run: function () { copyText(key); } }
+  ];
+  const val = (window.MPVCB && APP.values) ? APP.values[key] : undefined;
+  if (val !== undefined && val !== '') {
+    items.push({ act: 'copyval', label: SBT('ctx.copyValue', '复制当前值'),
+      run: function () { copyText(String(val)); } });
+  }
+  if (row.classList.contains('on')) {
+    items.push({ act: 'reset', label: SBT('ctx.reset', '恢复默认（取消勾选）'),
+      run: function () {
+        const cb = row.querySelector('input[data-role="check"]');
+        if (cb && cb.checked) cb.click();          // 走页面自己的事件链，别直接改 DOM
+      } });
+  }
+  items.push({ act: 'info', label: SBT('ctx.info', '完整说明'),
+    run: function () {
+      const b = row.querySelector('[data-role="info"]');
+      if (b) b.click();
+    } });
+  return items;
+}
+
+function initContextMenu() {
+  document.addEventListener('contextmenu', function (e) {
+    const row = (e.target && e.target.closest) ? e.target.closest('.opt') : null;
+    if (!row) return;                              // 其它地方仍用浏览器默认菜单
+    e.preventDefault();
+    window.MPVCB.contextMenu(optMenuItems(row), e.clientX, e.clientY);
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -481,4 +597,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initLangToggle();
   initStatusbar();
   initBackendWatch();
+  initContextMenu();
 });
