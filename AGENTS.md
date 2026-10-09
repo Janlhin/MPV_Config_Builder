@@ -25,6 +25,16 @@ py -3 tools\build.py version       :: 改过 core\schema.py 的 VERSION 之后
 本仓库的「对错」由**全套单元测试 + `verify.py` 的各项自检**判定，不靠人眼看。
 所以"跑过了"必须指得出跑了什么。
 
+### 1.1 CI 跑什么
+
+每次 `push` / PR，CI 在 **Windows runner** 上跑 `python tools/verify.py --offline`
+（配置见 `.github/workflows/verify.yml`）。两点别改错：
+
+* **必须 Windows**：顶栏实机检查要 Edge/Chrome、Electron 检查要 `electron.exe`。
+  换 Linux 上这两项会退化成「跳过」——跳过不算失败，于是少跑两层却照样绿灯，那是假通过。
+* **必须 `--offline`**：外链检查验证的是上游站点可达，与代码改动无关。
+  它没被豁免，只是**换时间跑**——每周日单独跑一次含联网的全量（`links` job），同样阻断。
+
 ## 2. 硬约束
 
 违反下面任何一条都会留下**真实缺陷**，不是风格问题。
