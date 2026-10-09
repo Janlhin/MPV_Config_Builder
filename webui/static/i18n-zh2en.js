@@ -167,6 +167,18 @@ window.I18N_ZH2EN = {
   '等配置出来再算': 'Calculated once the config is out',
   '改动': 'Changes',
 
+  // 下面四条是 2026-10-09「纵向做深」第一批：把 analyze 页打到切过去 0 汉字。
+  //
+  // ⚠ 第一条是**被标签截断的半句**，按上面的收录标准本该等整句套上 data-i18n 再收。
+  // 这里破例，理由要写清：断点是连词「或者」，后半句「选择文件」已经是独立且完整的
+  // 词条，两部分各自成句、拼起来语义不变（Drag mpv.conf here, or / Choose file）。
+  // 不能用 data-i18n 覆盖这个 div —— 它内部还挂着 <input type=file>，
+  // data-i18n 写 textContent、data-i18n-html 写 innerHTML，都会把那个 input 冲掉。
+  '把 mpv.conf 拖到这里，或者': 'Drag mpv.conf here, or',
+  '或者直接粘贴内容': 'Or paste the content directly',
+  '# 把配置粘在这里': '# Paste your config here',
+  '体检这段文本': 'Check this text',
+
   // ---------- 下载中心 ----------
   '整包': 'Whole package',
   '每一步都会显示进度，可以随时关掉页面':
