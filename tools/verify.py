@@ -147,11 +147,19 @@ def cmd_all():
 
 
     def check_tests(r):
+        buf = io.StringIO()
         suite = unittest.TestLoader().discover(str(ROOT / "tests"), top_level_dir=str(ROOT))
-        res = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
+        res = unittest.TextTestRunner(stream=buf, verbosity=2).run(suite)
         bad = len(res.failures) + len(res.errors)
+        if bad:
+            # 只报「N 项失败」等于把排查成本推给下一次运行 —— CI 上尤其致命：
+            # 那边没有交互式环境可以随手重跑，一次运行几分钟。所以明细必须打出来。
+            print("\n—— 单元测试失败明细 ——")
+            print(buf.getvalue().strip()[-4000:])
+            print("————————————————————\n")
+        names = [t.id().split("tests.")[-1] for t, _ in (res.failures + res.errors)]
         r.add(f"单元测试（{res.testsRun} 项）", bad == 0,
-              "" if bad == 0 else f"{bad} 项失败/报错")
+              "" if bad == 0 else f"{bad} 项失败/报错：" + "、".join(names[:6]))
 
 
     def check_compile(r):
