@@ -312,6 +312,31 @@ def cmd_all():
               "；".join(bad) if bad else f"{len(bats)} 个")
 
 
+    def check_status(r):
+        """状态栏 / 后端离线提示在真浏览器里对吗（界面打磨第一批）。
+
+        判的是两件事：**状态栏活着**（读得到目标路径、后端状态对），
+        以及**后端挂了会说话**（不再白屏）。
+
+        **没有 Edge/Chrome 就跳过，不算失败** —— 和顶栏、i18n 同一个道理：
+        这是实机检查，不是每台机器都跑得了。
+        """
+        if importlib.util.find_spec("uidriver") is None and not (Path(__file__).parent / "uidriver.py").is_file():
+            r.add("状态栏与后端提示实机检查", True, "跳过（找不到 tools/uidriver.py）")
+            return
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from uidriver import find_browser                            # noqa: PLC0415
+        if not find_browser():
+            r.add("状态栏与后端提示实机检查", True, "跳过（本机没有 Edge/Chrome）")
+            return
+        p = subprocess.run([sys.executable, "-X", "utf8",
+                            str(Path(__file__).parent / "verify.py"), "status"],
+                           capture_output=True, cwd=str(ROOT))
+        tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        r.add("状态栏与后端提示实机检查", p.returncode == 0,
+              tail[-1] if tail else "(没有输出)")
+
+
     def check_electron_pack(r):
         """Electron 那套（如果本机备齐了工具链）能不能跑通。
 
@@ -361,6 +386,7 @@ def cmd_all():
         check_links(r, offline=args.offline)
         check_ui_nav(r)
         check_i18n(r)
+        check_status(r)
         check_electron_pack(r)
 
         print("-" * 58)
@@ -823,6 +849,11 @@ def cmd_i18n():
 
     m = re.search(r"var VARS = \{(.*?)\};", src, re.S)
     var_keys = set(re.findall(r"(\w+):", m.group(1))) if m else set()
+    # 运行时才填的占位名（值由调用方传 t(key, {changes: 3})）—— 也要认得，
+    # 否则会误报成"漏填"。见 i18n.js 里 RUNTIME_VARS 的注释。
+    m2 = re.search(r"var RUNTIME_VARS = \[(.*?)\]", src, re.S)
+    if m2:
+        var_keys |= set(re.findall(r"'(\w+)'", m2.group(1)))
     holes = set(re.findall(r"\{(\w+)\}", zh_src + en_src)) - var_keys
     c("译文里的占位符都能在 VARS 里找到（没有漏填的数字）", not holes,
       f"找不到值的占位符：{sorted(holes)}")
@@ -966,6 +997,152 @@ def cmd_i18n():
                 print(f"\n    合计：切前 {base_total} → 切后 {left_total}"
                       f"（剩余 {left_total * 100 // base_total}%，"
                       f"主要是按设计不翻译的选项说明与未收录词条）")
+            print()
+            return c.done()
+        finally:
+            stop(browser)
+            if srv:
+                srv.terminate()
+                try:
+                    srv.wait(timeout=10)
+                except Exception:
+                    srv.kill()
+    raise SystemExit(main())
+
+
+# ==========================================================================
+# status（状态栏 / 后端离线提示 / 请求进度）
+# ==========================================================================
+
+def cmd_status():
+    """界面打磨第一批的实机验证：状态栏在吗？后端挂了会说话吗？
+
+    为什么要真机跑：这三样全是 JS 注入的 DOM，静态看 HTML 一样都看不到；
+    「后端离线横幅会不会弹出来」更是只有真跑一遍才知道。
+
+    ⚠ 测离线**不能靠杀后端进程**：服务没了，页面根本加载不出来，没法测。
+    所以这里把 `API.status` 换成抛错的桩，再调 `APP.ping()` —— 确定性高、也不用等心跳。
+
+    用法（会自己起一个临时后端，端口自动挑）：
+        py -3 tools/verify.py status
+    """
+    import json
+    import socket
+    import subprocess
+    import sys
+    import time
+    import urllib.request
+    from pathlib import Path
+
+    ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "tools"))
+
+    from uidriver import Checker, connect, launch, stop, wait_page   # noqa: PLC0415
+
+    c = Checker()
+
+    PROBE = """
+    (() => {
+      const bar = document.querySelector('.statusbar');
+      const ob  = document.querySelector('.offline-banner');
+      const q = (r, s) => (r && r.querySelector(s)) ? (r.querySelector(s).textContent || '') : '';
+      return {
+        hasBar: !!bar,
+        on: bar ? bar.classList.contains('is-on') : false,
+        off: bar ? bar.classList.contains('is-off') : false,
+        target: q(bar, '.sb-target'),
+        backend: q(bar, '.sb-backend .sb-text'),
+        changes: q(bar, '.sb-changes'),
+        hasBanner: !!ob,
+        hasBusy: !!document.querySelector('.busy-bar'),
+        bodyPad: getComputedStyle(document.body).paddingBottom
+      };
+    })()
+    """
+    # 把 status 换成抛错的桩，模拟后端没了。
+    # ⚠ 写 `API.status`，不要写 `window.API.status` —— api.js 里 API 是顶层 const，
+    #   不是 window 的属性（这是它防污染的手段），写成 window.API 会直接 TypeError。
+    STUB = ("(() => { API.status = () => Promise.reject(new Error('boom'));"
+            " return true; })()")
+
+
+    def free_port():
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        p = s.getsockname()[1]
+        s.close()
+        return p
+
+
+    def start_server(port):
+        proc = subprocess.Popen(
+            [sys.executable, "-X", "utf8", str(ROOT / "webui" / "server.py"),
+             "--port", str(port), "--no-window"],
+            cwd=str(ROOT), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1) as f:
+                    json.load(f)
+                return proc
+            except Exception:
+                if proc.poll() is not None:
+                    sys.exit("后端启动失败（进程已退出）")
+                time.sleep(0.4)
+        proc.kill()
+        sys.exit("后端 30 秒内没起来")
+
+
+    def main():
+        port, cdp_port = free_port(), free_port()
+        srv = browser = None
+        try:
+            srv = start_server(port)
+            print(f"后端已起：http://127.0.0.1:{port}\n")
+            browser = launch(cdp_port)
+            cdp = connect(cdp_port)
+            base = f"http://127.0.0.1:{port}/"
+
+            wait_page(cdp, base + "index.html", wait_s=2.5)
+            time.sleep(1.2)                      # 等第一次 ping 回来
+            a = cdp.js(PROBE)
+            print("—— 后端在线 ——")
+            c("状态栏注入了", bool(a.get("hasBar")))
+            c("有请求进度条元素", bool(a.get("hasBusy")))
+            c("后端在线时状态栏标记为 is-on", a.get("on") is True,
+              f"on={a.get('on')} off={a.get('off')}")
+            c("状态栏读到了目标配置路径", "mpv" in (a.get("target") or "").lower(),
+              f"target={a.get('target')!r}")
+            c("给了 body 底部留白（状态栏不盖内容）",
+              a.get("bodyPad") not in (None, "0px"), f"padding-bottom={a.get('bodyPad')}")
+            print(f"    后端状态文字：{a.get('backend')!r}")
+
+            # 改动数：页面用 APP.setChanges 告诉状态栏
+            cdp.js("(() => { window.APP.setChanges(3); return true; })()")
+            b = cdp.js(PROBE)
+            print("\n—— 改动数 ——")
+            c("APP.setChanges 能刷进状态栏", "3" in (b.get("changes") or ""),
+              f"changes={b.get('changes')!r}")
+
+            # 后端"没了"：换成抛错的桩再 ping 一次
+            cdp.js(STUB)
+            cdp.js("(() => window.APP.ping())()")
+            time.sleep(0.8)
+            d = cdp.js(PROBE)
+            print("\n—— 后端离线（桩） ——")
+            c("后端离线时状态栏标记为 is-off", d.get("off") is True,
+              f"on={d.get('on')} off={d.get('off')}")
+            c("弹出了离线横幅（不再白屏）", bool(d.get("hasBanner")))
+
+            # 恢复：重新载入页面（桩随之消失），横幅应消失、状态回到在线
+            wait_page(cdp, base + "index.html?back=1", wait_s=2.5)
+            time.sleep(1.2)
+            e = cdp.js(PROBE)
+            print("\n—— 后端恢复 ——")
+            c("后端恢复后横幅消失", not e.get("hasBanner"))
+            c("后端恢复后状态栏回到 is-on", e.get("on") is True,
+              f"on={e.get('on')} off={e.get('off')}")
             print()
             return c.done()
         finally:
@@ -2897,6 +3074,7 @@ COMMANDS = {
     "docs": cmd_docs,
     "topnav": cmd_topnav,
     "i18n": cmd_i18n,
+    "status": cmd_status,
     "stdio": cmd_stdio,
     "presets": cmd_presets,
     "ui": cmd_ui,
