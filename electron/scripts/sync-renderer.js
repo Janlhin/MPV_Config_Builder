@@ -2,11 +2,11 @@
  *
  * 为什么这么做：那 9 个页面是浏览器版与 Electron 版**共用**的同一份文件。
  * 如果在 electron/renderer/ 里再存一份副本，迟早两边不一致 ——
- * 而我的实机验证脚本（check_topnav / check_stdio_ui）测的是 webui/static 那份，
+ * 而我的实机验证脚本（verify.py topnav / verify.py stdio）测的是 webui/static 那份，
  * 于是会出现「测试全绿，发出去的却是另一套」。
  *
  * 运行 `npm run sync` 重新复制（`npm run dist` 也会先跑它）。
- * 与源文件的一致性由 tools/check_electron.py 检查。
+ * 与源文件的一致性由 tools/verify.py electron 检查。
  */
 const fs = require('node:fs');
 const path = require('node:path');

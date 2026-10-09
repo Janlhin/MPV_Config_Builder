@@ -81,19 +81,19 @@ py -3 webui\server.py
 
 ```bat
 py -m unittest discover -s tests -t .
-py -X utf8 tools\preflight.py        :: 发布前自检
+py -X utf8 tools\verify.py          :: 发布前自检
 ```
 
-`preflight` 一次跑完：单元测试、源码可编译、文档数字与实测一致、发行必带文件、
+`verify.py` 一次跑完：单元测试、源码可编译、文档数字与实测一致、发行必带文件、
 许可文件内容、无机器专用路径、下载清单链接可访问、顶栏常驻入口（真浏览器）、
 Electron 外壳与打包形态（装了 `electron/node_modules` 才跑）。
 
 界面相关的实机验证（需要本机有 Edge/Chrome，脚本会自己起后端）：
 
 ```bat
-py -3 tools\check_topnav.py        :: 9 个页面的顶栏入口
-py -3 tools\check_stdio_ui.py      :: 9 个页面跑在 stdio 通道上
-py -3 tools\check_electron.py      :: Electron 开发形态
+py -3 tools\verify.py topnav     :: 9 个页面的顶栏入口
+py -3 tools\verify.py stdio      :: 9 个页面跑在 stdio 通道上
+py -3 tools\verify.py electron   :: Electron 开发形态
 ```
 
 ## 目录结构

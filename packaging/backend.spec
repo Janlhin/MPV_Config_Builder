@@ -37,7 +37,7 @@
         core/  webui/             Python 代码
 
 ⚠ 漏掉 data/ 或 webui/static/ 或 *.md，程序**照样能启动**，只是某个页面空白
-—— 这种错只有把每个接口都打一遍才发现。所以有 tools/check_pack.py 专门验它。
+—— 这种错只有把每个接口都打一遍才发现。所以有 tools/verify.py pack 专门验它。
 """
 import sys
 from pathlib import Path
@@ -84,7 +84,7 @@ hiddenimports = [
 # —— 于是打包出来的 exe 一启动就 `ModuleNotFoundError: No module named 'email'`，
 # 而且现象很有迷惑性：**exe 存在、体积正常、资源都在，就是退出码 1、一点输出都没有**
 # （因为崩在 import 阶段，还没轮到 stdio 循环打印任何东西）。
-# 是 `tools/check_pack.py` 抓出来的 —— 它要求 exe 真的把接口打一遍。
+# 是 `tools/verify.py pack` 抓出来的 —— 它要求 exe 真的把接口打一遍。
 #
 # 教训：**排除标准库要格外小心**，它们之间的依赖关系不看源码是猜不出来的。
 # 下面这些是确认过安全的（第三方大库 + 纯开发工具）。

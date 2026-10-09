@@ -17,7 +17,7 @@ sha256 `f802f317e2fa22116984d49a8f814721e320cd55ea5ee27d1a23d32595bfe5f9`。
 **结构**（2026-09-14 C-1 重构后）：判定逻辑是 17 个 `_rule_xxx(ctx)` 函数，
 文案与元信息集中在文件下半部的规则表 `_RULES`。
 **加一条规则 = 写一个判定函数 + 在 `_RULES` 里加一行**，不用动控制流。
-改完请跑 `tools/compare_conflicts.py` 对照 `_legacy_detect_conflicts()`。
+改完请跑 `tools/verify.py conflicts` 对照 `_legacy_detect_conflicts()`。
 
 返回结构（前端直接渲染）：
     {
@@ -118,7 +118,7 @@ def _legacy_detect_conflicts(values, shaders=None, memc=""):
     2026-09-14 把这条 154 行的 if 长链改成了下面的规则表（`_RULES`）。改完做了两道等价性证明：
 
       * `tests/data/conflicts_golden.json` —— 55 个手选用例，逐字段比对（基准在重构前生成）；
-      * `tools/compare_conflicts.py`       —— **4699 组系统枚举**（每个选项 × 每种取值、
+      * `tools/verify.py conflicts`      —— **4699 组系统枚举**（每个选项 × 每种取值、
         两两组合、shader × memc、以及交叉），新旧实现逐字段完全一致。
 
     为什么留着：它是「重构前到底怎么判的」的唯一在库证据。将来有人怀疑规则表漏了某种搭配，

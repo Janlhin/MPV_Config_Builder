@@ -9,7 +9,7 @@ Electron 下静默失效** —— 因为 stdio 模式下根本没有 HTTP 服务
 
 实测：改传输时有 4 处直连被漏掉 ——
 `index.html`（status）、`state.js`（catalog）、`expert.html`（db/options）、
-`guide.html`（guide）。是 `tools/check_stdio_ui.py`（真浏览器 + 真 stdio 后端）
+`guide.html`（guide）。是 `tools/verify.py stdio`（真浏览器 + 真 stdio 后端）
 逮出来的。但那个脚本要本机有 Edge/Chrome，不是每次都会跑。
 
 所以这里补一条**零依赖的静态检查**：直接扫源码里有没有 `fetch('/api/...')`。

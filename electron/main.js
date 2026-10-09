@@ -19,7 +19,7 @@ const { buildMenu } = require('./menu');
 
 const IS_DEV = process.argv.includes('--dev');
 
-// 可选：开一个**本地**远程调试端口，给自动化验证用（tools/check_electron.py 靠它）。
+// 可选：开一个**本地**远程调试端口，给自动化验证用（tools/verify.py electron 靠它）。
 //
 // ⚠ 默认**不开**。只有显式传 `--debug-port=N` 才开 —— 而且只绑 127.0.0.1。
 //    这个开关存在的意义是：GUI 应用没法用普通命令行验证，
@@ -39,7 +39,7 @@ if (DEBUG_PORT > 0) {
  *   开发（源码）    ../webui/server.py                              ← 直接跑源码，调试后端方便
  *
  * ⚠ 路径统一用 process.resourcesPath / __dirname 推导，**不许写死盘符**
- *   （preflight.py 有一条检查会拦机器专用绝对路径）。
+ *   （verify.py 有一条检查会拦机器专用绝对路径）。
  */
 
 function repoRoot() {

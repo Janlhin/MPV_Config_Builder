@@ -53,7 +53,7 @@ from core import textio                                     # noqa: E402
 #   · **直接跑脚本**（`py webui\server.py`）—— 启动器与将来的 Electron 都这么用；
 #     此时没有包上下文，`from . import api` 会报
 #     "attempted relative import with no known parent package"；
-#   · **被当包导入**（`from webui import server`）—— 测试与 check_docs 这么用。
+#   · **被当包导入**（`from webui import server`）—— 测试与 verify.py docs 这么用。
 # 实测踩过：第一版只写了相对导入，服务器**直接起不来**，而单元测试全绿
 # （因为它们走的是包导入那条路，压根没覆盖脚本模式）。
 try:

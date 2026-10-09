@@ -80,7 +80,7 @@ MPV Config Builder 2.0
   已经被你覆盖的键会标出来
 - 保存前自动备份；**没动过的行逐字节原样写回**（连空格都不变）；
   同键绑多次、空命令这类问题会当场拦下
-- 数据来源：tools\build_keybindings.py（mpv 升级后重跑一次即可）
+- 数据来源：tools\build.py keybindings（mpv 升级后重跑一次即可）
 
 【下载与安装】
 - 一键安装 mpv-lazy：从官方 release 取最新版 → 下载（断点续传 / 镜像加速 / 进度）
@@ -146,22 +146,11 @@ MPV Config Builder 2.0
       mpv_keybindings.json 209 条内置默认按键（从你自己的 mpv 里导出）
       mpv_commands.json   86 条 mpv 命令（--input-cmdlist）
   tools\
-      build_options_db.py 重新生成选项库（mpv 升级后跑一次）
-      build_keybindings.py 重新生成按键库（同上）
-      check_docs.py       检查文档里的数字与实测是否一致
-      compare_conflicts.py 冲突规则「重构前/后」等价性对照（4699 组枚举，改规则时跑）
-      gen_conflicts_golden.py 重新生成冲突检测的行为快照基准（改规则后才跑）
-      check_ui.py         实机验证候选值下拉（要本机有 Edge/Chrome，另开服务）
-      check_topnav.py     实机验证 9 个页面的顶栏常驻入口（同上，会自动起后端）
-      check_stdio_ui.py   实机验证 9 个页面能跑在 stdio 通道上（同上；
-                          会拦截 fetch 记账，任何漏到 HTTP 的 API 调用都算失败）
-      check_pack.py       验证打包产物（要先打包；21 项，跑在真 exe 上）
-      sync_version.py     把版本号从 core\schema.py 刷进 electron\package.json
-                          （版本号只有一个来源，改完 schema.py 就跑它）
-      check_electron.py   实机验证 Electron 外壳（19 项，要装了 electron/node_modules）
-      check_electron_packaged.py 实机验证打包后的 Electron 应用（13 项）
-      make_icon.py        重新生成应用图标（零依赖手写 ico，不引 Pillow）
-      preflight.py        发布前自检（测试/编译/文档/必带文件/许可/下载链接/顶栏/Electron）
+      build.py           构建/生成总入口（options-db / keybindings / icon / bat / version / golden）
+      verify.py          验证总入口（发布前自检 = all；单跑一项：
+                         docs / topnav / stdio / presets / ui / electron / packaged / pack / conflicts）
+      uidriver.py        浏览器 / CDP 公共驱动（实机验证脚本共用）
+      _dump_bindings.lua mpv 导出按键的临时脚本（build.py keybindings 用）
   packaging\
       backend.spec        PyInstaller 配方：把后端打成独立 exe（用户机器不需要 Python）
                           用法：py -m PyInstaller packaging\backend.spec
@@ -173,9 +162,6 @@ MPV Config Builder 2.0
       renderer\           构建期复制产物，**不要手改、不入库**
       用法：cd electron && npm install && npm run dist
   tests\                  单元测试（649 项，含接口端到端与真实脚本测试）
-  legacy\                 旧界面（Tkinter）。保留但不维护，见 legacy\README.md
-      mpv_config_builder.py   主程序（要 import core\，所以启动器会先回仓库根）
-      启动.bat                旧版启动器
   docs\                   开发笔记（面向改这个代码的人，不是给用户的）
       踩过的坑.md         实测出来的结论 —— 想知道「为什么这么做」看这份
       待做.md             **还没做的事**（做完一条删一条，只减不增）
@@ -188,8 +174,8 @@ MPV Config Builder 2.0
 跑测试 / 发布前自检
 ────────────────────────────────────────
   py -3 -m unittest discover -s tests -t .
-  py -3 tools\check_docs.py      # 文档数字对不对
-  py -3 tools\preflight.py       # 发布前一次跑完（加 --offline 跳过联网检查）
+  py -3 tools\verify.py docs     # 文档数字对不对
+  py -3 tools\verify.py          # 发布前一次跑完（加 --offline 跳过联网检查）
   ⚠ tests\__init__.py 是 0 字节但**必须留着**，删了测试跑不起来
 
 ────────────────────────────────────────
@@ -197,15 +183,15 @@ MPV Config Builder 2.0
 ────────────────────────────────────────
   ① 打后端（Electron 要把它塞进 resources\backend\）
          py -3 -m PyInstaller packaging\backend.spec
-         py -3 tools\check_pack.py            # 验产物真的能用（21 项）
+         py -3 tools\verify.py pack           # 验产物真的能用（21 项）
 
   ② 打 Electron 应用 + 安装器
          cd electron
          npm install                          # 第一次要下 Electron 二进制（几百 MB）
          npm run dist                         # 产出 release\MPV Config Builder-<版本>-Setup.exe
          cd ..
-         py -3 tools\check_electron.py        # 开发形态（19 项）
-         py -3 tools\check_electron_packaged.py   # 打包形态（13 项）
+         py -3 tools\verify.py electron       # 开发形态（19 项）
+         py -3 tools\verify.py packaged       # 打包形态（13 项）
 
   普通用户拿到安装包双击就行 —— **不需要装 Python**（后端 exe 自带解释器）。
 

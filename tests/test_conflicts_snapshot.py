@@ -82,7 +82,7 @@ def _single_target_cases():
     这几个是补齐来的：C-1 重构时 `icc_profile_vs_target` 想把动态 keys 一起返回，
     结果 keys 顶掉了 detail 的位置。原来的 55 个手选用例里全是「两个 target 同时开」，
     恰好没覆盖「只开一个」，所以 606 项测试全绿也没发现 ——
-    只有 tools/compare_conflicts.py 的 4699 组枚举抓到了。这里把它补上。
+    只有 tools/verify.py conflicts 的 4699 组枚举抓到了。这里把它补上。
     """
     out = []
     for key in ("target-prim", "target-trc", "target-gamut"):
@@ -242,7 +242,7 @@ class LegacyEquivalenceTest(unittest.TestCase):
     """新旧实现的等价性（守护用）。
 
     背景：C-1 把 154 行 if 长链改成规则表时，`_legacy_*` 是**重构前原样保留**的实现。
-    完整对照在 tools/compare_conflicts.py（4699 组用例，几分钟）；
+    完整对照在 tools/verify.py conflicts（4699 组用例，几分钟）；
     单元测试里跑一个**固定种子**的抽样，够便宜、又能长期守住「别再改坏」。
     抽样覆盖已在基准里出现过的每一处输入，另外补上单 target-* 那组（历史盲区）。
     """
