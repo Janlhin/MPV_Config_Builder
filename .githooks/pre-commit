@@ -1,0 +1,22 @@
+#!/bin/sh
+# 提交门禁（主规范 L2 本地门禁层）。
+#
+# 这个文件里**不放任何判断规则** —— 规则在 tools/verify.py 的 precommit 子命令里。
+# 理由见 AGENTS.md §5：验证逻辑收在一处，不要散落成一个个脚本；本文件只负责
+# 把它跑起来，于是「改规则」永远只需要动一个地方。
+#
+# 为什么不用 husky / pre-commit 这类框架：它们是 JS / Python 生态的东西，
+# 而本项目只用 Python 标准库（AGENTS.md §0）。Git 2.9+ 自带的 core.hooksPath
+# 就能把钩子纳入版本控制，不需要任何新依赖 —— 先搜寻后自研，这是第 0 级方案。
+#
+# 生效方式（每个克隆都要做一次，core.hooksPath 是本地配置）：
+#     git config core.hooksPath .githooks
+#
+# ⚠ 本机 py -3 会退出 103（AGENTS.md §2.2），所以用 python。
+
+if ! command -v python >/dev/null 2>&1; then
+    echo "[pre-commit] 门禁跑不起来：找不到 python（AGENTS.md 2.2：用 python，不是 py -3）" >&2
+    exit 1
+fi
+
+exec python tools/verify.py precommit

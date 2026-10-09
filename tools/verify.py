@@ -15,6 +15,7 @@ check_electron_packaged / check_pack / compare_conflicts），每个都重复一
 子命令：
 
     all        发布前自检：一次跑完所有「发之前必须过」的检查
+    precommit  提交门禁：秒级检查，脏提交进不了历史（.githooks/pre-commit 调它）
     docs       文档里的数字与实测是否一致
     topnav     实机验证 9 个页面的顶栏常驻入口
     stdio      实机验证 9 个页面跑在 stdio 通道上
@@ -45,6 +46,29 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 sys.stdout.reconfigure(encoding="utf-8")
+
+
+def bat_problems():
+    """仓库里所有 `.bat` 的格式问题清单 —— **BOM / CRLF 规则全仓库只有这一份**。
+
+    为什么要抽出来：`cmd_all` 的 `check_bat` 与提交门禁 `cmd_precommit` 都要判
+    `.bat` 格式。两处各写一遍正则，迟早会长歪 —— 这正是 `AGENTS.md` §2.6
+    「数字不要手抄」那条纪律的同种毛病，只不过抄的是规则。
+
+    返回 `(问题列表, .bat 总数)`。
+    """
+    BOM = b"\xef\xbb\xbf"
+    bats = sorted(ROOT.glob("*.bat")) + sorted(ROOT.glob("*/*.bat"))
+    bad = []
+    for p in bats:
+        b = p.read_bytes()
+        rel = str(p.relative_to(ROOT))
+        if b.startswith(BOM):
+            bad.append(f"{rel} 带 BOM（必须去掉）")
+        lf = b.count(b"\n") - b.count(b"\r\n")
+        if lf:
+            bad.append(f"{rel} 有 {lf} 处裸 LF")
+    return bad, len(bats)
 
 
 # ==========================================================================
@@ -297,19 +321,9 @@ def cmd_all():
             BOM 被当 U+FEFF 忽略，于是在终端里试是对的、双击就是坏的。
           · **裸 LF**：.bat 在 Windows 上要 CRLF；`.gitattributes` 只管行尾、不管 BOM。
         """
-        BOM = b"\xef\xbb\xbf"
-        bats = sorted(ROOT.glob("*.bat")) + sorted(ROOT.glob("*/*.bat"))
-        bad = []
-        for p in bats:
-            b = p.read_bytes()
-            rel = str(p.relative_to(ROOT))
-            if b.startswith(BOM):
-                bad.append(f"{rel} 带 BOM（必须去掉）")
-            lf = b.count(b"\n") - b.count(b"\r\n")
-            if lf:
-                bad.append(f"{rel} 有 {lf} 处裸 LF")
+        bad, total = bat_problems()
         r.add("批处理文件格式（无 BOM + CRLF）", not bad,
-              "；".join(bad) if bad else f"{len(bats)} 个")
+              "；".join(bad) if bad else f"{total} 个")
 
 
     def check_status(r):
@@ -3276,8 +3290,98 @@ def cmd_conflicts():
     raise SystemExit(main())
 
 
+# ==========================================================================
+# precommit（提交门禁，主规范 L2 本地门禁层）
+# ==========================================================================
+def cmd_precommit():
+    """提交门禁：快到每次提交都跑得起，严到脏提交进不了历史。
+
+    为什么要有它：主规范把「提交门禁」定为强制项（L2），而本仓库此前**完全没有** ——
+    CI 又因为凭据缺 `workflow` scope 从未真正运行过（见 `TASKS.md` T1 / T2），
+    于是 18 个提交是在没有任何门禁的情况下进的历史。在 CI 转绿之前，
+    这条钩子是**唯一真的会跑**的校验通道。
+
+    ⚠ 为什么这里**不**跑 `docs` 与全套单测：2026-10-09 实测 `verify.py docs`
+    单独跑 16 分钟仍未结束（它在 `all` 里是正常通过的，原因待查 —— 已登记为
+    `TASKS.md` 遗留项）。门禁一旦慢到几分钟，人就会用 `--no-verify` 绕过去，
+    而**慢门禁比没门禁更糟**：它把「绕过」变成常态。所以这里只放秒级且确定性的
+    三项，行为与文档的一致性仍由 `verify.py --offline` 在推送前把关。
+
+    跑什么：
+      1. 源码可编译 —— `core/` `webui/` `tools/` `tests/` 下所有 `.py`
+      2. 暂存的文本文件行尾必须是 LF（`.bat` / `.cmd` / `.ps1` 除外，它们要 CRLF）
+      3. 仓库里所有 `.bat` 必须 UTF-8 无 BOM + CRLF（规则见 `bat_problems`）
+
+    用法（仓库根目录）：
+        python tools/verify.py precommit
+    退出码：0 = 可以提交；1 = 不许提交。
+
+    ⚠ 第 2 项查的是**工作区文件**，不是索引内容：`.gitattributes` 会在 `git add`
+    时把行尾归一化，索引里永远是 LF —— 查索引查不出问题。真正的风险是工作区里
+    存着 CRLF（`AGENTS.md` §2.3），而 `verify.py docs` 逐字节读的正是工作区。
+    """
+    import subprocess as _sp
+
+    bad = []
+
+    # 1. 源码可编译（用内置 compile() 而不是 py_compile —— 后者会在源码旁边写 .pyc）
+    sources = []
+    for d in ("core", "webui", "tools", "tests"):
+        sources += sorted((ROOT / d).rglob("*.py")) if (ROOT / d).is_dir() else []
+    broken = []
+    for f in sources:
+        try:
+            compile(f.read_text(encoding="utf-8"), str(f), "exec")
+        except SyntaxError as e:
+            broken.append(f"{f.relative_to(ROOT)}:{e.lineno} {e.msg}")
+        except (UnicodeDecodeError, OSError) as e:
+            broken.append(f"{f.relative_to(ROOT)}: {type(e).__name__}")
+    if broken:
+        print("  ❌ 源码可编译：" + "；".join(broken[:5]))
+        bad.append("源码可编译")
+    else:
+        print(f"  ✅ 源码可编译（{len(sources)} 个 .py）")
+
+    # 2. 行尾：暂存的文件里，文本文件必须 LF
+    CRLF_EXTS = {".bat", ".cmd", ".ps1"}          # 这三类归第 3 项统一判
+    TEXT_EXTS = {".py", ".md", ".txt", ".json", ".html", ".css", ".js",
+                 ".yml", ".yaml", ".vpy", ".conf", ".ini", ".adoc"}
+    staged = _sp.run(["git", "diff", "--cached", "--name-only",
+                      "--diff-filter=ACM", "-z"],
+                     capture_output=True, cwd=str(ROOT))
+    names = [n for n in staged.stdout.decode("utf-8", "replace").split("\0") if n]
+    eol_bad = []
+    for n in names:
+        f = ROOT / n
+        if not f.is_file() or f.suffix.lower() in CRLF_EXTS:
+            continue
+        if f.suffix.lower() not in TEXT_EXTS:
+            continue
+        if b"\r\n" in f.read_bytes():
+            eol_bad.append(n)
+    if eol_bad:
+        print("  ❌ 这些文件含 CRLF，必须 LF（AGENTS.md §2.3）：" + "、".join(eol_bad[:10]))
+        bad.append("行尾")
+
+    # 3. .bat 格式（规则与 cmd_all 的 check_bat 共用 bat_problems，只有一份）
+    bat_bad, bat_total = bat_problems()
+    if bat_bad:
+        print("  ❌ 批处理文件格式（必须无 BOM + CRLF）：" + "；".join(bat_bad))
+        bad.append("批处理格式")
+    else:
+        print(f"  ✅ 批处理文件格式（无 BOM + CRLF）：{bat_total} 个")
+
+    if bad:
+        print(f"\n❌ 不许提交：{'、'.join(bad)} 没过。"
+              f"（用 --no-verify 绕过去不算通过，那是把门禁关掉）")
+        return 1
+    print("\n✅ 提交门禁通过")
+    return 0
+
+
 COMMANDS = {
     "all": cmd_all,
+    "precommit": cmd_precommit,
     "docs": cmd_docs,
     "topnav": cmd_topnav,
     "i18n": cmd_i18n,
