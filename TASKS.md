@@ -31,7 +31,7 @@
 | 依赖 | 无（**完成**依赖 T2 推送——没推送就不会触发首次运行） |
 | 可逆性 | 高 |
 | 完成判据 | 文件存在且 YAML 解析通过；**并**推送后 GitHub Actions 上该 workflow **首次运行为成功**（不是「配置写完了」） |
-| 状态 | **进行中**（2026-10-09：文件已建，YAML 已校验，行尾 LF。等 T2 推送后验证首次运行） |
+| 状态 | **进行中**（2026-10-09：文件已建、YAML 已校验、行尾 LF、已提交为 `c9a83f5`。**但该提交没能推到远端**——凭据缺 `workflow` scope，见下方「被阻塞」。**CI 至今一次都没真正运行过**，因此 T1 未完成） |
 
 > 排在第一位的理由：T2（推送）被它阻塞，而 9 个提交只在本机是当前最高风险（R1）。
 
@@ -43,7 +43,7 @@
 | 依赖 | T1（先有 CI）；待裁决项 Q3（署名）建议先定 |
 | 可逆性 | **低** —— 不进入自动推进路径，**必须由人执行** |
 | 完成判据 | `git rev-list --count @{u}..HEAD` 输出 `0` |
-| 状态 | 待办（等 T1） |
+| 状态 | **进行中**（2026-10-09：14 个里已推 13 个到 `origin/master`；剩 1 个 CI 提交 `c9a83f5` 被凭据 scope 卡住） |
 
 ### T3 配置提交门禁
 | 字段 | 值 |
@@ -152,7 +152,8 @@
 | ID / 编号 | 事项 | 阻塞原因 |
 |---|---|---|
 | T2 | 推送到 `origin/master` | 可逆性低，属不可逆外部操作；且被 T1 阻塞。**不进入自动推进路径** |
-| Q3 | git 署名改为真实身份 | 需用户提供 name 与 email。提供前保持占位符 `MPV Config Builder <noreply@localhost>`，不猜测 |
+| T1 / T2 | 推送 CI 工作流 | **凭据缺 `workflow` scope** —— GitHub 拒绝创建/更新 `.github/workflows/*`（`refusing to allow an OAuth App to ... without workflow scope`）。凭据存在 Windows 凭据管理器（`credential.helper=wincred`），本机无 SSH 公钥。需人重新授权或更换 PAT |
+| Q3 | git 署名 | **已解决**（2026-10-09）：全局 `~/.gitconfig` 本就有 `Janlhin <72262030+Janlhin@users.noreply.github.com>`，是仓库的 `--local` 覆盖压成了占位符；已移除该覆盖。未能在线复核 id 归属（GitHub API 403 限流） |
 | — | MEMC 是否真的生效 | 只能由人真播一个视频看画面 |
 | — | 装一次安装包试试 | 会改程序目录与注册表 |
 
