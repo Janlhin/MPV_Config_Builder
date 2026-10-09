@@ -96,6 +96,12 @@ py -3 tools\verify.py stdio      :: 9 个页面跑在 stdio 通道上
 py -3 tools\verify.py electron   :: Electron 开发形态
 ```
 
+每次 `push` 与 PR 都会在 CI 上跑一遍上面的自检，配置在
+[`.github/workflows/verify.yml`](.github/workflows/verify.yml)。
+runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Electron 检查要 `electron.exe`，
+换 Linux 上这两项会退化成「跳过」，绿灯就成了假的。
+外链可达性不与代码提交绑定，改为每周日单独跑一次。
+
 ## 目录结构
 
 ```
@@ -113,6 +119,7 @@ electron/      Electron 桌面外壳（安装器从这里出）
 packaging/     PyInstaller 配方（把后端打成独立 exe）
 tests/         单元测试
 tools/         build.py（生成）/ verify.py（验证）/ uidriver.py（浏览器驱动共用）
+.github/       CI：push / PR 在 Windows runner 上跑一遍发布前自检
 docs/          实测出来的结论（踩过的坑）
 data/          内置数据（选项库 / 键位 / 命令）
 AGENTS.md      在这个仓库里干活的规矩 —— **改代码前先读**
