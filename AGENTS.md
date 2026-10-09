@@ -44,7 +44,11 @@ py -3 tools\build.py version       :: 改过 core\schema.py 的 VERSION 之后
 本项目吃过"文档与代码不一致"的亏（README 说 20 个接口、实际 23）。
 
 ### 2.2 提交前必须跑 verify
-`py -3 tools\verify.py --offline` 全绿才允许提交。没跑就不要声称"改完了"。
+`python tools\verify.py --offline` 全绿才允许提交。没跑就不要声称"改完了"。
+
+> ⚠ 命令一律用 `python`，**不要用 `py -3`**：本机 `py -3` 退出 103
+> （`No suitable Python runtime found`）—— `py.exe` 存在，但它管理的运行时列表
+> 里没有可用的 3.x。文档里历史写法的 `py -3` 当作 `python` 读。
 
 ### 2.3 行尾：一律 LF
 `.gitattributes` 规定 `* text=auto eol=lf`。**用 Python 脚本改文本必须写
@@ -52,10 +56,26 @@ py -3 tools\build.py version       :: 改过 core\schema.py 的 VERSION 之后
 `Path.write_text()` 在 Windows 上会把 LF 写成 CRLF，然后 `git diff` 全是行尾噪音、
 `verify.py docs` 的逐字节读也会读到不一样的内容。
 
-### 2.4 `.bat` 必须是 UTF-8 BOM + CRLF
-用工具改完 `.bat` 之后必须跑 `py -3 tools\build.py bat`。
-原因：`chcp 65001` 要执行到那一行才生效，没有 BOM 的话前面那行中文已经乱码；
-而 `.gitattributes` 只管 CRLF，**不管 BOM**。
+### 2.4 `.bat`：UTF-8 **无 BOM** + CRLF，开头要短且纯 ASCII
+
+用工具改完 `.bat` 之后必须跑 `python tools\build.py bat`。
+
+⚠ **2026-10-09 实测推翻了原先「必须带 BOM」的约定**。四条都要记住：
+
+1. **不要 BOM**。双击打开是**全新控制台（代码页 936）**，cmd 把开头的 `EF BB BF`
+   当成命令的一部分 —— 实测 3/3 稳定复现 `'@echo' 不是内部或外部命令`，
+   `@echo off` 根本没执行（echo 关不掉、`rem` 注释被当命令跑、满屏报错）。
+   中文显示靠 `chcp 65001`，**不靠 BOM**。
+2. **`chcp 65001` 放第二行**（第一行是 `@echo off`）。
+3. **开头别放大段中文注释**。cmd 会用控制台代码页**预读**文件头部，
+   `chcp` 之前的中文注释会被按 936 解码而错乱，甚至被当成命令执行。
+   要写就写进文档（`AGENTS.md` / `docs\踩过的坑.md`），脚本里只留英文短注。
+4. **CRLF 仍然必须**：LF 的批处理在 Windows 上行为不可靠。
+   `.gitattributes` 只管行尾、**不管 BOM**，所以 BOM 得靠 `build.py bat` 剥掉。
+
+> 这个坑最坑的地方是**时好时坏**：同一会话里跑过 `chcp 65001` 之后代码页已是
+> 65001，BOM 被当 U+FEFF 忽略 —— **在终端里试是对的，双击就是坏的**。
+> 所以测 `.bat` 必须开一个干净控制台（`chcp 936` 之后再跑），别在已切过代码页的窗口里试。
 
 ### 2.5 界面文档渲染器不支持引用块内嵌表格
 `core/mdrender.py` 只支持标题 / 水平线 / 列表 / 围栏代码块 / 引用 / 表格。
