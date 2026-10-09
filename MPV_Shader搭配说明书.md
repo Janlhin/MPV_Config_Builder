@@ -234,7 +234,8 @@ CTRL+0 change-list glsl-shaders clr ""
 ## 5. 这套说明用在哪？
 
 - 想在 MPV Config Builder 里重现"最锐利组合"：打开程序的 **组合预设** 页，点击 **最锐利基础参数 / mpv-lazy 通用锐利 / mpv-lazy 动漫锐利 / mpv-lazy 最强动漫 / 内置补帧 / mpv-lazy RIFE 补帧** 一键套用。
-  （这段最早是给旧 Tkinter 界面写的，那份现在挪到了 [`legacy/`](legacy/README.md)；新版网页界面里也有同一页。）
+  （这段最早是给旧 Tkinter 界面写的；那份界面已移出仓库、归档到 `.git` 历史与仓外
+  `..\MPV_Config_Builder_legacy\`，新版网页界面里也有同一页。）
 - 程序会**自动锁定** `C:\Program Files\mpv-lazy\portable_config`，并读取该目录里真实存在的 `.glsl` / `.vpy`：
   * Shader / 锐化页只列出 mpv-lazy 里真有的 10 个着色器，勾选即用真实路径，不需要手动选文件
   * VS 补帧页只列出 mpv-lazy 里真有的 15 个 vpy，勾选后直接生成 `vf=vapoursynth="~~/vs/xxx.vpy"`，同一时间只允许启用一项

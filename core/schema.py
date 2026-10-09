@@ -8,11 +8,14 @@ from .paths import user_data_dir
 
 
 APP_TITLE = "MPV Config Builder"
-# 产品代数 —— **只给 legacy/ 那个旧 Tkinter 界面用**，主界面不再显示它。
+# 产品代数 —— **只给仓外归档的那个旧 Tkinter 界面用**，主界面不再显示它。
 #
-# 为什么还留着：legacy/mpv_config_builder.py 有 4 处 import 并在标题里拼它。
-# 那个文件已定「保留但不维护」，为了一个显示用的常数去改它不值得。
+# 为什么还留着：那份旧界面（2026-10-09 移出仓库，归档在 ..\MPV_Config_Builder_legacy\）
+# 有 4 处 import 并在标题里拼它 —— 它 import 的是**仓库里的** core.schema，
+# 所以删了这个常数，那边会直接 ImportError。
+# 为了一个显示用的常数去改一份"保留但不维护"的归档不值得，留着。
 # 主界面（webui / electron）**不要用它** —— 见下面 FULL_TITLE 的说明。
+# tests/test_version.py 有一条测试钉住"不许删"（归档这台机器上不在就跳过）。
 APP_VERSION = "2.0"
 # 软件版本号（打包 / Release / 更新检测用）。**主界面唯一的版本号来源。**
 #

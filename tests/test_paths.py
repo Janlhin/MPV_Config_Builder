@@ -146,14 +146,9 @@ class OtherModulesUsePathsTest(unittest.TestCase):
                 os.environ["DSH_MPV_OPTIONS_RST"] = old
             importlib.reload(options_db)
 
-    def test_tkinter_uses_doc_path(self):
-        # 旧界面 2026-09-14 挪进了 legacy/；这条检查的本意没变
-        # （它必须走 doc_path 而不是用 __file__ 推路径，否则打包后打不开说明书）
-        src = self._src("legacy/mpv_config_builder.py")
-        self.assertIn("from core.paths import doc_path", src)
-        self.assertIn("doc_path(", src)
-        self.assertNotIn('with_name("MPV_Shader', src,
-                         "说明书还在用 __file__ 推路径，打包后打不开")
+    # 「旧界面必须走 doc_path 而不是用 __file__ 推路径」那条检查
+    # 2026-10-09 跟着代码走了：旧界面移出仓库、归档在 ..\MPV_Config_Builder_legacy\，
+    # 那条检查现在是归档里的 `自检.py` 在做（仓库里已经没有被测对象）。
 
     def test_no_module_left_deriving_data_from_file(self):
         """扫一遍：不许再有模块自己用 __file__ 推 data/ 或仓库根。"""

@@ -10,9 +10,10 @@ MPV Config Builder 2.0
       零依赖：Python 标准库起本地服务，用 Edge/Chrome 的 --app 模式开独立窗口
       界面文件在 webui\static\，改 style.css 就能换观感
 
-  【旧版界面 · Tkinter】双击  legacy\启动.bat
-      或：py -3 legacy\mpv_config_builder.py
-      已定「保留但不维护」，所以挪进了 legacy\ —— 见 legacy\README.md
+  【旧版界面 · Tkinter】已**移出仓库**（2026-10-09），归档在仓库旁边的
+      ..\MPV_Config_Builder_legacy\（双击那里的 启动.bat）
+      保留但不维护；那份归档里的 自检.py 可以当场证明它还能跑
+      仓库里那份已删，git 历史里还留着
 
   依赖：Python 3.8+（Windows 自带 py 启动器即可）。核心逻辑只用标准库，无第三方依赖。
   注意：必须保持 core\ 目录与程序在一起。
@@ -171,7 +172,7 @@ MPV Config Builder 2.0
       scripts\sync-renderer.js  把 webui\static 复制到 electron\renderer（单一来源）
       renderer\           构建期复制产物，**不要手改、不入库**
       用法：cd electron && npm install && npm run dist
-  tests\                  单元测试（654 项，含接口端到端与真实脚本测试）
+  tests\                  单元测试（649 项，含接口端到端与真实脚本测试）
   legacy\                 旧界面（Tkinter）。保留但不维护，见 legacy\README.md
       mpv_config_builder.py   主程序（要 import core\，所以启动器会先回仓库根）
       启动.bat                旧版启动器

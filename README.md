@@ -49,7 +49,9 @@ py -3 webui\server.py
 另外还有**配置体检**：拖入一份 mpv.conf，报告编码 / include 链 / profile /
 未知项 / 重复项 / 冲突 / 六维评分。
 
-> 旧的 Tkinter 界面在 `legacy/`（保留但不维护，见 `legacy/README.md`）。
+> 旧的 Tkinter 界面已**移出仓库**（2026-10-09），归档在仓库旁边
+> `..\MPV_Config_Builder_legacy\` —— 保留但不维护，那份归档里有 `自检.py` 可以当场
+> 证明它还能跑。仓库里那份已删，git 历史里还留着。
 
 ## 功能
 
@@ -109,7 +111,6 @@ electron/      Electron 桌面外壳（安装器从这里出）
   preload.js     唯一的桥，只暴露 __MPVCB_INVOKE__
   renderer/      构建期从 webui/static 复制（不入库）
 packaging/     PyInstaller 配方（把后端打成独立 exe）
-legacy/        旧 Tkinter 界面（保留但不维护）
 tests/         单元测试
 tools/         构建选项库 / 文档数字守门人 / 发布前自检 / 实机验证
 docs/          实测出来的结论（踩过的坑）
