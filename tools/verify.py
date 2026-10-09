@@ -285,6 +285,33 @@ def cmd_all():
               tail[-1] if tail else "(没有输出)")
 
 
+    def check_bat(r):
+        """.bat 必须是 **UTF-8 无 BOM + CRLF**。
+
+        为什么门禁要查这两条：两个坑都真发生过，而当时没有任何拦截路径。
+          · **BOM**（2026-10-09 实测）：双击打开是全新控制台、代码页 936，
+            cmd 把开头的 EF BB BF 当命令的一部分，`@echo off` 变成
+            `'﻿@echo' 不是内部或外部命令` —— echo 关不掉、rem 注释被当命令执行。
+            实测 3/3 稳定复现。中文靠 `chcp 65001` 解决，**不靠 BOM**。
+            最坑的是它时好时坏：同一会话里跑过 `chcp 65001` 之后代码页变 65001，
+            BOM 被当 U+FEFF 忽略，于是在终端里试是对的、双击就是坏的。
+          · **裸 LF**：.bat 在 Windows 上要 CRLF；`.gitattributes` 只管行尾、不管 BOM。
+        """
+        BOM = b"\xef\xbb\xbf"
+        bats = sorted(ROOT.glob("*.bat")) + sorted(ROOT.glob("*/*.bat"))
+        bad = []
+        for p in bats:
+            b = p.read_bytes()
+            rel = str(p.relative_to(ROOT))
+            if b.startswith(BOM):
+                bad.append(f"{rel} 带 BOM（必须去掉）")
+            lf = b.count(b"\n") - b.count(b"\r\n")
+            if lf:
+                bad.append(f"{rel} 有 {lf} 处裸 LF")
+        r.add("批处理文件格式（无 BOM + CRLF）", not bad,
+              "；".join(bad) if bad else f"{len(bats)} 个")
+
+
     def check_electron_pack(r):
         """Electron 那套（如果本机备齐了工具链）能不能跑通。
 
@@ -330,6 +357,7 @@ def cmd_all():
         check_files(r)
         check_license_content(r)
         check_absolute_paths(r)
+        check_bat(r)
         check_links(r, offline=args.offline)
         check_ui_nav(r)
         check_i18n(r)

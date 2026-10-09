@@ -359,14 +359,20 @@ def cmd_icon():
 # bat
 # --------------------------------------------------------------------------
 def cmd_bat():
-    """把 .bat 统一成 Windows 批处理该有的样子：UTF-8 BOM + CRLF。
+    """把 .bat 统一成 Windows 批处理该有的样子：**UTF-8 无 BOM + CRLF**。
 
-    ⚠ 为什么需要它，而不是靠编辑器/git：
-      · **CRLF**：Windows 批处理要 CRLF，LF 行为不可靠；
-      · **UTF-8 BOM**：文件里有中文 echo，而 `chcp 65001` 要等执行到那一行才生效
-        —— 没有 BOM 的话，chcp 之前那行中文已经乱码了。
-      · 而且 `.gitattributes` 里写的是 `*.bat text eol=crlf`，git 检出时会转 CRLF，
-        但 **BOM 它不管** —— 所以 BOM 必须由文件本身带着。
+    ⚠ 为什么不要 BOM（2026-10-09 实测推翻了原约定）：
+      · 双击打开是**全新控制台，代码页 936**。这时 cmd 读到开头的 EF BB BF
+        不是当签名，而是当命令的一部分 —— 实测 3/3 稳定复现
+        `'﻿@echo' 不是内部或外部命令`，`@echo off` 根本没执行，
+        后果是 echo 关不掉、后面的 `rem` 注释被当成命令执行、满屏报错。
+      · **中文乱码不靠 BOM 解决，靠 `chcp 65001`** —— 而且它必须是第一条
+        有效命令（在它之前的中文注释都会被按 936 解码而乱掉）。
+      · 同一份带 BOM 的文件在同一会话里跑过 `chcp 65001` 之后可能又正常
+        （代码页已切成 65001，BOM 被当 U+FEFF 忽略）—— 这种**时好时坏**
+        正是它最坑的地方：在终端里试是对的，双击就是坏的。
+      · CRLF 仍然必须：LF 的批处理在 Windows 上行为不可靠。
+      · `.gitattributes` 只管行尾，不管 BOM，所以 BOM 得由这里兜住（剥掉）。
 
     模型工具（write / edit）写出的是 LF、无 BOM 的 UTF-8，
     所以**每次用工具改过 .bat 之后都要跑一遍这个**。
@@ -375,9 +381,10 @@ def cmd_bat():
 
     def fix(p):
         raw = p.read_bytes()
-        text = raw.decode("utf-8-sig")                       # 有 BOM 会自动剥掉
+        # utf-8-sig 只剥一个 BOM；历史上出现过双 BOM，所以再 lstrip 一遍
+        text = raw.decode("utf-8-sig").lstrip("\ufeff")
         body = text.replace("\r\n", "\n").replace("\n", "\r\n").encode("utf-8")
-        p.write_bytes(BOM + body)
+        p.write_bytes(body)
         b = p.read_bytes()
         lf = b.count(b"\n") - b.count(b"\r\n")
         return b[:3] == BOM, b.count(b"\r\n"), lf
@@ -386,7 +393,7 @@ def cmd_bat():
     bad = []
     for p in targets:
         bom, crlf, lf = fix(p)
-        ok = bom and lf == 0
+        ok = (not bom) and lf == 0          # ⚠ BOM 必须为**无**，见上面 docstring
         rel = p.relative_to(ROOT)
         print(f"  {'✅' if ok else '❌'} {rel}  BOM={bom} CRLF={crlf} 裸LF={lf}")
         if not ok:
@@ -394,7 +401,7 @@ def cmd_bat():
     if bad:
         print(f"\n❌ 还有 {len(bad)} 个没弄好")
         return 1
-    print(f"\n✅ {len(targets)} 个 .bat 都是 BOM + CRLF")
+    print(f"\n✅ {len(targets)} 个 .bat 都是 无BOM + CRLF")
     return 0
 
 
