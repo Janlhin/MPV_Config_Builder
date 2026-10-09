@@ -277,6 +277,7 @@
 |---|---|---|
 | T2 | 推送到 `origin/master` | 可逆性低，属不可逆外部操作；且被 T1 阻塞。**不进入自动推进路径** |
 | T1 / T2 | 推送 CI 工作流 | **凭据缺 `workflow` scope** —— GitHub 拒绝创建/更新 `.github/workflows/*`（`refusing to allow an OAuth App to ... without workflow scope`）。2026-10-09 复核：凭据走 Windows 凭据管理器（`credential.helper=wincred`），本机 **无 SSH 公钥**（`~/.ssh/*.pub` 不存在）、**未装 `gh`**，因此没有绕开该 scope 的本机通道。需人重新授权或更换 PAT |
+| T1 / T2 | **这个仓库是私有的**（2026-10-09 实测） | `github.com/Janlhin` 公开页只列出 3 个仓库（Endgame_Gear_Web_Configurator / OpenRA_simplified_chinese / OpenSave），**不含本仓库**；匿名 `curl` 仓库页返回 **404**，匿名 `git ls-remote` 直接索要用户名。所以：① 匿名通道一律查不到它，别把 404 当成"仓库没了"；② 细粒度 PAT 必须在仓库列表里**显式勾上它**，否则 API 也返回 404（不是"不存在"）；③ 权限要 **Contents 读写 + Workflows 读写 + Metadata 读**。④ 本执行环境的 wincred **读不出也写不进**（`credential fill` 返回空），所以推送只能由人在自己终端执行 |
 | Q3 | git 署名 | **已解决**（2026-10-09）：全局 `~/.gitconfig` 本就有 `Janlhin <72262030+Janlhin@users.noreply.github.com>`，是仓库的 `--local` 覆盖压成了占位符；已移除该覆盖。未能在线复核 id 归属（GitHub API 403 限流） |
 | — | MEMC 是否真的生效 | 只能由人真播一个视频看画面 |
 | — | 装一次安装包试试 | 会改程序目录与注册表 |
