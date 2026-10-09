@@ -1,8 +1,18 @@
 # -*- coding: utf-8 -*-
 """冲突检测：勾选组合里那些「互相打架 / 白设了 / 会静默失效」的搭配。
 
-每条规则的依据都写在注释里，全部来自 mpv 官方手册（中文版 mpv_doc-CN）原文，
-不凭印象加规则 —— 误报比不报更烦人。想加规则请先找到手册原话再写。
+**每条规则的依据都逐条写在注释里**，而且分三类，注释里标明了是哪一类
+（2026-10-09 逐条核对过 —— 之前这里写着"全部来自手册原文"，其实有 7 条不是）：
+
+  · **手册原文** —— 能引出原话的，注释里抄了原句（英文原文 / 中文版译文）。
+  · **设计原则** —— 手册管不着的事（shader 链、外挂补帧脚本）。出处是
+    《MPV_Shader搭配说明书.md》里写明的处理顺序，不是手册。
+  · **逻辑判断** —— 手册给了取值范围或语义，结论由它推出来（注释里附上那句语义）。
+
+核对用的官方手册：`DOCS/man/options.rst`（mpv master），2026-10-09 取的，
+sha256 `f802f317e2fa22116984d49a8f814721e320cd55ea5ee27d1a23d32595bfe5f9`。
+中文译文取自 `data/mpv_options_zh.json`（mpv_doc-CN，与手册同源）。
+**加新规则请照这个格式写清依据** —— "我觉得这样更快"不算依据，误报比不报更烦人。
 
 **结构**（2026-09-14 C-1 重构后）：判定逻辑是 17 个 `_rule_xxx(ctx)` 函数，
 文案与元信息集中在文件下半部的规则表 `_RULES`。
@@ -316,6 +326,8 @@ def _is_shader_superres(name):
 
 
 # ---- 缩放 ----
+# 依据：手册原文。``--sigmoid-upscaling`` 条目：「This is incompatible with and
+#       replaces ``--linear-upscaling``.」（中文版：「这与 --linear-upscaling 不兼容并取代了它」）
 @_kv("sigmoid_vs_linear", "warn", ["sigmoid-upscaling", "linear-upscaling"])
 def _rule_sigmoid_vs_linear(ctx):
     v = ctx["values"]
@@ -325,6 +337,9 @@ def _rule_sigmoid_vs_linear(ctx):
                 "把 linear-upscaling 关掉（或者设成 no），只留 sigmoid-upscaling。")
 
 
+# 依据：手册原文。``--linear-upscaling`` 条目：「This is not usually recommended
+#       except for testing/specific purposes. Users are advised to either enable
+#       ``--sigmoid-upscaling`` or keep both options disabled (i.e. scaling in gamma light).」
 @_kv("linear_upscaling_alone", "info", ["linear-upscaling"])
 def _rule_linear_upscaling_alone(ctx):
     v = ctx["values"]
@@ -336,6 +351,9 @@ def _rule_linear_upscaling_alone(ctx):
 
 
 # ---- 插值补帧 ----
+# 依据：手册原文。``--interpolation`` 条目里有一段 warning：「This requires setting
+#       the ``--video-sync`` option to one of the ``display-`` modes, or it will be
+#       silently disabled.」
 @_kv("interp_needs_sync", "error", ["interpolation", "video-sync"])
 def _rule_interp_needs_sync(ctx):
     if ctx["interp"] and not ctx["video_sync"].startswith("display"):
@@ -345,6 +363,8 @@ def _rule_interp_needs_sync(ctx):
                 "把 video-sync 设成 display-resample（或 display-resample-vdrop）。")
 
 
+# 依据：**设计判断，手册没有这一条** —— vpy 补帧脚本是 mpv 之外的东西，手册管不着它。
+#       推理是本工具自己的：脚本已经在造中间帧，mpv 再插一次就是插两遍。
 @_kv("interp_with_memc", "warn", ["interpolation", "vf"])
 def _rule_interp_with_memc(ctx):
     if ctx["interp"] and ctx["memc"]:
@@ -353,6 +373,12 @@ def _rule_interp_with_memc(ctx):
                 "二选一：要么关掉 interpolation，要么不挂补帧脚本。")
 
 
+# 依据：一半手册、一半建议，分开说 ——
+#       手册事实（``--tscale`` 条目）：「The default is ``oversample``」，
+#       且这些取值「listed in increasing order of smoothness/blurriness, with
+#       ``bicubic`` being the smoothest/blurriest and ``oversample`` being the
+#       sharpest/least smooth」。
+#       本工具的建议：按上面那个排序取中间档（catmull_rom / mitchell），**手册没这么说**。
 @_kv("interp_no_tscale", "info", ["interpolation", "tscale"])
 def _rule_interp_no_tscale(ctx):
     if ctx["interp"] and not _val(ctx["values"], "tscale"):
@@ -362,6 +388,9 @@ def _rule_interp_no_tscale(ctx):
 
 
 # ---- 去色带 ----
+# 依据：**逻辑判断**（手册没有直接写"0 等于没开"）—— 但根在手册：
+#       ``--deband-iterations=<0..16>`` 的定义是「The number of debanding steps to
+#       perform per sample」，0 步自然就是一步都不做。
 @_kv("deband_zero_iterations", "warn", ["deband", "deband-iterations"])
 def _rule_deband_zero_iterations(ctx):
     it = ctx["deband_iterations"]
@@ -371,6 +400,8 @@ def _rule_deband_zero_iterations(ctx):
                 "改成 1~4；一般 2 就够。")
 
 
+# 依据：手册原文。``--deband-iterations`` 条目：「Note that the strength of each step
+#       falls off very quickly, so high numbers (>4) are practically useless.」
 @_kv("deband_iterations_high", "info", ["deband-iterations"])
 def _rule_deband_iterations_high(ctx):
     it = ctx["deband_iterations"]
@@ -381,6 +412,8 @@ def _rule_deband_iterations_high(ctx):
                 "降到 4 以内。")
 
 
+# 依据：手册原文。``--deband-range`` 条目：「If you increase the ``--deband-iterations``,
+#       you should probably decrease this to compensate.」
 @_kv("deband_range_vs_iterations", "info", ["deband-iterations", "deband-range"])
 def _rule_deband_range_vs_iterations(ctx):
     it, rng = ctx["deband_iterations"], ctx["deband_range"]
@@ -391,6 +424,8 @@ def _rule_deband_range_vs_iterations(ctx):
 
 
 # ---- 色彩管理 ----
+# 依据：手册原文。``--icc-profile`` 条目：「This option overrides the ``--target-prim``,
+#       ``--target-trc`` and ``--icc-profile-auto`` options.」
 @_kv("icc_profile_vs_target", "warn", ["icc-profile", "target-prim", "target-trc",
                                        "target-gamut"])
 def _rule_icc_profile_vs_target(ctx):
@@ -405,6 +440,8 @@ def _rule_icc_profile_vs_target(ctx):
                          ["icc-profile"] + targets)
 
 
+# 依据：与上一条同一句手册原文（``--icc-profile`` 覆盖 ``--icc-profile-auto``）。
+#       拆成两条是因为用户可能只犯了其中一个，提示语得各说各的。
 @_kv("icc_auto_vs_profile", "warn", ["icc-profile-auto", "icc-profile"])
 def _rule_icc_auto_vs_profile(ctx):
     if _truthy(ctx["values"], "icc-profile-auto") and ctx["icc"]:
@@ -413,6 +450,8 @@ def _rule_icc_auto_vs_profile(ctx):
                 "二选一。")
 
 
+# 依据：手册原文。``--tone-mapping`` 的 hable 分支：「If possible, you should also
+#       enable ``--hdr-compute-peak`` for the best results.」
 @_kv("hable_needs_peak", "info", ["tone-mapping", "hdr-compute-peak"])
 def _rule_hable_needs_peak(ctx):
     v = ctx["values"]
@@ -423,6 +462,8 @@ def _rule_hable_needs_peak(ctx):
 
 
 # ---- 渲染器独占项 ----
+# 依据：手册**逐条标注**。上面那个 GPU_NEXT_ONLY 集合是从选项库里筛出来的 ——
+#       手册给这些条目各挂了一句「(``--vo=gpu-next`` only)」（中文版「（--vo=gpu-next 独占）」）。
 @_kv("gpunext_only_with_gpu", "warn", ["vo"])
 def _rule_gpunext_only_with_gpu(ctx):
     if ctx["vo"] != "gpu":
@@ -439,6 +480,7 @@ def _rule_gpunext_only_with_gpu(ctx):
                      ["vo"] + bad)
 
 
+# 依据：同上一类。GPU_ONLY 集合对应手册里标了「(``--vo=gpu`` only)」的条目。
 @_kv("gpu_only_with_gpunext", "info", ["vo"])
 def _rule_gpu_only_with_gpunext(ctx):
     if ctx["vo"] != "gpu-next":
@@ -454,6 +496,9 @@ def _rule_gpu_only_with_gpunext(ctx):
 
 
 # ---- shader 链 ----
+# 依据：**设计原则，手册没有这一条** —— shader 链是用户自己搭的，mpv 不做约束。
+#       出处《MPV_Shader搭配说明书.md》§1 的处理顺序「超分 → 补帧 → 锐化」：
+#       两级放大串在一起，等于把同一件事做两遍（负载翻倍、容易振铃），属于该顺序的反面。
 @_kv("double_upscale_shaders", "warn", [])
 def _rule_double_upscale_shaders(ctx):
     fams = ctx["shader_families_present"]
@@ -465,6 +510,8 @@ def _rule_double_upscale_shaders(ctx):
                 "选一个家族就够了（通用向 FSRCNNX/RAVU，动画向 Anime4K/ArtCNN）。")
 
 
+# 依据：**设计原则**，与上一条同源（脚本超分 + shader 超分 = 两轮放大）。
+#       不同的是这里一头是 vpy 脚本、一头是 shader 链，所以单列一条。
 @_kv("vpy_sr_with_shader_sr", "warn", ["vf"])
 def _rule_vpy_sr_with_shader_sr(ctx):
     fams = ctx["shader_families_present"]
@@ -475,6 +522,8 @@ def _rule_vpy_sr_with_shader_sr(ctx):
                 "留一头：要么只用脚本，要么只用 shader。")
 
 
+# 依据：**设计原则**。出处《MPV_Shader搭配说明书.md》§1「最后才做锐化收尾」
+#       与 §4「放在最后，只加强纹理不动线条边缘」。
 @_kv("sharpen_not_last", "info", [])
 def _rule_sharpen_not_last(ctx):
     shaders = ctx["shaders"]
@@ -488,6 +537,8 @@ def _rule_sharpen_not_last(ctx):
 
 
 # ---- 缓存 ----
+# 依据：**逻辑判断**，根在手册 ``--cache`` 条目：「Use ``--demuxer-max-bytes`` to
+#       specify the size of the cache.」—— 缓存都关了，"缓存多大"自然没有意义。
 @_kv("cache_off_but_buffer", "info", ["cache", "demuxer-max-bytes"])
 def _rule_cache_off_but_buffer(ctx):
     v = ctx["values"]
