@@ -35,6 +35,26 @@ py -3 tools\build.py version       :: 改过 core\schema.py 的 VERSION 之后
 * **必须 `--offline`**：外链检查验证的是上游站点可达，与代码改动无关。
   它没被豁免，只是**换时间跑**——每周日单独跑一次含联网的全量（`links` job），同样阻断。
 
+### 1.2 提交门禁（pre-commit，每次 commit 都会跑）
+
+`.githooks/pre-commit` 在每次 `git commit` 时跑 `verify.py precommit`——
+**源码可编译 / 暂存文本文件行尾必须 LF / `.bat` 必须无 BOM + CRLF**，秒级，
+任何一项不过就不许提交。
+
+**每个克隆都要开一次** —— `core.hooksPath` 是 Git 的**本地**配置，不会随仓库走：
+
+```bat
+git config core.hooksPath .githooks
+```
+
+没开的话钩子不会跑，而且你**不会收到任何提示**——所以接手后先确认
+`git config --get core.hooksPath` 输出 `.githooks`。
+
+⚠ 门禁里**故意不跑** `docs` 与全套单测：`verify.py docs` 单独跑实测 16 分钟未结束
+（2026-10-09，原因待查，见 `TASKS.md` 遗留项）。门禁慢到几分钟，人就会用
+`--no-verify` 绕过去——**慢门禁比没门禁更糟**。行为与文档的一致性仍由
+`verify.py --offline` 在推送前把关。
+
 ## 2. 硬约束
 
 违反下面任何一条都会留下**真实缺陷**，不是风格问题。
@@ -154,6 +174,9 @@ py -3 tools\build.py version       :: 改过 core\schema.py 的 VERSION 之后
 - `tools/` **只有 4 个文件**：`build.py`（生成）/ `verify.py`（验证）/
   `uidriver.py`（浏览器驱动，被实机脚本共用）/ `_dump_bindings.lua`。
   **新增验证脚本请加进 `verify.py` 的 `cmd_*` 子命令，不要新建文件。**
+- `.githooks/pre-commit` 是**提交门禁的入口，不是规则的存放处**：它只负责把
+  `verify.py precommit` 跑起来，判断规则全在 `verify.py` 里。改规则改那里，
+  别在钩子文件里堆逻辑——否则「门禁判什么」会有两份答案。
 - `electron/renderer/` 是**构建期复制产物**，不要手改 —— 要改改 `webui/static/`。
 - 旧 Tkinter 界面已**移出仓库**，归档在 `..\MPV_Config_Builder_legacy\`
   （保留、能在本机跑、有自检，但**不维护**）。不要试图"修"它。
