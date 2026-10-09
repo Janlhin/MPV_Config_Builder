@@ -112,9 +112,10 @@ electron/      Electron 桌面外壳（安装器从这里出）
   renderer/      构建期从 webui/static 复制（不入库）
 packaging/     PyInstaller 配方（把后端打成独立 exe）
 tests/         单元测试
-tools/         构建选项库 / 文档数字守门人 / 发布前自检 / 实机验证
+tools/         build.py（生成）/ verify.py（验证）/ uidriver.py（浏览器驱动共用）
 docs/          实测出来的结论（踩过的坑）
 data/          内置数据（选项库 / 键位 / 命令）
+AGENTS.md      在这个仓库里干活的规矩 —— **改代码前先读**
 ```
 
 ## 许可
