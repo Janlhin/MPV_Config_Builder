@@ -641,7 +641,7 @@ def cmd_topnav():
     sys.path.insert(0, str(ROOT))
     sys.path.insert(0, str(ROOT / "tools"))
 
-    from uidriver import Checker, connect, launch, stop, wait_page   # noqa: E402
+    from uidriver import Checker, connect, launch, stop, wait_for, wait_page   # noqa: E402
 
     SHOTS = ROOT / "_shots"
     PAGES = [
@@ -654,6 +654,13 @@ def cmd_topnav():
             ("downloads.html", "下载中心", "📦")]
     # 哪个页面是「导航页」——在这几页上必须有一条不可点的「当前页」指示
     NAV_PAGES = {"analyze": "analyze.html", "keys": "keys.html", "downloads": "downloads.html"}
+
+    # 顶栏「就绪」条件：.topnav 存在且三个入口都已注入。
+    # 为什么要它：顶栏是 JS 注入的，注入完成的时刻随机 —— 固定 sleep 在 CI 慢机上
+    # 会不够（2026-10-09 实测：docs-only 提交在 CI 上间歇红过一次，就红在这）。
+    # 所以导航后轮询这个条件，而不是猜一个时长。
+    TOPNAV_READY = ("(function(){var n=document.querySelector('.topnav');"
+                    "return n && n.children.length >= 3;})()")
 
     # 每页读一次顶栏：返回注入结果的原始结构，判定都放在 Python 里做
     PROBE = """
@@ -746,6 +753,9 @@ def cmd_topnav():
             base = f"http://127.0.0.1:{port}/"
             for name, page in PAGES:
                 wait_page(cdp, base + name, wait_s=2.2)
+                # 等「顶栏注入完成」这个条件，而不是只靠上面的固定 sleep：
+                # CI 慢机上固定 2.2s 可能不够，注入没完成探针就落空（间歇红）。
+                wait_for(cdp, TOPNAV_READY, timeout_s=10)
                 got = cdp.js(PROBE)
                 print(f"—— {name} ——")
                 if not c(f"{name}：顶栏注入了 .topnav", bool(got.get("found"))):

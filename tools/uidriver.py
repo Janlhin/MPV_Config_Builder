@@ -169,6 +169,27 @@ def wait_page(c, url, wait_s=4.0):
     return c
 
 
+def wait_for(c, js, timeout_s=10.0, interval_s=0.25):
+    """轮询执行 js 直到返回真值（原样返回），超时返回 None。
+
+    为什么要有它：页面 JS 注入完成的时刻是随机的，固定 sleep 在快机器上
+    只是浪费、在慢机器（CI）上则**不够** —— 2026-10-09 实测：topnav 检查
+    在 CI 上间歇红（5 次运行红 1），根因就是固定等 2.2s 后顶栏可能还没注入。
+    等「条件成立」，不要猜一个时长。
+    """
+    deadline = time.time() + timeout_s
+    while True:
+        try:
+            v = c.js(js)
+        except Exception:
+            v = None
+        if v:
+            return v
+        if time.time() >= deadline:
+            return None
+        time.sleep(interval_s)
+
+
 def stop(proc):
     if proc is None:
         return
