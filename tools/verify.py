@@ -337,6 +337,28 @@ def cmd_all():
               tail[-1] if tail else "(没有输出)")
 
 
+    def check_ctxmenu(r):
+        """右键菜单在真浏览器里对吗（界面打磨第二批）。
+
+        判四件事：能弹出、复制的是对的那一行、Esc 能关、恢复默认真的把状态改回去。
+        **没有 Edge/Chrome 就跳过，不算失败** —— 同顶栏 / i18n / 状态栏。
+        """
+        if importlib.util.find_spec("uidriver") is None and not (Path(__file__).parent / "uidriver.py").is_file():
+            r.add("右键菜单实机检查", True, "跳过（找不到 tools/uidriver.py）")
+            return
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from uidriver import find_browser                            # noqa: PLC0415
+        if not find_browser():
+            r.add("右键菜单实机检查", True, "跳过（本机没有 Edge/Chrome）")
+            return
+        p = subprocess.run([sys.executable, "-X", "utf8",
+                            str(Path(__file__).parent / "verify.py"), "ctxmenu"],
+                           capture_output=True, cwd=str(ROOT))
+        tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        r.add("右键菜单实机检查", p.returncode == 0,
+              tail[-1] if tail else "(没有输出)")
+
+
     def check_electron_pack(r):
         """Electron 那套（如果本机备齐了工具链）能不能跑通。
 
@@ -387,6 +409,7 @@ def cmd_all():
         check_ui_nav(r)
         check_i18n(r)
         check_status(r)
+        check_ctxmenu(r)
         check_electron_pack(r)
 
         print("-" * 58)
@@ -1118,8 +1141,8 @@ def cmd_status():
               a.get("bodyPad") not in (None, "0px"), f"padding-bottom={a.get('bodyPad')}")
             print(f"    后端状态文字：{a.get('backend')!r}")
 
-            # 改动数：页面用 APP.setChanges 告诉状态栏
-            cdp.js("(() => { window.APP.setChanges(3); return true; })()")
+            # 改动数：页面用 MPVCB.setChanges 告诉状态栏
+            cdp.js("(() => { window.MPVCB.setChanges(3); return true; })()")
             b = cdp.js(PROBE)
             print("\n—— 改动数 ——")
             c("APP.setChanges 能刷进状态栏", "3" in (b.get("changes") or ""),
@@ -1127,7 +1150,7 @@ def cmd_status():
 
             # 后端"没了"：换成抛错的桩再 ping 一次
             cdp.js(STUB)
-            cdp.js("(() => window.APP.ping())()")
+            cdp.js("(() => window.MPVCB.ping())()")
             time.sleep(0.8)
             d = cdp.js(PROBE)
             print("\n—— 后端离线（桩） ——")
@@ -1143,6 +1166,190 @@ def cmd_status():
             c("后端恢复后横幅消失", not e.get("hasBanner"))
             c("后端恢复后状态栏回到 is-on", e.get("on") is True,
               f"on={e.get('on')} off={e.get('off')}")
+            print()
+            return c.done()
+        finally:
+            stop(browser)
+            if srv:
+                srv.terminate()
+                try:
+                    srv.wait(timeout=10)
+                except Exception:
+                    srv.kill()
+    raise SystemExit(main())
+
+
+# ==========================================================================
+# ctxmenu（右键菜单）
+# ==========================================================================
+
+def cmd_ctxmenu():
+    """右键菜单的实机验证：能弹吗？动作真的做了吗？Esc 能关吗？
+
+    为什么要真机跑：菜单是 JS 注入的；「恢复默认」走的是**模拟点击页面自己的
+    勾选框**——有没有真的把状态改回去，只有跑了才知道。
+    剪贴板没法直接读，所以把 `navigator.clipboard.writeText` 换成记录的桩。
+
+    用法（会自己起一个临时后端，端口自动挑）：
+        py -3 tools/verify.py ctxmenu
+    """
+    import json
+    import socket
+    import subprocess
+    import sys
+    import time
+    import urllib.request
+    from pathlib import Path
+
+    ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "tools"))
+
+    from uidriver import Checker, connect, launch, stop, wait_page   # noqa: PLC0415
+
+    c = Checker()
+
+    STUB_CLIP = ("(() => { window.__copied = null;"
+                 " navigator.clipboard.writeText = t => { window.__copied = String(t);"
+                 " return Promise.resolve(); }; return true; })()")
+    PROBE = """
+    (() => {
+      const m = document.querySelector('.ctx-menu');
+      const rows = Array.from(document.querySelectorAll('.opt.on'));
+      return {
+        menu: !!m,
+        items: m ? Array.from(m.querySelectorAll('.ctx-item')).map(b => b.textContent) : [],
+        checked: rows.length,
+        firstKey: rows.length ? rows[0].dataset.key : ''
+      };
+    })()
+    """
+    OPEN = ("(() => { const r = document.querySelector('.opt.on');"
+            " if (!r) return false;"
+            " r.dispatchEvent(new MouseEvent('contextmenu',"
+            " {bubbles:true, cancelable:true, clientX:40, clientY:60}));"
+            " return r.dataset.key; })()")
+    ESC = "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true})); return true; })()"
+    RESET = ("(() => { const it = Array.from(document.querySelectorAll('.ctx-item'))"
+             "   .find(b => b.dataset.act === 'reset');"
+             " if (!it) return false; it.click(); return true; })()")
+    COPYKEY = ("(() => { const it = Array.from(document.querySelectorAll('.ctx-item'))"
+               "   .find(b => b.dataset.act === 'copykey');"
+               " if (!it) return false; it.click(); return true; })()")
+    ELSEWHERE = ("(() => { document.body.dispatchEvent(new MouseEvent('contextmenu',"
+                 " {bubbles:true, cancelable:true, clientX:5, clientY:5})); return true; })()")
+
+
+    def free_port():
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        p = s.getsockname()[1]
+        s.close()
+        return p
+
+
+    def start_server(port):
+        proc = subprocess.Popen(
+            [sys.executable, "-X", "utf8", str(ROOT / "webui" / "server.py"),
+             "--port", str(port), "--no-window"],
+            cwd=str(ROOT), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1) as f:
+                    json.load(f)
+                return proc
+            except Exception:
+                if proc.poll() is not None:
+                    sys.exit("后端启动失败（进程已退出）")
+                time.sleep(0.4)
+        proc.kill()
+        sys.exit("后端 30 秒内没起来")
+
+
+    def main():
+        port, cdp_port = free_port(), free_port()
+        srv = browser = None
+        try:
+            srv = start_server(port)
+            print(f"后端已起：http://127.0.0.1:{port}\n")
+            browser = launch(cdp_port)
+            cdp = connect(cdp_port)
+            base = f"http://127.0.0.1:{port}/"
+
+            # ⚠ 不用 expert 页自己的选项行：expert 是「本地配置」视图，
+            #   靠 localStorage 里上一次会话的状态（loadLocal）才有内容，
+            #   全新浏览器里它就是空的 —— 这是既有行为，不是本功能的缺陷。
+            #   所以注入一行合成的 .opt，测的正是 api.js 里那套委托逻辑。
+            SEED = (
+                "(function(){"
+                " document.getElementById('panes').innerHTML ="
+                "  '<div class=\"opt on\" data-key=\"--test-key\"><div class=\"opt-head\">'"
+                "  + '<input type=\"checkbox\" data-role=\"check\" checked>'"
+                "  + '<label data-role=\"label\">测试项</label>'"
+                "  + '<div class=\"right\"><button class=\"icon-btn\" data-role=\"info\">i</button></div>'"
+                "  + '</div></div>';"
+                " APP.values['--test-key'] = 'yes';"
+                " window.__infoClicked = 0;"
+                " document.querySelector('.opt [data-role=info]')"
+                "   .addEventListener('click', function(){ window.__infoClicked++; });"
+                " return true; })()"
+            )
+
+            wait_page(cdp, base + "expert.html", wait_s=2.5)
+            cdp.js(SEED)
+            cdp.js(STUB_CLIP)
+            time.sleep(0.3)
+
+            cdp.js(OPEN)
+            time.sleep(0.3)
+            a = cdp.js(PROBE)
+            print("—— 弹出 ——")
+            c("右键 .opt 弹出了菜单", a.get("menu") is True)
+            c("菜单里有：复制名 / 复制值 / 恢复默认 / 完整说明",
+              len(a.get("items") or []) == 4, f"items={a.get('items')}")
+
+            key = a.get("firstKey") or ""
+            cdp.js(COPYKEY)
+            time.sleep(0.3)
+            b = cdp.js("(() => ({copied: window.__copied, menu: !!document.querySelector('.ctx-menu')}))()")
+            print("\n—— 复制选项名 ——")
+            c("复制的内容就是这一行的 key", b.get("copied") == key,
+              f"copied={b.get('copied')!r} 期望={key!r}")
+            c("点完菜单自己关掉", b.get("menu") is False)
+
+            cdp.js(OPEN)
+            time.sleep(0.3)
+            cdp.js(ESC)
+            time.sleep(0.2)
+            d = cdp.js("(() => !!document.querySelector('.ctx-menu'))()")
+            print("\n—— Esc ——")
+            c("Esc 能关掉菜单", d is False)
+
+            cdp.js(OPEN)
+            time.sleep(0.3)
+            cdp.js(RESET)
+            time.sleep(0.5)
+            e = cdp.js("(() => ({menu: !!document.querySelector('.ctx-menu'),"
+                       " checked: (document.querySelector('.opt input[data-role=check]')||{}).checked}))()")
+            print("\n—— 恢复默认 ——")
+            c("恢复默认后勾选框真的被取消了", e.get("checked") is False,
+              f"checked={e.get('checked')}")
+
+            cdp.js(OPEN)
+            time.sleep(0.3)
+            cdp.js("(() => { const it = Array.from(document.querySelectorAll('.ctx-item'))"
+                   "   .find(b => b.dataset.act === 'info'); if (it) it.click(); return true; })()")
+            time.sleep(0.3)
+            g = cdp.js("(() => window.__infoClicked)()")
+            print("\n—— 完整说明 ——")
+            c("完整说明走的是页面自己的 info 通道", g == 1, f"__infoClicked={g}")
+
+            cdp.js(ELSEWHERE)
+            time.sleep(0.2)
+            f = cdp.js("(() => !!document.querySelector('.ctx-menu'))()")
+            print("\n—— 非选项区域 ——")
+            c("右键别处不弹我们的菜单（保留浏览器默认）", f is False)
             print()
             return c.done()
         finally:
@@ -3075,6 +3282,7 @@ COMMANDS = {
     "topnav": cmd_topnav,
     "i18n": cmd_i18n,
     "status": cmd_status,
+    "ctxmenu": cmd_ctxmenu,
     "stdio": cmd_stdio,
     "presets": cmd_presets,
     "ui": cmd_ui,
