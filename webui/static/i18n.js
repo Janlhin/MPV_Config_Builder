@@ -62,6 +62,11 @@
       'status.offline': '后端没有响应：界面还在，但读不到配置',
       'status.retry': '重试',
 
+      'ctx.copyKey': '复制选项名',
+      'ctx.copyValue': '复制当前值',
+      'ctx.reset': '恢复默认（取消勾选）',
+      'ctx.info': '完整说明',
+
       'app.title': 'MPV Config Builder · 选择模式',
 
       'topbar.downloadLazy': '📥 下载 mpv-lazy',
@@ -144,6 +149,11 @@
       'status.backendUnknown': 'Backend status unknown',
       'status.offline': 'The backend is not responding: the UI still works, but your config cannot be read',
       'status.retry': 'Retry',
+
+      'ctx.copyKey': 'Copy option name',
+      'ctx.copyValue': 'Copy current value',
+      'ctx.reset': 'Restore default (untick)',
+      'ctx.info': 'Full description',
 
       'app.title': 'MPV Config Builder · Choose a mode',
 

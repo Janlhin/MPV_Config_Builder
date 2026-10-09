@@ -609,9 +609,29 @@ body.has-statusbar { padding-bottom: 28px; }
 .expandable.is-open { grid-template-rows: 1fr; }
 .expandable > * { overflow: hidden; min-height: 0; }
 
+/* 右键菜单：跟状态栏同一套 token，不另起一套色 */
+.ctx-menu {
+  position: fixed; z-index: 100; min-width: 190px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 4px;
+  animation: ctx-in .12s ease-out;
+}
+@keyframes ctx-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+
+.ctx-item {
+  display: block; width: 100%; text-align: left;
+  background: none; border: 0; cursor: pointer;
+  color: var(--text); font-size: 13px;
+  padding: 7px 10px; border-radius: 7px;
+}
+.ctx-item:hover { background: var(--panel); }
+
 /* ⚠ 无障碍：全站动效必须在这里归零。
    不管加不加装饰性动效，这条都得补（待做.md §二把它列为无障碍缺口）。 */
 @media (prefers-reduced-motion: reduce) {
-  .statusbar, .offline-banner { animation: none; transform: none; }
+  .statusbar, .offline-banner, .ctx-menu { animation: none; transform: none; }
   .busy-bar, .statusbar .sb-dot, .expandable { transition: none; }
 }
