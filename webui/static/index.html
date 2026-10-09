@@ -13,7 +13,8 @@
   <div class="spacer"></div>
   <a class="btn small ghost" href="https://github.com/hooke007/mpv_PlayKit/releases" target="_blank" data-i18n="topbar.downloadLazy">📥 下载 mpv-lazy</a>
   <button class="btn small" data-theme-toggle data-i18n="topbar.theme">🌓 切换主题</button>
-  <button class="btn small" data-lang-toggle>🌐 中文</button>
+  <!-- 语言切换按钮由 api.js 注入：9 个页面共用一份定义（和顶栏 U-1 同一个道理），
+       不在这里写死，免得将来改按钮要改 9 处 -->
 </div>
 
 <div class="chooser">
@@ -131,6 +132,7 @@
 </div>
 
 <script src="i18n.js"></script>
+<script src="i18n-zh2en.js"></script>
 <script src="api.js"></script>
 <script>
 async function boot() {

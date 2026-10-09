@@ -36,7 +36,7 @@
 <body data-page="guide">
 
 <div class="topbar">
-  <div class="brand">📖 文档 <small id="docTitle"></small></div>
+  <div class="brand">📖 文档 <small id="docTitle" data-no-i18n></small></div>
   <div class="spacer"></div>
   <a class="btn small" href="index.html">🔀 切换模式</a>
   <button class="btn small" data-theme-toggle>🌓</button>
@@ -47,6 +47,8 @@
   <div class="card doc" id="doc">（正在读取…）</div>
 </div>
 
+<script src="i18n.js"></script>
+<script src="i18n-zh2en.js"></script>
 <script src="api.js"></script>
 <script>
 const DOC_ICONS = { guide: '🧭', shaders: '✨', thanks: '🙏', roadmap: '🗺️' };
