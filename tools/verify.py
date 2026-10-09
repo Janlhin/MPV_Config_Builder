@@ -58,7 +58,7 @@ def cmd_all():
     发布时容易漏跑其中一项。这里串成一条，**退出码非 0 就别发**。
 
     用法（仓库根目录）：
-        py -3 tools/preflight.py
+        py -3 tools/verify.py
 
     检查项：
         1. 单元测试全绿
@@ -335,7 +335,7 @@ def cmd_docs():
     人肉维护数字迟早会对不上，所以做成一个能跑的检查。
 
     用法（仓库根目录）：
-        py -3 tools/check_docs.py
+        py -3 tools/verify.py docs
     退出码：0 = 全部一致；1 = 有对不上的地方。
 
     约定：`产品规划与路线图.md` 的「### 结论摘要」一节曾经是**故意保留的历史基线**，
@@ -498,7 +498,7 @@ def cmd_topnav():
     顺带验证「当前页」那一条是不可点的指示、其它两条是真链接。
 
     用法（会自己起一个临时后端，端口自动挑）：
-        py -3 tools/check_topnav.py
+        py -3 tools/verify.py topnav
     """
     import json
     import socket
@@ -727,7 +727,7 @@ def cmd_stdio():
     3. `window.fetch` 从没被用去请求 `/api/`（漏一条就说明没换干净）；
     4. stdio 后端的 stdout 里每一行都是合法 JSON（第②步那条约束在真实负载下仍成立）。
 
-    用法：py -3 tools/check_stdio_ui.py
+    用法：py -3 tools/verify.py stdio
     """
     import http.server
     import json
@@ -1025,7 +1025,7 @@ def cmd_presets():
 
     跑法（仓库根目录）：
         py -3 webui\server.py --port 8765 --no-window     # 另开一个窗口
-        py -3 tools\check_presets.py
+        py -3 tools\verify.py presets
 
     为什么值得单独验：预设这套东西前后端各一半 —— 后端有 40 多项单元测试，
     但"点按钮到底有没有反应、存完列表刷不刷新、导出的文件能不能再导回来"
@@ -1806,7 +1806,7 @@ def cmd_electron():
 
     用法：
         node scripts/sync-renderer.js          # 或 npm run sync
-        py tools/check_electron.py
+        py tools/verify.py electron
     """
     import json
     import socket
@@ -2095,7 +2095,7 @@ def cmd_packaged():
 
     用法：
         cd electron && npm run dist:dir      # 只打包不生成安装器，快
-        py tools/check_electron_packaged.py
+        py tools/verify.py packaged
     """
     import json
     import socket
@@ -2270,7 +2270,7 @@ def cmd_pack():
 
     用法（先打包）：
         py -m PyInstaller packaging/backend.spec
-        py tools/check_pack.py
+        py tools/verify.py pack
     """
     import json
     import os
@@ -2429,7 +2429,7 @@ def cmd_conflicts():
       * 返回的 dict 列表**逐字段完全相等**（id/level/title/detail/fix/keys，含顺序）；
       * keys 顺序也算 —— 虽然界面用 set 消费，但顺序变了说明实现偷改了构造方式。
 
-    用法：py -3 tools/compare_conflicts.py
+    用法：py -3 tools/verify.py conflicts
     """
     import itertools
     import json

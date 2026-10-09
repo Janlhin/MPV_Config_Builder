@@ -2,8 +2,8 @@
 """实机验证用的浏览器驱动（零依赖：手写 WebSocket + Chrome DevTools Protocol）。
 
 抽出来是因为现在有两个验证脚本要用它：
-  · `tools/check_ui.py`       候选值下拉
-  · `tools/check_presets.py`  我自己的预设
+  · `tools/verify.py ui`       候选值下拉
+  · `tools/verify.py presets`  我自己的预设
 
 **不装 Playwright / Selenium** —— 这个项目"零第三方依赖"的约束在验证工具上
 一样成立。Edge / Chrome 本身就能开调试端口，用 stdlib 的 socket 讲 WebSocket

@@ -880,7 +880,7 @@ def native_items():
 
 # ============================================================
 # 全量选项数据库（R-19）：829 个 mpv 选项 + 中文说明
-# 数据在 data/mpv_options_zh.json，由 tools/build_options_db.py 从
+# 数据在 data/mpv_options_zh.json，由 tools/build.py options-db 从
 # `mpv --list-options` 与 mpv_doc-CN 生成。
 # ============================================================
 
