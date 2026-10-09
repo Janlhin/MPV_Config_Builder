@@ -1,0 +1,80 @@
+# 发布前门禁 —— 权威判定层
+#
+# 建这个文件的原因：接手盘点发现仓库**没有任何 CI**（无 .github/）。
+# 工程规则把流水线定为「权威判定通道」：
+# 本地门禁可被绕过、可被环境污染，CI 的结论才算数。
+# 在此之前，本项目所有的「绿」都只是本机结论。
+#
+# ── 两个设计决定，改之前先看 ──────────────────────────────────────────
+#
+# 1. 为什么是 windows-latest，不是 ubuntu-latest
+#    本项目只支持 Windows：启动器是 .bat（UTF-8 BOM + CRLF）、安装包是 Electron
+#    Windows 版、用户数据落在 %LOCALAPPDATA% / %APPDATA%。
+#    更关键的是 verify.py 的两项实机检查在 Linux 上会**退化成「跳过」**：
+#       · 顶栏常驻入口 —— 要 Edge / Chrome（tools/uidriver.py 的 find_browser）
+#       · Electron 外壳 —— 要 electron/node_modules/electron/dist/electron.exe
+#    跳过不算失败，于是门禁在 Linux 上等于少跑两层却照样显示绿灯 —— 那是假通过。
+#    GitHub 的 windows-latest 镜像预装 Edge 与 Chrome，这两项能真跑起来。
+#
+# 2. 为什么默认带 --offline，外链检查另开一个 job
+#    check_links 验证的是**上游站点**当时可达（mpv / uosc / 字体仓库等），
+#    与本次代码改动无关。上游挂掉不该让一次代码提交变红 —— 那是噪音，不是缺陷。
+#    所以外链检查**不是被豁免，而是换时间跑**：
+#       · push / PR   → gate（--offline），阻断
+#       · 每周日 + 手动 → links（含联网），同样阻断
+#    两项失败都会让各自 job 变红。若上游长期 404，应该修的是清单，不是把这个 job 关掉。
+#
+# ── 已知缺口（诚实登记）─────────────────────────────────────────────
+#   · 只在 Python 3.13 上跑。README 声称「需要 Python 3.8+」，这条**未被 CI 验证**。
+#     见 TASKS.md T12。
+#   · Electron 打包形态（packaged / pack）仍会跳过：CI 不装 node_modules、不打 exe。
+
+name: verify
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # 每周日 18:00 UTC —— 避开 push 通道，专跑依赖上游可达性的检查
+    - cron: '0 18 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: 门禁（离线 · 阻断）
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: 发布前自检（离线）
+        # verify.py 的 exit code 就是门禁：0 = 全绿，非 0 = 有项没过。
+        # 内含：单元测试（649 项）、源码可编译、文档数字与实测一致、
+        #       发行必带文件、许可文件内容、无机器专用路径、
+        #       顶栏实机检查、Electron 实机检查（缺件才跳过）。
+        run: python tools/verify.py --offline
+
+  links:
+    name: 外链可达（联网 · 阻断）
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: 发布前自检（含外链）
+        run: python tools/verify.py
