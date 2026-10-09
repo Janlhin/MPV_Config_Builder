@@ -2,133 +2,135 @@
 <html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="utf-8">
-<title>MPV Config Builder · 选择模式</title>
+<title data-i18n="app.title">MPV Config Builder · 选择模式</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="index">
 
 <div class="topbar">
   <div class="brand">🎬 MPV Config Builder <small id="ver"></small></div>
-  <div class="target">目标：<code id="targetLabel">检测中…</code></div>
+  <div class="target"><span data-i18n="topbar.target">目标：</span><code id="targetLabel" data-i18n="topbar.detecting">检测中…</code></div>
   <div class="spacer"></div>
-  <a class="btn small ghost" href="https://github.com/hooke007/mpv_PlayKit/releases" target="_blank">📥 下载 mpv-lazy</a>
-  <button class="btn small" data-theme-toggle>🌓 切换主题</button>
+  <a class="btn small ghost" href="https://github.com/hooke007/mpv_PlayKit/releases" target="_blank" data-i18n="topbar.downloadLazy">📥 下载 mpv-lazy</a>
+  <button class="btn small" data-theme-toggle data-i18n="topbar.theme">🌓 切换主题</button>
+  <button class="btn small" data-lang-toggle>🌐 中文</button>
 </div>
 
 <div class="chooser">
-  <h1>选择使用模式</h1>
-  <p class="sub">四个模式共用同一套配置逻辑，随时可以来回切换，已勾的选择不会丢</p>
+  <h1 data-i18n="index.h1">选择使用模式</h1>
+  <p class="sub" data-i18n="index.sub">四个模式共用同一套配置逻辑，随时可以来回切换，已勾的选择不会丢</p>
 
   <div class="cards">
     <a class="mode-card" href="basic.html">
       <div class="emoji">🧭</div>
-      <h2>基础模式</h2>
-      <p>4 个问题，选完就有一套能用的配置</p>
+      <h2 data-i18n="mode.basic.h2">基础模式</h2>
+      <p data-i18n="mode.basic.p">4 个问题，选完就有一套能用的配置</p>
       <ul>
-        <li>不用懂任何参数</li>
-        <li>自动探测本机 mpv-lazy</li>
-        <li>只挑内容类型与档位</li>
+        <li data-i18n="mode.basic.li1">不用懂任何参数</li>
+        <li data-i18n="mode.basic.li2">自动探测本机 mpv-lazy</li>
+        <li data-i18n="mode.basic.li3">只挑内容类型与档位</li>
       </ul>
     </a>
 
     <a class="mode-card" href="advanced.html">
       <div class="emoji">🎛️</div>
-      <h2>进阶模式</h2>
-      <p>核心参数 + Shader 链 + 补帧脚本</p>
+      <h2 data-i18n="mode.advanced.h2">进阶模式</h2>
+      <p data-i18n="mode.advanced.p">核心参数 + Shader 链 + 补帧脚本</p>
       <ul>
-        <li>6 套预设与 9 套一键组合</li>
-        <li>Shader 链可排序、可增删</li>
-        <li>边勾边看生成的 mpv.conf</li>
+        <li data-i18n="mode.advanced.li1">6 套预设与 9 套一键组合</li>
+        <li data-i18n="mode.advanced.li2">Shader 链可排序、可增删</li>
+        <li data-i18n="mode.advanced.li3">边勾边看生成的 mpv.conf</li>
       </ul>
     </a>
 
     <a class="mode-card" href="expert.html">
       <div class="emoji">🧪</div>
-      <h2>完全体</h2>
-      <p>核心 + 原生选项 + 自定义层，搜索即用</p>
+      <h2 data-i18n="mode.expert.h2">完全体</h2>
+      <p data-i18n="mode.expert.p">核心 + 原生选项 + 自定义层，搜索即用</p>
       <ul>
-        <li>中文说明、类型、建议值</li>
-        <li>自定义 key=value 与 profile 段</li>
-        <li>版本 / 回滚：一键还原备份</li>
+        <li data-i18n="mode.expert.li1">中文说明、类型、建议值</li>
+        <li data-i18n="mode.expert.li2">自定义 key=value 与 profile 段</li>
+        <li data-i18n="mode.expert.li3">版本 / 回滚：一键还原备份</li>
       </ul>
     </a>
 
     <a class="mode-card hell" href="hell.html">
       <div class="emoji">😈</div>
-      <h2>地狱模式</h2>
-      <p>直接编辑目标文件的文本框</p>
+      <h2 data-i18n="mode.hell.h2">地狱模式</h2>
+      <p data-i18n="mode.hell.p">直接编辑目标文件的文本框</p>
       <ul>
-        <li>不校验、不解释、不拦你</li>
-        <li>写入前仍留一份 .bak 备份</li>
-        <li>给真的知道自己要干什么的人</li>
+        <li data-i18n="mode.hell.li1">不校验、不解释、不拦你</li>
+        <li data-i18n="mode.hell.li2">写入前仍留一份 .bak 备份</li>
+        <li data-i18n="mode.hell.li3">给真的知道自己要干什么的人</li>
       </ul>
     </a>
   </div>
 
   <div class="card" style="max-width:820px;margin:26px auto 0;text-align:left">
-    <h2>🧭 第一次用？先看这个</h2>
-    <p class="note">不知道 <code>mpv.conf</code> 该放哪儿、配置怎么写、改坏了怎么救 ——
+    <h2 data-i18n="card.guide.h2">🧭 第一次用？先看这个</h2>
+    <p class="note" data-i18n-html="card.guide.note">不知道 <code>mpv.conf</code> 该放哪儿、配置怎么写、改坏了怎么救 ——
       这篇入门指南从「文件放哪儿」讲到「三条退路」，都是人话。</p>
     <div class="quick" style="margin-top:10px">
-      <a class="btn primary" href="guide.html?doc=guide">📖 打开入门指南</a>
-      <a class="btn" href="guide.html?doc=shaders">✨ Shader 搭配说明书</a>
-      <a class="btn" href="guide.html?doc=thanks">🙏 致谢与许可</a>
+      <a class="btn primary" href="guide.html?doc=guide" data-i18n="card.guide.btn1">📖 打开入门指南</a>
+      <a class="btn" href="guide.html?doc=shaders" data-i18n="card.guide.btn2">✨ Shader 搭配说明书</a>
+      <a class="btn" href="guide.html?doc=thanks" data-i18n="card.guide.btn3">🙏 致谢与许可</a>
     </div>
   </div>
 
   <div class="card" style="max-width:820px;margin:14px auto 0;text-align:left">
-    <h2>⌨️ 想改快捷键？</h2>
-    <p class="note">mpv 实际在读的那份键位表（mpv-lazy 是 <code>input_uosc.conf</code>）会逐条列出来，
-      可以直接改键、改命令、停用某条；下面还列着 mpv 的 209 条内置默认键位做对照。
+    <h2 data-i18n="card.keys.h2">⌨️ 想改快捷键？</h2>
+    <p class="note" data-i18n-html="card.keys.note">mpv 实际在读的那份键位表（mpv-lazy 是 <code>input_uosc.conf</code>）会逐条列出来，
+      可以直接改键、改命令、停用某条；下面还列着 mpv 的 <b>{keyCount} 条</b>内置默认键位做对照。
       没动过的行保存时一个空格都不会变。</p>
     <div class="quick" style="margin-top:10px">
-      <a class="btn primary" href="keys.html">⌨️ 打开快捷键编辑</a>
+      <a class="btn primary" href="keys.html" data-i18n="card.keys.btn">⌨️ 打开快捷键编辑</a>
     </div>
   </div>
 
   <div class="card" style="max-width:820px;margin:14px auto 0;text-align:left">
-    <h2>🩺 只想看看我现在这份配置怎么样？</h2>
-    <p class="note">不用改任何东西，把 <code>mpv.conf</code> 丢进去（或从本机目录里选），
+    <h2 data-i18n="card.analyze.h2">🩺 只想看看我现在这份配置怎么样？</h2>
+    <p class="note" data-i18n-html="card.analyze.note">不用改任何东西，把 <code>mpv.conf</code> 丢进去（或从本机目录里选），
       出一份体检报告：哪里会出错、哪些搭配在打架、include 链到底读了什么。</p>
     <div class="quick" style="margin-top:10px">
-      <a class="btn primary" href="analyze.html">🩺 打开配置体检</a>
-      <a class="btn" href="advanced.html">🎛️ 直接去改配置</a>
+      <a class="btn primary" href="analyze.html" data-i18n="card.analyze.btn1">🩺 打开配置体检</a>
+      <a class="btn" href="advanced.html" data-i18n="card.analyze.btn2">🎛️ 直接去改配置</a>
     </div>
   </div>
 
   <div class="card" style="max-width:820px;margin:14px auto 0;text-align:left">
-    <h2>📦 想装几个好用的脚本 / 字体？</h2>
-    <p class="note">从各项目的<b>官方地址</b>下载 mpv 脚本（自动连播、跳片头、裁黑边…）
+    <h2 data-i18n="card.dl.h2">📦 想装几个好用的脚本 / 字体？</h2>
+    <p class="note" data-i18n-html="card.dl.note">从各项目的<b>官方地址</b>下载 mpv 脚本（自动连播、跳片头、裁黑边…）
       与中文字幕字体，直接放进 <code>scripts\</code> 和 <code>fonts\</code>。
       装过什么本机有清单，随时能卸。</p>
     <div class="quick" style="margin-top:10px">
-      <a class="btn primary" href="downloads.html">📦 打开下载中心</a>
+      <a class="btn primary" href="downloads.html" data-i18n="card.dl.btn">📦 打开下载中心</a>
     </div>
   </div>
 
   <div class="card" style="max-width:820px;margin:14px auto 0;text-align:left">
-    <h2>⚡ 直接打开一套组合</h2>
-    <p class="note">下面这些链接会带着组合直接进进阶模式，省得一层层点。</p>
+    <h2 data-i18n="card.combo.h2">⚡ 直接打开一套组合</h2>
+    <p class="note" data-i18n="card.combo.note">下面这些链接会带着组合直接进进阶模式，省得一层层点。</p>
     <div class="quick" style="margin-top:10px">
-      <a class="btn" href="advanced.html#combo=sharp_base">💎 最锐利基础</a>
-      <a class="btn" href="advanced.html#combo=sharp_anime">🌸 动漫锐利链</a>
-      <a class="btn" href="advanced.html#combo=sharp_real">🎥 真人锐利链</a>
-      <a class="btn" href="advanced.html#combo=sharp_light">🪶 轻量超分</a>
-      <a class="btn" href="advanced.html#combo=smooth_builtin">⏱️ 内置补帧</a>
-      <a class="btn" href="advanced.html#combo=smooth_rife">🎞️ RIFE 补帧</a>
-      <a class="btn" href="advanced.html#combo=smooth_mvt">🧊 MVT 补帧</a>
-      <a class="btn" href="advanced.html#combo=hdr_pass">🌈 HDR</a>
-      <a class="btn" href="advanced.html#combo=clean_deband">🧹 去色带</a>
+      <a class="btn" href="advanced.html#combo=sharp_base" data-i18n="combo.sharp_base">💎 最锐利基础</a>
+      <a class="btn" href="advanced.html#combo=sharp_anime" data-i18n="combo.sharp_anime">🌸 动漫锐利链</a>
+      <a class="btn" href="advanced.html#combo=sharp_real" data-i18n="combo.sharp_real">🎥 真人锐利链</a>
+      <a class="btn" href="advanced.html#combo=sharp_light" data-i18n="combo.sharp_light">🪶 轻量超分</a>
+      <a class="btn" href="advanced.html#combo=smooth_builtin" data-i18n="combo.smooth_builtin">⏱️ 内置补帧</a>
+      <a class="btn" href="advanced.html#combo=smooth_rife" data-i18n="combo.smooth_rife">🎞️ RIFE 补帧</a>
+      <a class="btn" href="advanced.html#combo=smooth_mvt" data-i18n="combo.smooth_mvt">🧊 MVT 补帧</a>
+      <a class="btn" href="advanced.html#combo=hdr_pass" data-i18n="combo.hdr_pass">🌈 HDR</a>
+      <a class="btn" href="advanced.html#combo=clean_deband" data-i18n="combo.clean_deband">🧹 去色带</a>
     </div>
   </div>
 
-  <p class="note" style="margin-top:22px">
+  <p class="note" style="margin-top:22px" data-i18n-html="index.footer">
     所有页面都接的是真实后端：勾选 → 生成 mpv.conf → 写入前自动备份。
-    完全体里是 <b>829 项 mpv 全量选项库</b>（搜索 / 24 分组 / 分页），另有自定义层与版本回滚。
+    完全体里是 <b>{optsTotal} 项 mpv 全量选项库</b>（搜索 / 24 分组 / 分页），另有自定义层与版本回滚。
     下载与一键安装目前只在旧版界面（双击 <code>启动.bat</code>）。
   </p>
 </div>
 
+<script src="i18n.js"></script>
 <script src="api.js"></script>
 <script>
 async function boot() {
@@ -143,15 +145,29 @@ async function boot() {
     const t = localStorage.getItem('mpvcb-theme');
     if (t) document.documentElement.dataset.theme = t;
   } catch (e) {}
+
+  // 目标路径 / 后端未启动 这两处是 JS 动态写的，DOM 属性刷不到，
+  // 所以监听 i18n:change 手动重画 —— 否则切了语言这两处还是中文。
+  let last = null, failed = false;
+  function paintTarget() {
+    const el = document.getElementById('targetLabel');
+    if (!el) return;
+    if (failed) { el.textContent = I18N.t('topbar.backendDown'); return; }
+    if (!last) { el.textContent = I18N.t('topbar.detecting'); return; }
+    if (last.lazy_pc) { el.textContent = shortPath(last.lazy_pc); el.title = last.lazy_pc; }
+    else el.textContent = I18N.t('topbar.notFound');
+  }
+  document.addEventListener('i18n:change', paintTarget);
+
   try {
     // ⚠ 走 API.status，不要直接 fetch —— 直连在 Electron 的 stdio 通道下不通
     const r = await API.status();
+    last = r;
     document.getElementById('ver').textContent = 'v' + r.version;
-    const t = document.getElementById('targetLabel');
-    if (r.lazy_pc) { t.textContent = shortPath(r.lazy_pc); t.title = r.lazy_pc; }
-    else t.textContent = '未检测到 mpv-lazy';
+    paintTarget();
   } catch (e) {
-    document.getElementById('targetLabel').textContent = '（后端未启动）';
+    failed = true;
+    paintTarget();
   }
 }
 boot();

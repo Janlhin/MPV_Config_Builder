@@ -259,6 +259,32 @@ def cmd_all():
         r.add("顶栏常驻入口实机检查", p.returncode == 0, summary)
 
 
+    def check_i18n(r):
+        """i18n 机制在真浏览器里真的能切换语言吗（U-2）。
+
+        静态那半（两张语言表的键是否一致、占位符有没有漏填）不需要浏览器，
+        在 cmd_i18n 里用 Python 直接判；这里跑的是**动态那半**——
+        点了按钮文字是否真的变、刷新后偏好是否还在。
+
+        **没有 Edge/Chrome 就跳过，不算失败** —— 和顶栏检查同一个道理：
+        这是实机检查，不是每台机器都跑得了。但只要能跑，它就必须过。
+        """
+        if importlib.util.find_spec("uidriver") is None and not (Path(__file__).parent / "uidriver.py").is_file():
+            r.add("i18n 切换实机检查", True, "跳过（找不到 tools/uidriver.py）")
+            return
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from uidriver import find_browser                            # noqa: PLC0415
+        if not find_browser():
+            r.add("i18n 切换实机检查", True, "跳过（本机没有 Edge/Chrome）")
+            return
+        p = subprocess.run([sys.executable, "-X", "utf8",
+                            str(Path(__file__).parent / "verify.py"), "i18n"],
+                           capture_output=True, cwd=str(ROOT))
+        tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        r.add("i18n 切换实机检查", p.returncode == 0,
+              tail[-1] if tail else "(没有输出)")
+
+
     def check_electron_pack(r):
         """Electron 那套（如果本机备齐了工具链）能不能跑通。
 
@@ -306,6 +332,7 @@ def cmd_all():
         check_absolute_paths(r)
         check_links(r, offline=args.offline)
         check_ui_nav(r)
+        check_i18n(r)
         check_electron_pack(r)
 
         print("-" * 58)
@@ -700,6 +727,173 @@ def cmd_topnav():
                 except Exception:
                     srv.kill()
     raise SystemExit(main())
+
+# ==========================================================================
+# i18n（语言切换机制）
+# ==========================================================================
+
+def cmd_i18n():
+    """i18n 机制实机验证：切过去真的变英文吗？两种语言的键对得上吗？
+
+    为什么要真机跑：语言切换是**运行时替换 DOM 文本**，
+    静态看 index.html 只能看到中文硬编码。只有真让浏览器跑一遍，才能确认
+    「点了按钮文字真的变了」「刷新后偏好还在」「译文里没有漏填的 {占位符}」。
+
+    分两半，判定依据不同：
+
+    * **静态半（不需要浏览器）**：两张语言表的键集合必须完全一致
+      （不一致 = 切过去有一片还是中文）；译文里出现的每个 `{占位符}`
+      都必须能在 VARS 里找到（找不到 = 界面上会直接显示 `{optsTotal}`）。
+    * **动态半（需要 Edge/Chrome）**：真点一下切换按钮，比对前后文本。
+
+    用法（会自己起一个临时后端，端口自动挑）：
+        py -3 tools/verify.py i18n
+    """
+    import json
+    import re
+    import socket
+    import subprocess
+    import sys
+    import time
+    import urllib.request
+    from pathlib import Path
+
+    ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "tools"))
+
+    from uidriver import Checker, connect, launch, stop, wait_page   # noqa: PLC0415
+
+    c = Checker()
+
+    # ---------- 静态半：键集合与占位符，纯 Python 判定 ----------
+    src = (ROOT / "webui" / "static" / "i18n.js").read_text(encoding="utf-8")
+    html = (ROOT / "webui" / "static" / "index.html").read_text(encoding="utf-8")
+
+    try:
+        i_zh = src.index("'zh-CN': {")
+        i_en = src.index("'en': {")
+        i_end = src.index("var current")
+    except ValueError:
+        c("i18n.js 里能定位到两张语言表", False,
+          "找不到 'zh-CN' / 'en' / 'var current' 这三处标记（改动结构后要同步这里）")
+        return c.done()
+
+    KEY = re.compile(r"^\s*'([A-Za-z0-9_.]+)':\s", re.M)
+    zh_src = src[i_zh + len("'zh-CN': {"):i_en]
+    en_src = src[i_en + len("'en': {"):i_end]
+    zh_keys = set(KEY.findall(zh_src))
+    en_keys = set(KEY.findall(en_src))
+
+    c("两张语言表都非空", bool(zh_keys) and bool(en_keys),
+      f"zh={len(zh_keys)} 条 / en={len(en_keys)} 条")
+
+    only_zh = sorted(zh_keys - en_keys)
+    only_en = sorted(en_keys - zh_keys)
+    c("两种语言的键集合完全一致", not only_zh and not only_en,
+      f"只在中文有：{only_zh}；只在英文有：{only_en}")
+
+    m = re.search(r"var VARS = \{(.*?)\};", src, re.S)
+    var_keys = set(re.findall(r"(\w+):", m.group(1))) if m else set()
+    holes = set(re.findall(r"\{(\w+)\}", zh_src + en_src)) - var_keys
+    c("译文里的占位符都能在 VARS 里找到（没有漏填的数字）", not holes,
+      f"找不到值的占位符：{sorted(holes)}")
+
+    used = set(re.findall(r'data-i18n(?:-html|-title|-ph)?="([^"]+)"', html))
+    used |= set(re.findall(r"I18N\.t\('([^']+)'\)", html))
+    missing = sorted(k for k in used if k not in zh_keys or k not in en_keys)
+    c("index.html 用到的键两种语言都有", not missing, f"缺：{missing}")
+
+    # ---------- 动态半：真浏览器点一下 ----------
+    PROBE = """
+    (() => {
+      const btn = document.querySelector('[data-lang-toggle]');
+      return {
+        h1: (document.querySelector('h1') || {}).textContent || '',
+        lang: document.documentElement.lang,
+        btn: btn ? btn.textContent : '',
+        hasBtn: !!btn,
+        braces: document.body.innerText.match(/\\{[A-Za-z]\\w*\\}/g) || []
+      };
+    })()
+    """
+    CLICK = ("(() => { const b = document.querySelector('[data-lang-toggle]');"
+             " if (b) { b.click(); return true; } return false; })()")
+
+
+    def free_port():
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        p = s.getsockname()[1]
+        s.close()
+        return p
+
+
+    def start_server(port):
+        proc = subprocess.Popen(
+            [sys.executable, "-X", "utf8", str(ROOT / "webui" / "server.py"),
+             "--port", str(port), "--no-window"],
+            cwd=str(ROOT), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1) as f:
+                    json.load(f)
+                return proc
+            except Exception:
+                if proc.poll() is not None:
+                    sys.exit("后端启动失败（进程已退出）")
+                time.sleep(0.4)
+        proc.kill()
+        sys.exit("后端 30 秒内没起来")
+
+
+    def main():
+        port, cdp_port = free_port(), free_port()
+        srv = browser = None
+        try:
+            srv = start_server(port)
+            print(f"后端已起：http://127.0.0.1:{port}\n")
+            browser = launch(cdp_port)
+            cdp = connect(cdp_port)
+
+            base = f"http://127.0.0.1:{port}/"
+            wait_page(cdp, base + "index.html", wait_s=2.2)
+            a = cdp.js(PROBE)
+            print("—— 切换前 ——")
+            c("页面上有语言切换按钮", bool(a.get("hasBtn")))
+            c("默认语言是 zh-CN", a.get("lang") == "zh-CN", f"lang={a.get('lang')!r}")
+            c("默认显示中文标题", a.get("h1") == "选择使用模式", f"h1={a.get('h1')!r}")
+            c("中文下没有未替换的占位符", not a.get("braces"), f"{a.get('braces')}")
+
+            cdp.js(CLICK)
+            time.sleep(0.4)
+            b = cdp.js(PROBE)
+            print("\n—— 切换后 ——")
+            c("点一下之后语言变成 en", b.get("lang") == "en", f"lang={b.get('lang')!r}")
+            c("标题真的换成了英文", b.get("h1") == "Choose a mode", f"h1={b.get('h1')!r}")
+            c("英文下没有未替换的占位符", not b.get("braces"), f"{b.get('braces')}")
+            c("按钮自身文案跟着变", "English" in (b.get("btn") or ""), f"btn={b.get('btn')!r}")
+
+            # 换个查询串强制重新载入，验证 localStorage 里的偏好还在
+            wait_page(cdp, base + "index.html?reload=1", wait_s=2.2)
+            d = cdp.js(PROBE)
+            print("\n—— 刷新后 ——")
+            c("刷新后语言偏好还在（localStorage）", d.get("lang") == "en",
+              f"lang={d.get('lang')!r}")
+            c("刷新后标题仍是英文", d.get("h1") == "Choose a mode", f"h1={d.get('h1')!r}")
+            print()
+            return c.done()
+        finally:
+            stop(browser)
+            if srv:
+                srv.terminate()
+                try:
+                    srv.wait(timeout=10)
+                except Exception:
+                    srv.kill()
+    raise SystemExit(main())
+
 
 # ==========================================================================
 # stdio（原 check_stdio_ui.py）
@@ -2618,6 +2812,7 @@ COMMANDS = {
     "all": cmd_all,
     "docs": cmd_docs,
     "topnav": cmd_topnav,
+    "i18n": cmd_i18n,
     "stdio": cmd_stdio,
     "presets": cmd_presets,
     "ui": cmd_ui,
