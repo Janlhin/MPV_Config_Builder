@@ -882,6 +882,62 @@ def cmd_i18n():
             c("刷新后语言偏好还在（localStorage）", d.get("lang") == "en",
               f"lang={d.get('lang')!r}")
             c("刷新后标题仍是英文", d.get("h1") == "Choose a mode", f"h1={d.get('h1')!r}")
+
+            # ---------- 9 个页面：切换入口都在吗？切过去顶栏还剩中文吗？ ----------
+            # 判定分两档，别混为一谈：
+            #   * 顶栏（.topbar）**必须**一个汉字都不剩 —— 这是全站共用的一层，
+            #     翻不干净说明词条表有洞，是缺陷。
+            #     标了 data-no-i18n 的不算：那是文件名、键名这类标识符，
+            #     本来就不该翻（guide 顶栏显示的 `入门指南.md` 就是这种）。
+            #   * 整页剩余中文只**测量不判定** —— 726 条选项说明按设计不翻译
+            #     （待做.md：直接取 mpv 官方英文原文，那是另一件事），
+            #     硬判「一个汉字都不许剩」只会逼人去关门禁。把数字打出来，剩余工作量才可见。
+            PAGES = ["index.html", "basic.html", "advanced.html", "expert.html",
+                     "analyze.html", "keys.html", "downloads.html", "guide.html",
+                     "hell.html"]
+            RESET = "(function(){ try { localStorage.removeItem('mpvcb-lang'); } catch(e){} return 1; })()"
+            HAN = (r"(function(){"
+                   r" var RE=/[\u4e00-\u9fff]/g;"
+                   r" var count=function(root,skip){"
+                   r"   var tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);"
+                   r"   var n=0,x,m;"
+                   r"   while((x=tw.nextNode())){"
+                   r"     var p=x.parentNode; if(!p) continue;"
+                   r"     if(p.nodeName==='SCRIPT'||p.nodeName==='STYLE') continue;"
+                   r"     if(skip&&p.closest&&p.closest(skip)) continue;"
+                   r"     m=String(x.nodeValue||'').match(RE); if(m) n+=m.length;"
+                   r"   } return n;};"
+                   r" var b=document.querySelector('.topbar');"
+                   r" return {body:count(document.body,null),"
+                   r"         topbar:b?count(b,'[data-no-i18n]'):0,"
+                   r"         hasTopbar:!!b,"
+                   r"         hasBtn:!!document.querySelector('[data-lang-toggle]'),"
+                   r"         lang:document.documentElement.lang};})()")
+
+            print("\n—— 9 个页面 ——")
+            left_total = base_total = 0
+            for name in PAGES:
+                wait_page(cdp, base + name, wait_s=2.2)
+                cdp.js(RESET)
+                wait_page(cdp, base + name + "?i18n=1", wait_s=2.2)
+                before = cdp.js(HAN)
+                cdp.js(CLICK)
+                time.sleep(0.5)
+                after = cdp.js(HAN)
+                base_total += before.get("body", 0)
+                left_total += after.get("body", 0)
+                c(f"{name}：有语言切换按钮", bool(after.get("hasBtn")))
+                c(f"{name}：切过去后顶栏没有中文", after.get("topbar") == 0,
+                  f"顶栏还剩 {after.get('topbar')} 个汉字")
+                c(f"{name}：切过去后中文确实减少了",
+                  after.get("body", 0) < before.get("body", 0),
+                  f"切前 {before.get('body')} → 切后 {after.get('body')}")
+                print(f"    {name}：切前 {before.get('body')} 汉字 → 切后 {after.get('body')} 汉字")
+
+            if base_total:
+                print(f"\n    合计：切前 {base_total} → 切后 {left_total}"
+                      f"（剩余 {left_total * 100 // base_total}%，"
+                      f"主要是按设计不翻译的选项说明与未收录词条）")
             print()
             return c.done()
         finally:
