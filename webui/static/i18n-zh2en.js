@@ -98,6 +98,16 @@ window.I18N_ZH2EN = {
   '裸写': 'Raw write',
   '0 行': '0 lines',
   'bak-时间戳': 'bak-timestamp',
+  // hell 页的 toast 在页面加载时（中文态）就渲染进 DOM 了；切语言时词典兜底会
+  // 重扫它的文本节点 —— 没有这条的话，短条目「读取」→ Read 会命中「已读取」的
+  // 中间，界面变成「已Read 4925 B」。长条目优先匹配，这条正好挡住那次误切。
+  '已读取': 'Read',
+
+  // textarea 的 placeholder：HTML 里写的是 `&#10;`，进 DOM 之后是**真正的换行符**，
+  // 所以键里必须用 \n 转义 —— 写成字面换行会把这条在文件里断成两行。
+  // `vo=` / `scale=` 那些是 mpv 的配置项标识符，**不译**（data-no-i18n 的同一道理）。
+  '# 直接写 mpv.conf 的内容\nvo=gpu-next\nscale=ewa_lanczos4sharpest':
+    '# Write your mpv.conf here\nvo=gpu-next\nscale=ewa_lanczos4sharpest',
 
   // ---------- 基础模式 ----------
   '你是从零开始，还是改现有配置':
