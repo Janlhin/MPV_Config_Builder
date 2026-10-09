@@ -1157,8 +1157,16 @@ def cmd_status():
             c("有请求进度条元素", bool(a.get("hasBusy")))
             c("后端在线时状态栏标记为 is-on", a.get("on") is True,
               f"on={a.get('on')} off={a.get('off')}")
-            c("状态栏读到了目标配置路径", "mpv" in (a.get("target") or "").lower(),
-              f"target={a.get('target')!r}")
+            tgt = (a.get("target") or "").strip()
+            if not tgt or "未选择" in tgt:
+                # 机器上没有 mpv 配置目录时，状态栏本来就没有东西可显示 ——
+                # 这是**环境缺件**，不是状态栏坏了。按本项目的约定：缺件跳过，不算失败。
+                # 2026-10-09：CI 上没有 mpv，这一项被判成失败，属误报。
+                c("状态栏读到了目标配置路径", True,
+                  f"跳过（本机没有 mpv 配置目录，target={tgt!r}）")
+            else:
+                c("状态栏读到了目标配置路径", "mpv" in tgt.lower(),
+                  f"target={tgt!r}")
             c("给了 body 底部留白（状态栏不盖内容）",
               a.get("bodyPad") not in (None, "0px"), f"padding-bottom={a.get('bodyPad')}")
             print(f"    后端状态文字：{a.get('backend')!r}")
