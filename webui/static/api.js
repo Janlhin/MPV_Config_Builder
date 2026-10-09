@@ -330,8 +330,155 @@ function initLangToggle() {
   window.I18N.bindToggle();
 }
 
+/* ---------- 状态栏 / 后端离线提示 / 请求进度（界面打磨第一批） ----------
+
+   起因（用户原话）：「后端挂了**白屏，什么都不说**，用户以为软件坏了」、
+   「看不到当前配置文件路径、改动几处、后端是否活着」、
+   「读配置、扫描 shader 目录时像卡死」。
+   三样东西回答的是同一个问题：**现在到底怎么了**。所以放在一起做。
+
+   ⚠ 为什么写在 api.js 里，不新建文件：9 个页面全都加载了 api.js
+   （顶栏 / 主题 / 语言切换都在这里），加在这里等于**零 HTML 改动**；
+   新建 statusbar.js 就得给 9 份 HTML 各加一个 script 标签，
+   以后改一处要记得改 9 处 —— 正是顶栏那条注释里写过的教训。
+
+   可测试性：`APP.ping()` 单独暴露出来，测试里把 `API.status` 换成抛错的桩
+   就能验证离线横幅。别想着"把后端进程杀掉再测" —— 服务没了页面也加载不出来。 */
+
+const SB = {
+  bar: null, banner: null, busy: null,
+  inflight: 0, timer: null, alive: null, changes: null, target: ''
+};
+
+/** 取一条翻译；i18n.js 没加载时退回中文（中文是原文，本来就不用翻） */
+function SBT(key, fallback, vars) {
+  try { return window.I18N ? window.I18N.t(key, vars) : fallback; } catch (e) { return fallback; }
+}
+
+function initStatusbar() {
+  if (document.querySelector('.statusbar')) return;
+  const bar = document.createElement('div');
+  bar.className = 'statusbar';
+  bar.innerHTML =
+    '<span class="sb-target" title=""></span>' +
+    '<span class="sb-spacer"></span>' +
+    '<span class="sb-changes"></span>' +
+    '<span class="sb-backend"><i class="sb-dot"></i><span class="sb-text"></span></span>';
+  document.body.appendChild(bar);
+  document.body.classList.add('has-statusbar');
+  SB.bar = bar;
+  SB.busy = null;
+  const busy = document.createElement('div');
+  busy.className = 'busy-bar';
+  busy.style.width = '0';
+  document.body.appendChild(busy);
+  SB.busy = busy;
+
+  // 切语言后这两处是 JS 写的，DOM 属性刷不到，得手动重画
+  document.addEventListener('i18n:change', paintStatusbar);
+  paintStatusbar();
+}
+
+function paintStatusbar() {
+  if (!SB.bar) return;
+  const t = SB.bar.querySelector('.sb-target');
+  const c = SB.bar.querySelector('.sb-changes');
+  const s = SB.bar.querySelector('.sb-backend .sb-text');
+  if (t) { t.textContent = SB.target ? SB.target : SBT('status.targetEmpty', '未选择'); t.title = SB.target || ''; }
+  if (c) {
+    c.textContent = (SB.changes === null || SB.changes === undefined)
+      ? '' : SBT('status.changes', '改动 ' + SB.changes + ' 处', { changes: SB.changes });
+  }
+  if (s) {
+    s.textContent = SB.alive === false ? SBT('status.backendOff', '后端没响应')
+      : SB.alive === true ? SBT('status.backendOn', '后端在线')
+      : SBT('status.backendUnknown', '后端状态未知');
+  }
+}
+
+/** 页面用这个告诉状态栏：目标是谁、改了几处 */
+window.APP = window.APP || {};
+APP.setTarget = function (p) { SB.target = p || ''; paintStatusbar(); };
+APP.setChanges = function (n) { SB.changes = (n === null || n === undefined) ? null : n; paintStatusbar(); };
+APP.busy = function (on) {
+  SB.inflight = Math.max(0, SB.inflight + (on ? 1 : -1));
+  if (SB.busy) SB.busy.style.width = SB.inflight > 0 ? '60%' : '100%';
+  if (SB.inflight === 0 && SB.busy) {
+    // 跑满了再收：宽度先到 100% 再淡出，比直接归零更像"做完了"
+    setTimeout(function () { if (SB.inflight === 0 && SB.busy) SB.busy.style.opacity = '0'; }, 180);
+    setTimeout(function () {
+      if (SB.inflight === 0 && SB.busy) { SB.busy.style.width = '0'; SB.busy.style.opacity = '1'; }
+    }, 420);
+  }
+};
+
+/** 请求在飞的时候显示顶部进度条：39 个 API 方法全部经过 API.invoke，
+    所以在这里包一层，全站都有反馈，不用每个页面自己写 */
+const _rawInvoke = API.invoke.bind(API);
+API.invoke = async function (method, url, body) {
+  APP.busy(true);
+  try {
+    return await _rawInvoke(method, url, body);
+  } finally {
+    APP.busy(false);
+  }
+};
+
+function showOffline() {
+  if (SB.banner) return;
+  const b = document.createElement('div');
+  b.className = 'offline-banner';
+  b.innerHTML = '<span class="ob-text"></span><button class="btn small ob-retry"></button>';
+  document.body.appendChild(b);
+  SB.banner = b;
+  b.querySelector('.ob-retry').onclick = function () { APP.ping(); };
+  paintBanner();
+  document.addEventListener('i18n:change', paintBanner);
+}
+
+function paintBanner() {
+  if (!SB.banner) return;
+  SB.banner.querySelector('.ob-text').textContent = SBT('status.offline', '后端没有响应，界面还在但读不到配置');
+  SB.banner.querySelector('.ob-retry').textContent = SBT('status.retry', '重试');
+}
+
+function hideOffline() {
+  if (SB.banner) { SB.banner.remove(); SB.banner = null; }
+  document.removeEventListener('i18n:change', paintBanner);
+}
+
+/** 探一次后端。抛错 = 离线：状态栏变红 + 顶部横幅 */
+APP.ping = async function () {
+  try {
+    const r = await API.status();
+    SB.alive = !!(r && r.title);
+    if (SB.alive) {
+      if (r.target && !SB.target) SB.target = r.target;
+      hideOffline();
+    } else {
+      showOffline();
+    }
+  } catch (e) {
+    SB.alive = false;
+    showOffline();
+  }
+  if (SB.bar) {
+    SB.bar.classList.toggle('is-on', SB.alive === true);
+    SB.bar.classList.toggle('is-off', SB.alive === false);
+  }
+  paintStatusbar();
+  return SB.alive;
+};
+
+function initBackendWatch() {
+  APP.ping();
+  if (!SB.timer) SB.timer = setInterval(function () { APP.ping(); }, 15000);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initTopbarNav();
   initTheme();
   initLangToggle();
+  initStatusbar();
+  initBackendWatch();
 });

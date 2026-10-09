@@ -44,10 +44,23 @@
     keyCount: 209
   };
 
+  /* 运行时才填的占位名 —— 值由调用方传进来（`t(key, {changes: 3})`），
+     这里只登记名字，让 `verify.py i18n` 的占位符检查认得它们、
+     不去误报成漏填。别把默认值写在这里：那会变成第二个真相源。 */
+  var RUNTIME_VARS = ['changes'];
+
   var DICT = {
     'zh-CN': {
       'lang.name': '中文',
       'lang.switch': '切换语言',
+
+      'status.targetEmpty': '未选择',
+      'status.changes': '改动 {changes} 处',
+      'status.backendOn': '后端在线',
+      'status.backendOff': '后端没响应',
+      'status.backendUnknown': '后端状态未知',
+      'status.offline': '后端没有响应：界面还在，但读不到配置',
+      'status.retry': '重试',
 
       'app.title': 'MPV Config Builder · 选择模式',
 
@@ -123,6 +136,14 @@
     'en': {
       'lang.name': 'English',
       'lang.switch': 'Switch language',
+
+      'status.targetEmpty': 'Not selected',
+      'status.changes': '{changes} changes',
+      'status.backendOn': 'Backend online',
+      'status.backendOff': 'Backend not responding',
+      'status.backendUnknown': 'Backend status unknown',
+      'status.offline': 'The backend is not responding: the UI still works, but your config cannot be read',
+      'status.retry': 'Retry',
 
       'app.title': 'MPV Config Builder · Choose a mode',
 

@@ -539,3 +539,79 @@ textarea.raw {
   .topbar { flex-wrap: wrap; }
   .topbar .target { order: 9; width: 100%; }
 }
+
+/* ==========================================================================
+   状态栏 / 后端离线横幅 / 请求进度（界面打磨第一批）
+   --------------------------------------------------------------------------
+   ⚠ 两条硬约束（待做.md §一）：
+     1. 时长 120–220ms，只动 transform / opacity，不触发布局重排；
+     2. 必须包在 @media (prefers-reduced-motion: reduce) 里归零 —— 见文件末尾。
+   ========================================================================== */
+
+/* 状态栏固定在底部；加了它才给 body 留位置，免得盖住最后一行内容 */
+body.has-statusbar { padding-bottom: 28px; }
+
+.statusbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  height: 28px; display: flex; align-items: center; gap: 12px;
+  padding: 0 12px;
+  background: var(--panel-2);
+  border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--muted);
+  transform: translateY(100%);
+  animation: sb-in .18s ease-out forwards;
+}
+@keyframes sb-in { to { transform: translateY(0); } }
+
+.statusbar .sb-spacer { flex: 1; }
+.statusbar .sb-target { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 48%; }
+.statusbar .sb-backend { display: inline-flex; align-items: center; gap: 6px; }
+
+/* 后端状态点：未知灰 / 在线绿 / 离线红（颜色都取自 token，不写死） */
+.statusbar .sb-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted);
+  transition: background-color .18s ease;
+}
+.statusbar.is-on .sb-dot { background: var(--ok); }
+.statusbar.is-off .sb-dot { background: var(--danger); }
+.statusbar.is-off .sb-backend { color: var(--danger); }
+
+/* 后端离线横幅：白屏什么都不说是最糟的失败方式，所以这条要够显眼 */
+.offline-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 80;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--danger); color: #fff; font-size: 13px;
+  box-shadow: var(--shadow);
+  transform: translateY(-100%);
+  animation: ob-in .2s ease-out forwards;
+}
+@keyframes ob-in { to { transform: translateY(0); } }
+.offline-banner .ob-text { flex: 1; }
+.offline-banner .ob-retry {
+  background: rgba(255, 255, 255, .18); color: #fff;
+  border: 1px solid rgba(255, 255, 255, .45);
+}
+
+/* 请求进行中的顶部进度条：宽度只到 60%，跑满表示"做完了"再淡出 */
+.busy-bar {
+  position: fixed; top: 0; left: 0; z-index: 90;
+  height: 2px; background: var(--accent);
+  transition: width .2s ease, opacity .2s ease;
+}
+
+/* 按钮自身回执：写文件是唯一的危险操作，光有 toast 不够 */
+.btn.is-done { background: var(--ok) !important; border-color: var(--ok) !important; color: #06210f !important; }
+
+/* 行内展开：从 display 硬跳改成 grid-rows 过渡，看得出展开的是哪一行 */
+.expandable { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .14s ease; }
+.expandable.is-open { grid-template-rows: 1fr; }
+.expandable > * { overflow: hidden; min-height: 0; }
+
+/* ⚠ 无障碍：全站动效必须在这里归零。
+   不管加不加装饰性动效，这条都得补（待做.md §二把它列为无障碍缺口）。 */
+@media (prefers-reduced-motion: reduce) {
+  .statusbar, .offline-banner { animation: none; transform: none; }
+  .busy-bar, .statusbar .sb-dot, .expandable { transition: none; }
+}
