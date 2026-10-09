@@ -308,7 +308,30 @@ function promptTarget() {
   if (v !== null) setTarget(v.trim());
 }
 
+/* ---------- 语言切换按钮 ----------
+
+   和顶栏（U-1）完全是同一个道理：9 个页面全都加载了 api.js，所以切换入口
+   **在这一处定义、由 JS 注入到每个页面**，不用去改 9 份 HTML 里的 topbar 副本
+   （复制 9 遍的话，以后改这个按钮就得记得改 9 处，迟早漏一个）。
+
+   ⚠ 两个前提，踩过才知道：
+   1. 页面必须先加载 `i18n.js` + `i18n-zh2en.js`，否则 `window.I18N` 不存在。
+      这种页面**直接不注入** —— 宁可没有按钮，也不要一个点了没反应的按钮。
+   2. 页面自己已经写了 `[data-lang-toggle]` 的就跳过，免得出现两个按钮。 */
+
+function initLangToggle() {
+  if (!window.I18N) return;
+  const bar = document.querySelector('.topbar');
+  if (!bar || bar.querySelector('[data-lang-toggle]')) return;
+  const b = document.createElement('button');
+  b.className = 'btn small';
+  b.setAttribute('data-lang-toggle', '');
+  bar.appendChild(b);
+  window.I18N.bindToggle();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initTopbarNav();
   initTheme();
+  initLangToggle();
 });

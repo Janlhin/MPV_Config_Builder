@@ -224,12 +224,90 @@
     });
   }
 
+  // ========== 词条表兜底 ==========
+  // data-i18n 只能覆盖「写死在 HTML 里、且被标记过」的文字。两处它盖不到：
+  //   1. 8 个内页里大量没标记的静态文案；
+  //   2. state.js 运行时生成的界面文字（advanced / expert 的主体内容）……
+  //      属性方案天生盖不到动态内容，因为元素在标记生效时还不存在。
+  // 所以再加一层：按原文精确匹配替换文本节点，并用 MutationObserver 追新内容。
+  //
+  // 原文一律留档（_origText），切回中文时按原文还原 —— 否则译文覆盖了 DOM，
+  // 中文就再也回不来了。
+
+  var ENTRIES = [];
+  var HAN = /[\u4e00-\u9fff]/;
+  var _origText = new WeakMap();
+  var _origAttr = new WeakMap();
+  var _obs = null;
+  var _timer = null;
+
+  function loadDict() {
+    var d = window.I18N_ZH2EN || {};
+    ENTRIES = Object.keys(d).map(function (k) { return [k, d[k]]; });
+    // 长的先替换：否则先替掉「文档」，就再也吃不到「文档 · MPV Config Builder」了
+    ENTRIES.sort(function (a, b) { return b[0].length - a[0].length; });
+  }
+
+  function zh2en(s) {
+    if (!s || !HAN.test(s)) return s;
+    var out = s;
+    for (var i = 0; i < ENTRIES.length; i++) {
+      if (out.indexOf(ENTRIES[i][0]) >= 0) {
+        out = out.split(ENTRIES[i][0]).join(ENTRIES[i][1]);
+      }
+    }
+    return out;
+  }
+
+  /** 刷文本节点与 placeholder / title。current 为中文时按原文还原。 */
+  function walkDict(root) {
+    var scope = root || document;
+    var tw = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, null);
+    var n, changed = 0;
+    while ((n = tw.nextNode())) {
+      var p = n.parentNode;
+      if (!p) continue;
+      if (p.nodeName === 'SCRIPT' || p.nodeName === 'STYLE' || p.nodeName === 'TEXTAREA') continue;
+      // 已经走 data-i18n 的节点别管，免得两套机制互相覆盖；
+      // data-no-i18n 是「这不是文案，别翻」—— 文件名、键名、路径之类的标识符
+      if (p.closest && p.closest('[data-i18n],[data-i18n-html],[data-no-i18n]')) continue;
+      var orig = _origText.get(n);
+      if (orig === undefined) { orig = n.nodeValue; _origText.set(n, orig); }
+      var out = (current === 'en') ? zh2en(orig) : orig;
+      if (out !== n.nodeValue) { n.nodeValue = out; changed++; }
+    }
+    ['placeholder', 'title'].forEach(function (a) {
+      scope.querySelectorAll('[' + a + ']').forEach(function (el) {
+        var v = el.getAttribute(a);
+        if (!v) return;
+        var m = _origAttr.get(el);
+        if (!m) { m = {}; _origAttr.set(el, m); }
+        if (m[a] === undefined) m[a] = v;
+        var out = (current === 'en') ? zh2en(m[a]) : m[a];
+        if (out !== v) el.setAttribute(a, out);
+      });
+    });
+    return changed;
+  }
+
+  /** 追 JS 动态生成的文字：变了就重刷一遍（60ms 去抖，避免自己触发自己） */
+  function observe() {
+    if (_obs || typeof MutationObserver === 'undefined') return;
+    _obs = new MutationObserver(function () {
+      if (current !== 'en') return;         // 中文是原文，不用管
+      clearTimeout(_timer);
+      _timer = setTimeout(function () { walkDict(); }, 60);
+    });
+    _obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+
   /**
    * 把翻译刷进 DOM。
    *   data-i18n         → textContent（纯文本，安全）
    *   data-i18n-html    → innerHTML（译文里有 <code> / <b> 才用这个）
    *   data-i18n-title   → title 属性
    *   data-i18n-ph      → placeholder
+   *   其余文本节点        → 走词条表兜底（见上）
    */
   function apply(root) {
     var scope = root || document;
@@ -251,6 +329,9 @@
     scope.querySelectorAll('[data-i18n-langname]').forEach(function (el) {
       el.textContent = t('lang.name');
     });
+
+    if (typeof window.I18N_ZH2EN === 'object' && ENTRIES.length === 0) loadDict();
+    walkDict(scope);
 
     document.documentElement.lang = current;
   }
@@ -299,8 +380,10 @@
   function boot() {
     var saved = readStored();
     if (saved && SUPPORTED.indexOf(saved) >= 0) current = saved;
+    loadDict();
     apply();
     bindToggle();
+    observe();
   }
 
   if (document.readyState === 'loading') {
