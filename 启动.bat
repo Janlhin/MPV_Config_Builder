@@ -1,21 +1,11 @@
-﻿﻿@echo off
-rem ===========================================================================
-rem  MPV Config Builder —— 从源码启动（网页版）
-rem
-rem  给"本机有 Python、想直接跑源码"的人用。
-rem  **普通用户不需要这个** —— 装 Electron 桌面版即可（不需要 Python）。
-rem
-rem  ⚠ 这个文件踩过三个坑，改的时候别踩回去：
-rem    1. **文件名不能带半角括号**。原来叫「启动(新版界面).bat」，
-rem       cmd 解析到括号就断，直接报 `'启动' 不是内部或外部命令`。
-rem    2. **必须是 CRLF 行尾**。LF 的批处理在 Windows 上行为不可靠。
-rem    3. **必须带 UTF-8 BOM**。文件里有中文 echo，而 chcp 65001 要等这一行
-rem       执行完才生效 —— 没有 BOM 的话，chcp 之前那行中文就已经乱码了。
-rem       带 BOM 的 UTF-8 是现代 cmd 认得的编码，中文能正常显示。
-rem    4. 下面用 goto 而不是 if(...) 括号块：括号块里的 %errorlevel% 是
-rem       **解析时**展开的，不是执行时，判断会失效。
-rem ===========================================================================
+@echo off
 chcp 65001 >nul
+rem MPV Config Builder -- launch from source (web UI).
+rem Keep this file SHORT and ASCII-only above: cmd pre-reads the head of a .bat
+rem with the console codepage (936 on a fresh window), so Chinese comment blocks
+rem near the top get mis-decoded and executed as commands.
+rem The five pitfalls behind this layout are documented in AGENTS.md 2.4
+rem and docs\踩过的坑.md -- read those before editing.
 cd /d "%~dp0"
 
 echo 正在启动 MPV Config Builder ...
@@ -23,15 +13,29 @@ echo.
 
 if not exist "webui\server.py" goto :nofile
 
+rem Do NOT trust "where py": py.exe can exist while its runtime list is empty or
+rem has no 3.x, and then "py -3" exits 103 while "where py" still returns 0 --
+rem which would skip the python fallback entirely. So actually RUN it.
 set "PYEXE="
-where py >nul 2>nul
-if not errorlevel 1 set "PYEXE=py -3"
-if not defined PYEXE (
-    where python >nul 2>nul
-    if not errorlevel 1 set "PYEXE=python"
-)
-if not defined PYEXE goto :nopython
 
+:trypy
+where py >nul 2>nul
+if errorlevel 1 goto :trypython
+py -3 -c "import sys" >nul 2>nul
+if errorlevel 1 goto :trypython
+set "PYEXE=py -3"
+goto :run
+
+:trypython
+where python >nul 2>nul
+if errorlevel 1 goto :nopython
+python -c "import sys" >nul 2>nul
+if errorlevel 1 goto :nopython
+set "PYEXE=python"
+goto :run
+
+:run
+echo 使用解释器：%PYEXE%
 %PYEXE% webui\server.py
 if errorlevel 1 goto :failed
 goto :eof
@@ -45,10 +49,11 @@ pause
 goto :eof
 
 :nopython
-echo [启动失败] 没找到 Python 3。
+echo [启动失败] 没找到能用的 Python 3。
 echo.
+echo   已经试过 py -3 和 python，两个都跑不起来。
 echo   想从源码跑：去 python.org 装一个，安装时记得勾选 "Add Python to PATH"。
-echo   只是想把软件用起来：装 Electron 桌面版就行，**不需要 Python**。
+echo   只是想把软件用起来：装 Electron 桌面版就行，不需要 Python。
 echo.
 pause
 goto :eof
