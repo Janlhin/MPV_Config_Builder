@@ -99,7 +99,15 @@ def log(msg=""):
     stream = LOG_STREAM
     if stream is None:
         stream = sys.stderr if QUIET_STDOUT else sys.stdout
-    stream.write(str(msg) + "\n")
+    try:
+        stream.write(str(msg) + "\n")
+    except UnicodeEncodeError:
+        # 控制台不是 UTF-8 时会把整个后端打崩：日志里有 '→'，而英文版 Windows 的
+        # 控制台是 cp1252，编码不了它 —— 2026-10-09 CI 首次运行就是这么红的
+        # （本机常年 UTF-8，所以这个缺陷在本机永远复现不出来）。
+        # 宁可显示成问号，也不能让服务器起不来。
+        enc = getattr(stream, "encoding", None) or "utf-8"
+        stream.write(str(msg).encode(enc, "replace").decode(enc, "replace") + "\n")
     try:
         stream.flush()
     except Exception:                                        # pragma: no cover

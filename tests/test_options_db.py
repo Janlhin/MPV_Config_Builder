@@ -17,7 +17,20 @@ from core import options_db  # noqa: E402
 from core.options_db import DB_PATH, build_db, load_db, search  # noqa: E402
 
 #: 全部测试共用一份内存数据库（构建一次约 0.1s）
-DB = build_db()
+#
+# ⚠ 为什么这里不能无条件 build_db()：中文手册源文件 options.rst **在仓库外**
+# （core/options_db.py 的注释写明了：它只在重新生成选项库时才需要，读取已生成的
+# JSON 并不需要）。无条件重建的后果是 —— 在没有那份源文件的机器上，本模块
+# **import 就失败**，29 项用例直接消失：CI 首次运行收集到 620 项，本机是 649 项，
+# 数字对不上又连带把「文档数字与实测一致」也拖红。
+#
+# 所以：有源文件就从源重建（连解析器一起测），没有就退回读仓库里已生成的 JSON
+# （测的是实际随包发布的那份数据）。两种情况下用例数一致。
+BUILT_FROM_SOURCE = options_db._resolve_rst_path().is_file()
+if BUILT_FROM_SOURCE:
+    DB = build_db()
+else:
+    DB = load_db()
 OPTIONS = DB["options"]
 GROUPS = DB["groups"]
 META = DB["meta"]
@@ -218,6 +231,9 @@ class TestJsonRoundTrip(unittest.TestCase):
         self.assertNotIn("\\u", text[:2000])
         self.assertEqual(json.loads(text), DB)
 
+    @unittest.skipUnless(BUILT_FROM_SOURCE,
+                         "这一项比的是「重建结果 == 磁盘上的 JSON」，"
+                         "没有中文手册源就无从重建 —— 缺件跳过，不算失败")
     def test_generated_json_file_matches(self):
         self.assertTrue(DB_PATH.exists(), "先运行 tools/build.py options-db")
         with open(DB_PATH, "r", encoding="utf-8") as fh:
@@ -230,11 +246,18 @@ class TestJsonRoundTrip(unittest.TestCase):
     def test_load_db_reads_file(self):
         loaded = load_db()
         # meta 会因为「滤掉命令行专用选项」而多出 filtered / filtered_note 两个键，
-        # 且 count 会被改写成滤完的真实条数（见下面的专门测试）
+        # 且 count 会被改写成滤完的真实条数（见下面的专门测试）。
+        # with_zh 同理 —— 它原本是滤前统计的（726），滤完只剩 714，不同步就会让
+        # 界面宣称一个它拿不出来的数字。所以这两个键都跳过逐项比对，
+        # 改成下面按「滤完的集合」重新算一遍。
         for k, v in META.items():
-            if k == "count":
+            if k in ("count", "with_zh"):
                 continue
             self.assertEqual(loaded["meta"].get(k), v, k)
+        self.assertEqual(loaded["meta"]["count"], len(loaded["options"]))
+        self.assertEqual(loaded["meta"]["with_zh"],
+                         sum(1 for v in loaded["options"].values() if v.get("zh_desc")),
+                         "with_zh 必须跟滤完的集合一致，否则界面会说谎")
         self.assertEqual(loaded["groups"], GROUPS)
         self.assertEqual(loaded["options"]["hwdec"], OPTIONS["hwdec"])
 

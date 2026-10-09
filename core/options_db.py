@@ -591,6 +591,9 @@ def load_db():
         meta["filtered"] = len(raw_options) - len(options)
         meta["filtered_note"] = ("滤掉了命令行专用选项（mpv 标注 not in config files）："
                                  + "、".join(sorted(set(raw_options) - set(options))))
+        # with_zh 是**过滤前**统计的，滤完就过期了 —— 继续用它会让界面宣称
+        # 「726 条中文说明」而实际滤完只剩 714 条。count 已经同步了，它没同步。
+        meta["with_zh"] = sum(1 for v in options.values() if v.get("zh_desc"))
     return {
         "meta": meta,
         "groups": list(data.get("groups") or []),
