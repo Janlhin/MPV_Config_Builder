@@ -332,7 +332,7 @@ def api_db_options(params):
     db = load_db()
     options = db.get("options") or {}
     if not options:
-        return {"ok": False, "detail": "选项库是空的，先跑 tools/build_options_db.py 生成"}
+        return {"ok": False, "detail": "选项库是空的，先跑 tools/build.py options-db 生成"}
 
     q = (params.get("q") or "").strip()
     group = (params.get("group") or "").strip()

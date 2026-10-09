@@ -3,7 +3,7 @@
 
 两个来源，缺一不可：
     内置默认   data/mpv_keybindings.json —— 从你自己的 mpv 里问出来的（input-bindings 属性，
-               209 条，带真实命令、优先级、来源）。生成脚本见 tools/build_keybindings.py
+               209 条，带真实命令、优先级、来源）。生成脚本见 tools/build.py keybindings
     当前配置   目标目录里 mpv 实际会读的那个 input 文件（mpv-lazy 是 input_uosc.conf），
                逐行解析成可编辑的行
 

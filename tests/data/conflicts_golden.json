@@ -1,5 +1,5 @@
 {
- "note": "mpv 配置冲突检测的行为快照（C-1 重构基准）。由 tools/gen_conflicts_golden.py 生成，禁止手工编辑。",
+ "note": "mpv 配置冲突检测的行为快照（C-1 重构基准）。由 tools/build.py golden 生成，禁止手工编辑。",
  "count": 55,
  "cases": [
   {

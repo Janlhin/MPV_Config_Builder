@@ -6,7 +6,7 @@
 
 2026-09-14 用户定：**界面只显示软件版本**，`APP_VERSION` 退成「只给旧界面用」，
 `FULL_TITLE` 不再拼它。并且版本号只有 `core/schema.py` 一个来源，
-`electron/package.json` 那边靠 `tools/sync_version.py` 同步（下面有测试钉住）。
+`electron/package.json` 那边靠 `tools/build.py version` 同步（下面有测试钉住）。
 
 2026-10-09：旧界面（Tkinter）**移出了仓库**，归档在仓库旁边的
 `..\\MPV_Config_Builder_legacy\\`。原来盯 `legacy/mpv_config_builder.py` 的三条
@@ -76,7 +76,7 @@ class VersionSourceTest(unittest.TestCase):
         它必须跟着走。两边不一致的话会出现「安装包叫 0.2.0-Setup.exe，
         软件里却显示 0.1.0」—— **两边都看起来正常**，特别难发现。
 
-        改完 schema.py 记得跑：py tools/sync_version.py
+        改完 schema.py 记得跑：py tools/build.py version
         """
         import json
         pkg = ROOT / "electron" / "package.json"
@@ -86,13 +86,13 @@ class VersionSourceTest(unittest.TestCase):
         self.assertEqual(
             data.get("version"), schema.VERSION,
             "electron/package.json 的 version 和 core/schema.py 不一致"
-            " —— 跑一下 py tools/sync_version.py")
+            " —— 跑一下 py tools/build.py version")
 
     def test_sync_script_agrees(self):
         """同步脚本的 --check 必须是绿的（它还会检查文件真的存在）。"""
         import subprocess
         r = subprocess.run([sys.executable, "-X", "utf8",
-                            str(ROOT / "tools" / "sync_version.py"), "--check"],
+                            str(ROOT / "tools" / "build.py"), "version", "--check"],
                            capture_output=True, cwd=str(ROOT),
                            env={**os.environ, "PYTHONIOENCODING": "utf-8"})
         self.assertEqual(r.returncode, 0,

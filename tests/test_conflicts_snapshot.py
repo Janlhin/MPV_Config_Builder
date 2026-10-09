@@ -9,7 +9,7 @@
                           以及 conflicts_as_issues() / conflict_keys() 的派生结果。
                           文案改一个字、顺序换一下都会红。
 
-基准 JSON 由 tools/gen_conflicts_golden.py 在**重构前**跑真实实现生成。
+基准 JSON 由 tools/build.py golden 在**重构前**跑真实实现生成。
 凡是基准和当前实现不一致，先问「是重构改坏了，还是我确实想改行为」——
 如果是后者，请在 commit 信息里说明**为什么**要改行为，然后重新生成基准。
 """

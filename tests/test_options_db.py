@@ -219,7 +219,7 @@ class TestJsonRoundTrip(unittest.TestCase):
         self.assertEqual(json.loads(text), DB)
 
     def test_generated_json_file_matches(self):
-        self.assertTrue(DB_PATH.exists(), "先运行 tools/build_options_db.py")
+        self.assertTrue(DB_PATH.exists(), "先运行 tools/build.py options-db")
         with open(DB_PATH, "r", encoding="utf-8") as fh:
             on_disk = json.load(fh)
         self.assertEqual(on_disk["meta"]["count"], META["count"])

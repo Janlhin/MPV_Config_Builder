@@ -24,7 +24,7 @@ APP_VERSION = "2.0"
 #     大更新（加功能）          0.1.x → 0.2.0 → 0.3.0
 #     觉得能正式推荐给别人了     0.x   → 1.0.0
 #
-# ⚠ 改这里之后要跑一次 `py tools/sync_version.py`，
+# ⚠ 改这里之后要跑一次 `py tools/build.py version`，
 #   把版本刷进 electron/package.json（那边打包时要用）。
 #   tests/test_version.py 有一条测试钉住两边相等，忘了会红。
 VERSION = "0.1.0"
