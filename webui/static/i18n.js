@@ -117,6 +117,15 @@
       'hell.sizeHint': '{lines} 行 · {chars} 字符',
       'hell.sizeHintTab': '{lines} 行 · {chars} 字符 · 含 Tab',
 
+      // 基础模式页的整句。modeHint 两态是**运行时 innerHTML 写入**的（setMode），
+      // 走键位表 + I18N.t()；HTML 里的初始句挂 data-i18n-html 与它共用同一键，
+      // 保证两条路径（静态标记 / 动态重写）写出来的是同一句话。
+      'basic.modeHintCreate': '🆕 从零创建：生成一份新配置。取消勾选只是<b>不写这一项</b>，不会去动你已有的文件。',
+      'basic.modeHintEdit': '✏️ 改现有配置：先点下面的「读取现有配置」。合并写入只改勾选的键，原文件里其它内容与注释都保留。',
+      'basic.p1Sub': '没装也没关系，可以一键装一个配好的 mpv-lazy（该功能目前在旧版界面里）',
+      // 整句收录：句内「分辨率」「刷新率」有短词条，逐节点兜底会把整句切得中英混杂
+      'basic.p2Note': '这一步目前只做展示，还没写进配置（预设暂不区分分辨率与刷新率）',
+
       'card.guide.h2': '🧭 第一次用？先看这个',
       'card.guide.note': '不知道 <code>mpv.conf</code> 该放哪儿、配置怎么写、改坏了怎么救 —— 这篇入门指南从「文件放哪儿」讲到「三条退路」，都是人话。',
       'card.guide.btn1': '📖 打开入门指南',
@@ -211,6 +220,11 @@
       'hell.readOk': 'Read {size} B',
       'hell.sizeHint': '{lines} lines · {chars} chars',
       'hell.sizeHintTab': '{lines} lines · {chars} chars · contains tabs',
+
+      'basic.modeHintCreate': '🆕 Create from scratch: generate a fresh config. Unticking a step only means <b>that step is not written</b> — your existing files are never touched.',
+      'basic.modeHintEdit': '✏️ Edit existing config: click "Read existing config" below first. Merge writing only changes the keys you tick; everything else in the original file, comments included, is kept.',
+      'basic.p1Sub': 'No mpv installed yet? One click installs a pre-configured mpv-lazy (that feature still lives in the legacy UI).',
+      'basic.p2Note': 'This step is display-only for now and is not written into the config (presets do not yet distinguish resolution or refresh rate).',
 
       'card.guide.h2': '🧭 First time here? Start with this',
       'card.guide.note': 'Not sure where <code>mpv.conf</code> goes, how to write it, or how to recover if you break it — this guide walks from "where does the file live" to "your three ways back out", in plain language.',

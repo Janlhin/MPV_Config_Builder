@@ -30,7 +30,7 @@
       <button data-mode="create" class="on">🆕 从零创建</button>
       <button data-mode="edit">✏️ 改现有配置</button>
     </div>
-    <p class="note" id="modeHint" style="margin-top:8px">
+    <p class="note" id="modeHint" style="margin-top:8px" data-i18n-html="basic.modeHintCreate">
       🆕 从零创建：生成一份新配置。取消勾选只是<b>不写这一项</b>，不会去动你已有的文件。
     </p>
     <div id="readBox" style="display:none;margin-top:10px">
@@ -41,7 +41,7 @@
 
   <div class="card pane on" id="p1">
     <h2>① 你的 mpv 配置目录在哪？</h2>
-    <p class="sub">没装也没关系，可以一键装一个配好的 mpv-lazy（该功能目前在旧版界面里）</p>
+    <p class="sub" data-i18n="basic.p1Sub">没装也没关系，可以一键装一个配好的 mpv-lazy（该功能目前在旧版界面里）</p>
     <div class="row">
       <input type="text" id="target" style="flex:1" placeholder="例如 C:\Program Files\mpv-lazy\portable_config">
       <button class="btn" onclick="applyDetected()">🔍 自动探测</button>
@@ -60,7 +60,7 @@
       <span class="muted">刷新率</span><div class="row"><input type="text" id="hwHz" style="min-width:80px" placeholder="60"><span class="note">Hz</span></div>
       <span class="muted">显卡</span><div class="row"><input type="text" id="hwGpu" style="flex:1" placeholder="自动检测"></div>
     </div>
-    <p class="note" style="margin-top:10px">这一步目前只做展示，还没写进配置（预设暂不区分分辨率与刷新率）</p>
+    <p class="note" style="margin-top:10px" data-i18n="basic.p2Note">这一步目前只做展示，还没写进配置（预设暂不区分分辨率与刷新率）</p>
   </div>
 
   <div class="card pane" id="p3">
@@ -117,6 +117,23 @@ let READ_DONE = false;
 
 function isEdit() { return MODE === 'edit'; }
 
+/** modeHint 的文案只有一个出口：按当前语言取键位表整句。
+ *  setMode 与 i18n:change 都调它 —— 以前是两段中文拼串写死在这里，
+ *  切英文后词典兜底只能切到「从零创建」「生成」「文件」这几个短词，
+ *  整句变成「Create from scratch：Generate一份新配置」的中英混杂。 */
+function renderModeHint() {
+  const hint = document.getElementById('modeHint');
+  if (!hint) return;
+  hint.innerHTML = isEdit()
+    ? I18N.t('basic.modeHintEdit')
+    : I18N.t('basic.modeHintCreate');
+  hint.className = isEdit() ? 'note warn-text' : 'note';
+}
+
+// i18n.js 的 setLang 会派 i18n:change，就是给这类动态文案用的。
+// 只重写提示语，不整调 setMode —— 那会顺带清掉「已读取」状态（READ_DONE）。
+document.addEventListener('i18n:change', renderModeHint);
+
 function setMode(m) {
   MODE = m === 'edit' ? 'edit' : 'create';
   READ_DONE = false;
@@ -127,13 +144,7 @@ function setMode(m) {
   const hint = document.getElementById('modeHint');
   const box = document.getElementById('readBox');
   if (box) box.style.display = isEdit() ? '' : 'none';
-  if (hint) {
-    hint.innerHTML = isEdit()
-      ? '✏️ 改现有配置：先点下面的「读取现有配置」。合并写入只改勾选的键，'
-        + '原文件里其它内容与注释都保留。'
-      : '🆕 从零创建：生成一份新配置。取消勾选只是<b>不写这一项</b>，不会去动你已有的文件。';
-    hint.className = isEdit() ? 'note warn-text' : 'note';
-  }
+  if (hint) renderModeHint();
   // 改现有配置默认用合并写入；从零创建默认独立文件
   const want = isEdit() ? 'merge' : 'include';
   const choices = document.getElementById('writeChoices');
