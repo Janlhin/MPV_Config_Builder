@@ -2660,6 +2660,10 @@ def cmd_electron():
         port = free_port()
         env = dict(**__import__("os").environ)
         env["ELECTRON_ENABLE_LOGGING"] = "1"
+        # ⚠ 宿主环境（WorkBuddy 等 Electron 应用）会设 ELECTRON_RUN_AS_NODE=1，
+        # 子进程继承后 electron.exe 退化成纯 Node：app undefined、调试端口不开。
+        # 实测踩过（2026-10-10）：electron 验收全红，根因就是它。spawn 前必须摘掉。
+        env.pop("ELECTRON_RUN_AS_NODE", None)
         proc = subprocess.Popen(
             [str(ELECTRON_EXE), ".", f"--debug-port={port}"],
             cwd=str(ELECTRON_DIR), env=env,
@@ -2880,7 +2884,11 @@ def cmd_packaged():
             ck(f"打包产物里带上了 {rel}", (res / rel).is_file())
 
         port = free_port()
+        # 同 cmd_electron：必须摘掉宿主的 ELECTRON_RUN_AS_NODE，否则退化成纯 Node
+        env = dict(**__import__("os").environ)
+        env.pop("ELECTRON_RUN_AS_NODE", None)
         proc = subprocess.Popen([str(APP), f"--debug-port={port}"], cwd=str(APP.parent),
+                                env=env,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         try:
             ws = find_ws(port)
