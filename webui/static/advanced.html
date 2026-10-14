@@ -39,7 +39,7 @@
         <div class="card" id="previewCard">
           <h2>📋 <span id="previewTitle">实时生成的 mpv.conf</span></h2>
           <div class="dirbar" id="profileBar" style="display:none">
-            <span class="note">这份文件里有 <b id="profileCount">0</b> 个 profile（只在条件满足时生效）：</span>
+            <span class="note"><span data-i18n="adv.profileBarA">这份文件里有</span> <b id="profileCount">0</b> <span data-i18n="adv.profileBarB">个 profile（只在条件满足时生效）：</span></span>
             <select id="profileSel" style="flex:1"></select>
             <button class="btn small" id="profileLoad">载入它的选项</button>
           </div>
@@ -52,8 +52,8 @@
             <button class="btn" id="diffToggle" style="display:none">🔀 逐行对比</button>
           </div>
           <p class="note" style="margin-top:10px">
-            改动 <b id="changeCount">0</b> 处 · 写入 <code id="previewFile">—</code><br>
-            写前自动备份；<span id="previewMode">独立 include 文件（想卸载删文件即可）</span>
+            <span data-i18n="adv.changesLabel">改动</span> <b id="changeCount">0</b> <span data-i18n="adv.changesUnit">处 · 写入</span> <code id="previewFile">—</code><br>
+            写前自动备份；<span id="previewMode" data-i18n="adv.previewModeInclude">独立 include 文件（想卸载删文件即可）</span>
             <span id="encodingHint" class="muted"></span></p>
           <p class="note" style="margin-top:4px" id="pendingHint"></p>
           <p class="note" style="margin-top:4px" id="chainHint"></p>
@@ -71,7 +71,7 @@
             <button data-v="include" class="on">🧩 独立文件</button>
             <button data-v="merge">📄 合并进 mpv.conf</button>
           </div>
-          <p class="note" style="margin-top:8px" id="writeHint">
+          <p class="note" style="margin-top:8px" id="writeHint" data-i18n-html="adv.writeHintInclude">
             生成 <code>mpv-builder.conf</code>，并在主配置里加一行 include。</p>
         </div>
       </div>
@@ -80,7 +80,7 @@
 </div>
 
 <aside class="drawer" id="drawer">
-  <h3>说明 <span class="key"></span></h3>
+  <h3><span data-i18n="adv.drawerTitle">说明</span> <span class="key"></span></h3>
   <div class="sig"></div>
   <div class="body"></div>
   <div class="drawer-foot">
@@ -114,22 +114,28 @@ const el = id => document.getElementById(id);
 let SECTIONS = [];
 let cur = 'preset';
 
+/* 分区名/副标题存**键**不存文本：buildSections() 在页面加载时跑一次，
+   存文本的话切语言后重渲染写回去的还是加载时那门语言（实测踩到）。
+   g: 分区的 name 是后端 group 字段，按设计不翻，所以没有 nameKey。 */
+function secName(s) { return s.nameKey ? I18N.t(s.nameKey) : s.name; }
+function secSub(s) { return s.subKey ? I18N.t(s.subKey) : (s.sub || ''); }
+
 function buildSections() {
   const groups = {};
   (APP.options.core || []).forEach(it => {
     (groups[it.group] = groups[it.group] || []).push(it);
   });
   SECTIONS = [
-    { id: 'preset', icon: '🚀', name: '快速预设', sub: '选一套现成的，再逐项微调' },
+    { id: 'preset', icon: '🚀', nameKey: 'adv.secPreset', subKey: 'adv.secPresetSub' },
     ...Object.keys(groups).map(g => ({
       id: 'g:' + g, icon: ICONS[g] || '⚙️', name: g,
-      sub: '勾选即写入；不勾选的选项完全不会出现在配置里', items: groups[g]
+      subKey: 'adv.secGroupSub', items: groups[g]
     })),
-    { id: 'shader', icon: '✨', name: 'Shader 锐化', sub: '顺序就是处理链顺序，越靠后越接近收尾' },
-    { id: 'memc', icon: '🎞️', name: '补帧脚本', sub: '只选一个：补帧与超分脚本不能同时叠加' },
-    { id: 'output', icon: '📤', name: '写入 / 输出', sub: '写到哪里、怎么写、怎么撤销' },
-    { id: 'tools', icon: '📦', name: '扫描与下载', sub: '看看本机到底有哪些 glsl / vpy' },
-    { id: 'about', icon: 'ℹ️', name: '关于 / 致谢', sub: '数据来源与许可' }
+    { id: 'shader', icon: '✨', nameKey: 'adv.secShader', subKey: 'adv.secShaderSub' },
+    { id: 'memc', icon: '🎞️', nameKey: 'adv.secMemc', subKey: 'adv.secMemcSub' },
+    { id: 'output', icon: '📤', nameKey: 'adv.secOutput', subKey: 'adv.secOutputSub' },
+    { id: 'tools', icon: '📦', nameKey: 'adv.secTools', subKey: 'adv.secToolsSub' },
+    { id: 'about', icon: 'ℹ️', nameKey: 'adv.secAbout', subKey: 'adv.secAboutSub' }
   ];
 }
 
@@ -140,7 +146,7 @@ function renderSidebar() {
     else if (s.id === 'memc') n = APP.memc ? '1' : '';
     else if (s.id.startsWith('g:')) n = (s.items || []).filter(x => isOn(x.key)).length || '';
     return `<div class="side-item${s.id === cur ? ' active' : ''}" data-sec="${esc(s.id)}">
-      <span class="ico">${s.icon}</span>${esc(s.name)}
+      <span class="ico">${s.icon}</span>${esc(secName(s))}
       ${n ? `<span class="count">${n}</span>` : ''}</div>`;
   }).join('');
   document.getElementById('sidebar').onclick = e => {
@@ -158,8 +164,8 @@ function renderSidebar() {
 function render() {
   if (!SECTIONS.length) return;
   const sec = SECTIONS.find(s => s.id === cur) || SECTIONS[0];
-  document.getElementById('secTitle').textContent = sec.icon + ' ' + sec.name;
-  document.getElementById('secSub').textContent = sec.sub || '';
+  document.getElementById('secTitle').textContent = sec.icon + ' ' + secName(sec);
+  document.getElementById('secSub').textContent = secSub(sec);
   const host = document.getElementById('panes');
   if (sec.id.startsWith('g:')) {
     host.innerHTML = '<div class="card" id="optbox"></div>';
@@ -176,33 +182,31 @@ function render() {
 const PANES = {
   preset: () => `
     <div class="card">
-      <h2>🌸 内容 × 档位</h2>
-      <p class="note">六个预设就是基础模式那六套。点一下把参数填进下面的页面，可以继续改。</p>
-      <div class="quick" id="presetBtns" style="margin-top:10px">（读取中…）</div>
+      <h2>${I18N.t('adv.presetH2')}</h2>
+      <p class="note">${I18N.t('adv.presetNote')}</p>
+      <div class="quick" id="presetBtns" style="margin-top:10px">${I18N.t('dl.reading')}</div>
     </div>
     <div class="card">
-      <h2>⚡ 一键组合</h2>
-      <p class="note">每个组合是「参数 + shader 链 + 补帧脚本」的成套搭配，按本机实际存在的文件解析。</p>
-      <div class="combo-grid" id="comboBtns">（解析中…）</div>
+      <h2>${I18N.t('adv.comboH2')}</h2>
+      <p class="note">${I18N.t('adv.comboNote')}</p>
+      <div class="combo-grid" id="comboBtns">${I18N.t('adv.comboLoading')}</div>
       <div class="quick" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-        <button class="btn danger" onclick="clearAll()">🗑️ 清空全部选择</button>
-        <button class="btn" onclick="clearShaders()">🧹 只清 shader / 补帧脚本</button>
-        <span class="note" style="align-self:center">只清本软件里的选择，不动你的配置文件</span>
+        <button class="btn danger" onclick="clearAll()">${I18N.t('adv.clearAll')}</button>
+        <button class="btn" onclick="clearShaders()">${I18N.t('adv.clearShaders')}</button>
+        <span class="note" style="align-self:center">${I18N.t('adv.clearNote')}</span>
       </div>
     </div>
     <div class="card" id="myPresetCard">
-      <h2>💾 我自己的预设</h2>
+      <h2>${I18N.t('adv.myPresetH2')}</h2>
       <p class="note">
-        上面那六套是内置的（代码里写死的）。这里存的是<b>你自己调好的一套</b> ——
-        参数、shader 链、补帧脚本、以及取消勾选的项一起存，放在
-        <code>presets/</code> 目录里。<b>刷新页面不会丢</b>，也能导出发给别人。
+        ${I18N.t('adv.myPresetNote')}
       </p>
-      <div class="quick" style="margin-top:10px" id="myPresetBtns">（读取中…）</div>
+      <div class="quick" style="margin-top:10px" id="myPresetBtns">${I18N.t('dl.reading')}</div>
       <div class="dirbar" style="margin-top:12px">
         <input type="text" id="myPresetName" placeholder="给这套起个名字，例如：看番用" style="min-width:200px">
-        <button class="btn primary" id="myPresetSave">💾 存下当前这一套</button>
-        <button class="btn" id="myPresetExport">⬇️ 导出成文件</button>
-        <button class="btn" id="myPresetImport">⬆️ 从文件导入</button>
+        <button class="btn primary" id="myPresetSave">${I18N.t('adv.myPresetSave')}</button>
+        <button class="btn" id="myPresetExport">${I18N.t('adv.myPresetExport')}</button>
+        <button class="btn" id="myPresetImport">${I18N.t('adv.myPresetImport')}</button>
         <input type="file" id="myPresetFile" accept=".json,application/json" style="display:none">
       </div>
       <p class="note" id="myPresetHint" style="margin-top:8px"></p>
@@ -219,30 +223,29 @@ const PANES = {
             <button class="btn small ghost" onclick="moveShader(${i},1)">↓</button>
             <button class="btn small danger" onclick="delShader(${i})">✕</button>
           </div></div>`).join('')
-      : '<div class="chain-empty">还没有选 shader，从下面挑一个加进来。</div>';
+      : `<div class="chain-empty">${I18N.t('adv.shaderEmpty')}</div>`;
     const opts = (APP.catalog.shaders || []).map(x =>
       `<option value="${esc(x.path)}">${esc(x.name)} · ${esc(x.path)}</option>`).join('')
-      || '<option value="">（本机没扫到 glsl 文件，先去「扫描与下载」）</option>';
+      || `<option value="">${I18N.t('adv.shaderNoFiles')}</option>`;
     return `
     <div class="card">
-      <h2>✨ 当前 shader 链（${picked.length}）</h2>
+      <h2>${I18N.t('adv.shaderChainH2', { n: picked.length })}</h2>
       <div class="chain">${list}</div>
       <div class="picker">
         <select id="shaderPick">${opts}</select>
-        <button class="btn primary" id="shaderAdd">➕ 加到链尾</button>
+        <button class="btn primary" id="shaderAdd">${I18N.t('adv.shaderAdd')}</button>
       </div>
       <p class="note" style="margin-top:10px">
-        写入的是 <code>glsl-shaders</code>，顺序 = mpv 的处理顺序。常见顺序：
-        修复/去噪 → 放大 → 色度还原 → 收尾锐化（Adaptive_sharpen 放最后）。</p>
+        ${I18N.t('adv.shaderNote')}</p>
     </div>
     <div class="card">
-      <h2>📦 本机已有（${(APP.catalog.shaders || []).length}）</h2>
-      <div class="note">这些是从目标目录里实际扫出来的文件，不是网上抄的清单。</div>
+      <h2>${I18N.t('adv.shaderLocalH2', { n: (APP.catalog.shaders || []).length })}</h2>
+      <div class="note">${I18N.t('adv.shaderLocalNote')}</div>
       <div class="chain" style="margin-top:10px">${(APP.catalog.shaders || []).map((x, i) =>
         `<div class="chain-item"><div style="min-width:0"><div>${esc(x.name)}</div>
           <code>${esc(x.path)}</code></div>
           <div class="right"><button class="btn small" data-add="${i}">➕</button></div>
-        </div>`).join('') || '<div class="chain-empty">无</div>'}
+        </div>`).join('') || `<div class="chain-empty">${I18N.t('adv.none')}</div>`}
       </div>
     </div>`;
   },
@@ -252,94 +255,86 @@ const PANES = {
     const rows = list.map((x, i) => `<div class="radio-item${APP.memc === x.path ? ' on' : ''}" data-memc="${i}">
         <input type="radio" ${APP.memc === x.path ? 'checked' : ''}>
         <div style="min-width:0"><div>${esc(x.name)}</div><small>${esc(x.path)}</small></div>
-      </div>`).join('') || '<div class="chain-empty">本机没扫到 .vpy 脚本</div>';
+      </div>`).join('') || `<div class="chain-empty">${I18N.t('adv.memcEmpty')}</div>`;
     return `
     <div class="card">
-      <h2>🎞️ 选一个 VS 脚本</h2>
-      <p class="note">同一时刻只能挂一个 vapoursynth 脚本：要么补帧、要么超分、要么降噪。
-        想「补帧 + 超分」同时要，得选一个本身就包含多合一流程的脚本。</p>
+      <h2>${I18N.t('adv.memcH2')}</h2>
+      <p class="note">
+        ${I18N.t('adv.memcNote')}</p>
       <div class="radio-list" id="memcList" style="margin-top:10px">${rows}</div>
       <div class="actions">
-        <button class="btn" onclick="setMemc('')">🚫 不挂脚本</button>
-        <span class="note">当前：<code>${esc(APP.memc || '（无）')}</code></span>
+        <button class="btn" onclick="setMemc('')">${I18N.t('adv.memcNone')}</button>
+        <span class="note">${I18N.t('adv.memcCurrent')}<code>${esc(APP.memc || I18N.t('adv.memcNoneLabel'))}</code></span>
       </div>
     </div>
     <div class="card">
-      <h2>ℹ️ 怎么挑</h2>
+      <h2>${I18N.t('adv.memcHowH2')}</h2>
       <p class="note">
-        <b>RIFE_NV / RIFE_DML</b>：AI 补帧，效果最好也最吃显卡；N 卡选 NV，其它卡选 DML。<br>
-        <b>MVT_LQ / MVT_MQ</b>：MVTools 运动补偿，通用、负载低。<br>
-        <b>SVP_*</b>：需要另外装 SVP 管理器。<br>
-        <b>SR_* / MIX_UAI_*</b>：超分/多合一脚本，别和 shader 超分链重复叠。</p>
+        ${I18N.t('adv.memcHowNote')}</p>
     </div>
     ${fusionPanelHtml()}`;
   },
 
   output: () => `
     <div class="card">
-      <h2>📤 写到哪</h2>
+      <h2>${I18N.t('adv.outputWhereH2')}</h2>
       <div class="dirbar">
         <input type="text" id="targetInput" value="${esc(APP.target)}" placeholder="C:\\...\\mpv-lazy\\portable_config">
-        <button class="btn" id="targetApply">应用目录</button>
+        <button class="btn" id="targetApply">${I18N.t('adv.targetApply')}</button>
         <button class="btn ghost" id="targetDetect">🔍 自动探测</button>
       </div>
-      <h2 style="margin-top:16px">📄 怎么写</h2>
+      <h2 style="margin-top:16px">${I18N.t('adv.outputHowH2')}</h2>
       <div class="row">
         <label class="row" style="gap:6px"><input type="radio" name="wm" value="include"
-          ${APP.writeMode === 'include' ? 'checked' : ''}> 独立 include 文件（推荐）</label>
+          ${APP.writeMode === 'include' ? 'checked' : ''}> ${I18N.t('adv.writeIncludeLabel')}</label>
         <label class="row" style="gap:6px"><input type="radio" name="wm" value="merge"
-          ${APP.writeMode === 'merge' ? 'checked' : ''}> 合并进现有 mpv.conf</label>
+          ${APP.writeMode === 'merge' ? 'checked' : ''}> ${I18N.t('adv.writeMergeLabel')}</label>
       </div>
       <div class="dirbar" style="margin-top:12px">
         <select id="srcSelect" style="flex:1">${configOptions()}</select>
-        <button class="btn" id="srcLoad">📂 读取</button>
+        <button class="btn" id="srcLoad">${I18N.t('adv.srcLoad')}</button>
       </div>
-      <p class="note">合并模式保留原文件里的其它内容与注释，只改我们勾选的键；
-        被取消勾选的键会被注释掉（不删除）。</p>
+      <p class="note">${I18N.t('adv.outputMergeNote')}</p>
     </div>
     <div class="card">
-      <h2>↩️ 撤销</h2>
-      <p class="note">每次写入前都会生成 <code>xxx.bak-时间戳</code> 备份；
-        完全体里的「版本 / 回滚」页面可以直接一键回滚。</p>
+      <h2>${I18N.t('adv.undoH2')}</h2>
+      <p class="note">${I18N.t('adv.undoNote')}</p>
     </div>`,
 
   tools: () => `
     <div class="card">
-      <h2>🔍 扫描</h2>
-      <p class="note">扫描目标目录下的 <code>shaders/</code> 与 <code>vs/</code>，结果会进 shader / 补帧页面。</p>
+      <h2>${I18N.t('adv.scanH2')}</h2>
+      <p class="note">${I18N.t('adv.scanNote')}</p>
       <div class="actions">
-        <button class="btn primary" id="scanBtn">开始扫描</button>
-        <span class="note">目标：<code>${esc(APP.target || '未设置')}</code></span>
+        <button class="btn primary" id="scanBtn">${I18N.t('adv.scanStart')}</button>
+        <span class="note">${I18N.t('adv.scanTarget')}<code>${esc(APP.target || '未设置')}</code></span>
       </div>
-      <pre class="conf" id="scanOut" style="margin-top:12px;max-height:34vh">（还没扫描）</pre>
+      <pre class="conf" id="scanOut" style="margin-top:12px;max-height:34vh">${I18N.t('adv.scanNone')}</pre>
     </div>
     <div class="card">
-      <h2>📦 下载</h2>
-      <p class="note">本软件不打包任何第三方二进制，链接全部指向官方发布页。</p>
+      <h2>${I18N.t('adv.dlH2')}</h2>
+      <p class="note">${I18N.t('adv.dlNote')}</p>
       <div class="quick" style="margin-top:10px">
-        <a class="btn" target="_blank" href="https://github.com/hooke007/mpv_PlayKit/releases">📥 mpv-lazy 发布页</a>
-        <a class="btn" target="_blank" href="https://github.com/stax76/mpv.net/releases">📥 mpv.net 发布页</a>
-        <a class="btn" target="_blank" href="https://hooke007.github.io/unofficial/mpv_shaders.html">📖 shader 搭配说明书</a>
+        <a class="btn" target="_blank" href="https://github.com/hooke007/mpv_PlayKit/releases">${I18N.t('adv.linkLazy')}</a>
+        <a class="btn" target="_blank" href="https://github.com/stax76/mpv.net/releases">${I18N.t('adv.linkMpvNet')}</a>
+        <a class="btn" target="_blank" href="https://hooke007.github.io/unofficial/mpv_shaders.html">${I18N.t('adv.linkShaders')}</a>
       </div>
     </div>`,
 
   about: () => `
     <div class="card">
-      <h2>ℹ️ 这个软件是什么</h2>
-      <p class="note">它不播放视频，只负责把 mpv 配置写对：勾选项 → 生成 mpv.conf，写前备份，随时可撤。
-        所有选项说明来自 mpv 官方手册与社区整理。</p>
+      <h2>${I18N.t('adv.aboutH2')}</h2>
+      <p class="note">${I18N.t('adv.aboutNote')}</p>
       <div class="quick" style="margin-top:10px">
-        <a class="btn" href="guide.html?doc=guide">📖 入门指南（配置放哪儿 / 怎么写 / 怎么救）</a>
+        <a class="btn" href="guide.html?doc=guide">${I18N.t('adv.aboutGuide')}</a>
       </div>
     </div>
     <div class="card">
-      <h2>🙏 致谢</h2>
+      <h2>${I18N.t('adv.thanksH2')}</h2>
       <p class="note">
-        <b>mpv</b> 与官方手册 · <b>hooke007</b> 的 mpv-lazy / mpv_PlayKit / shader 搭配说明书 ·
-        <b>Anime4K</b>、<b>FSRCNNX</b>、<b>RAVU</b>、<b>RIFE</b>、<b>MVTools</b>、<b>SVP</b> 等算法作者 ·
-        <b>mpv_doc-CN</b> 中文手册翻译组</p>
+        ${I18N.t('adv.thanksNote')}</p>
       <div class="quick" style="margin-top:10px">
-        <a class="btn" href="guide.html?doc=thanks">🙏 完整致谢与许可</a>
+        <a class="btn" href="guide.html?doc=thanks">${I18N.t('adv.thanksFull')}</a>
       </div>
     </div>`
 };
@@ -418,23 +413,22 @@ async function renderMyPresets() {
   const r = await API.userPresets().catch(() => ({ ok: false, presets: [] }));
   const ps = (r && r.presets) || [];
   if (!ps.length) {
-    box.innerHTML = '<span class="note">还没有存过预设。上面调好一套之后，' +
-      '在下面起个名字点「存下当前这一套」。</span>';
+    box.innerHTML = `<span class="note">${I18N.t('adv.myPresetEmpty')}</span>`;
   } else {
     box.innerHTML = ps.map((p, i) => `<button class="combo" data-i="${i}" data-id="${esc(p.id)}">
         <span class="ico">💾</span>
         <span><b>${esc(p.name)}</b>
-          <small>${p.count} 个选项${p.shaders ? ` · ${p.shaders} 个 shader` : ''}${
-            p.memc ? ' · 含补帧脚本' : ''}${p.created ? ' · ' + esc(p.created.slice(0, 10)) : ''}</small>
+          <small>${I18N.t('adv.myPresetCountN', { n: p.count })}${p.shaders ? I18N.t('adv.myPresetShadersN', { n: p.shaders }) : ''}${
+            p.memc ? I18N.t('adv.myPresetMemc') : ''}${p.created ? ' · ' + esc(p.created.slice(0, 10)) : ''}</small>
           ${p.note ? `<small>${esc(p.note)}</small>` : ''}
         </span>
-        <span class="badge" data-op="export" data-id="${esc(p.id)}" title="导出成文件">⬇️</span>
-        <span class="badge color" data-op="del" data-id="${esc(p.id)}" title="删掉这个预设">✕</span>
+        <span class="badge" data-op="export" data-id="${esc(p.id)}" title="${esc(I18N.t('adv.exportTitle'))}">⬇️</span>
+        <span class="badge color" data-op="del" data-id="${esc(p.id)}" title="${esc(I18N.t('adv.delTitle'))}">✕</span>
       </button>`).join('');
   }
   if (r && r.broken && r.broken.length) {
-    el('myPresetHint').innerHTML = `<span class="warn-text">⚠ 有 ${r.broken.length} 个预设文件读不动` +
-      `（${esc(r.broken.map(b => b.file).join('、'))}）—— 没有删掉它们，你可以自己看看</span>`;
+    el('myPresetHint').innerHTML = `<span class="warn-text">${I18N.t('adv.myPresetBroken',
+      { n: r.broken.length, files: esc(r.broken.map(b => b.file).join('、')) })}</span>`;
   }
   box.onclick = async e => {
     const op = e.target.closest('[data-op]');
@@ -459,7 +453,7 @@ async function renderMyPresets() {
       const fresh = await API.userPresets().catch(() => null);
       p = fresh && fresh.ok ? (fresh.presets || []).find(x => x.id === pid) : null;
     }
-    if (!p) { toast(`找不到预设「${pid}」，它可能刚被删掉了`, 'err'); return renderMyPresets(); }
+    if (!p) { toast(I18N.t('adv.myPresetNotFound', { id: pid }), 'err'); return renderMyPresets(); }
     applyMyPreset(p);
   };
 }
@@ -475,7 +469,7 @@ function applyPresetObject(p, label) {
   APP.pending = [];
   changed();
   render();
-  toast(`✅ 已套用「${label}」（${countPresetItems(st)} 项）—— 记得看右边预览再生成`, 'ok');
+  toast(I18N.t('adv.presetAppliedFull', { label, n: countPresetItems(st) }), 'ok');
 }
 
 function applyMyPreset(p) {
@@ -486,11 +480,11 @@ function applyMyPreset(p) {
 async function saveMyPreset() {
   const name = (el('myPresetName').value || '').trim();
   const st = currentPresetState();
-  if (!name) { toast('给这套预设起个名字吧', 'err'); return; }
-  if (!countPresetItems(st)) { toast('一个选项都没勾，没什么可存的', 'err'); return; }
+  if (!name) { toast(I18N.t('adv.myPresetNeedName'), 'err'); return; }
+  if (!countPresetItems(st)) { toast(I18N.t('adv.myPresetNothing'), 'err'); return; }
   let r = await API.userPresetSave({ name, state: st });
   if (!r.ok && /已经存在/.test(r.detail || '')) {
-    if (!confirm(`「${name}」已经存在了，覆盖它吗？`)) return;
+    if (!confirm(I18N.t('adv.myPresetOverwriteConfirm', { name }))) return;
     r = await API.userPresetSave({ name, state: st, overwrite: true });
   }
   toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
@@ -498,7 +492,7 @@ async function saveMyPreset() {
 }
 
 async function delMyPreset(id) {
-  if (!confirm(`删掉预设「${id}」？\n\n只删这个文件，不动你的 mpv 配置。`)) return;
+  if (!confirm(I18N.t('adv.myPresetDelConfirm', { id }))) return;
   const r = await API.userPresetDelete({ id });
   toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
   renderMyPresets();
@@ -510,7 +504,7 @@ async function exportMyPreset(id) {
   const body = id ? { id } : { name: (el('myPresetName').value || '').trim(),
                                state: currentPresetState() };
   const r = await API.userPresetExport(body);
-  if (!r.ok) { toast('❌ ' + (r.detail || '导出失败'), 'err'); return; }
+  if (!r.ok) { toast('❌ ' + (r.detail || I18N.t('adv.exportFailed')), 'err'); return; }
   // 走浏览器下载，不往任意路径写盘 —— 和「另存为」一个道理
   const blob = new Blob([r.text], { type: 'application/json' });
   const a = document.createElement('a');
@@ -532,14 +526,14 @@ async function onImportFilePicked(ev) {
   if (!file) return;
   let text;
   try { text = await file.text(); }
-  catch (e) { toast('❌ 读不了这个文件：' + e.message, 'err'); return; }
+  catch (e) { toast(I18N.t('adv.importReadFailed', { msg: e.message }), 'err'); return; }
   // ⚠ 把**内容**交给后端校验，不在前端自己判 kind ——
   // 校验规则只有 core/presetfile.py 那一份，前端再抄一遍迟早对不上。
   const r = await API.userPresetLoad({ text });
-  if (!r.ok) { toast('❌ ' + (r.detail || '导入失败'), 'err'); return; }
+  if (!r.ok) { toast('❌ ' + (r.detail || I18N.t('adv.importFailed')), 'err'); return; }
   applyPresetObject(r.preset, r.preset.name || file.name.replace(/\.json$/i, ''));
   toast('ℹ️ ' + r.detail, '');
-  el('myPresetHint').textContent = '要留成自己的预设，就起个名字点「存下当前这一套」。';
+  el('myPresetHint').textContent = I18N.t('adv.importHint');
 }
 
 /* ---------------- 预设 / 组合 ---------------- */
@@ -561,8 +555,8 @@ async function renderPresets() {
     APP.shaders = (r.shader_paths || []).slice();
     APP.disable = []; APP.pending = [];
     changed(); render();
-    let msg = `✅ 已套用「${p.content} · ${p.prefer}」`;
-    if (r.missing && r.missing.length) msg += `；本机缺少 ${r.missing.join('、')}`;
+    let msg = I18N.t('adv.presetApplied', { label: `${p.content} · ${p.prefer}` });
+    if (r.missing && r.missing.length) msg += I18N.t('adv.presetMissing', { what: r.missing.join('、') });
     toast(msg, r.missing && r.missing.length ? '' : 'ok');
   };
 }
@@ -571,13 +565,13 @@ async function renderCombos() {
   const box = document.getElementById('comboBtns');
   if (!box) return;
   const r = await API.get('/api/combos' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
-  if (!r.ok) { box.textContent = '组合加载失败：' + (r.detail || ''); return; }
+  if (!r.ok) { box.textContent = I18N.t('adv.comboLoadFailed') + (r.detail || ''); return; }
   box.innerHTML = r.combos.map((c, i) => `<button class="combo" data-i="${i}">
       <span class="ico">${c.icon}</span>
       <span><b>${esc(c.name)}</b>
         <small>${esc(c.note)}</small>
         ${(c.missing && c.missing.length)
-          ? `<small class="warn-text">⚠ 本机缺少：${esc(c.missing.join('、'))}</small>` : ''}
+          ? `<small class="warn-text">${I18N.t('adv.comboMissing', { what: esc(c.missing.join('、')) })}</small>` : ''}
         ${c.memc ? `<small>🎞️ ${esc(baseName(c.memc))}</small>` : ''}
       </span>
     </button>`).join('');
@@ -601,8 +595,9 @@ function applyCombo(c) {
   if (c.memc) APP.memc = c.memc;
   APP.disable = []; APP.pending = [];
   changed(); render();
-  const miss = (c.missing && c.missing.length) ? `；本机缺少：${c.missing.join('、')}` : '';
-  toast(`✅ 已套用「${c.name}」${miss}`, miss ? '' : 'ok');
+  const miss = (c.missing && c.missing.length)
+    ? I18N.t('adv.comboMissing', { what: c.missing.join('、') }) : '';
+  toast(I18N.t('adv.comboApplied', { label: c.name }) + miss, miss ? '' : 'ok');
   if (c.need) setTimeout(() => toast('⚠ ' + c.need, 'err'), 900);
 }
 
@@ -611,7 +606,7 @@ function applyCombo(c) {
 function baseName(p) { return String(p).split(/[\\/]/).pop(); }
 
 function clearAll() {
-  if (!confirm('清空所有勾选？（不会动你的配置文件）')) return;
+  if (!confirm(I18N.t('adv.clearAllConfirm'))) return;
   APP.values = {}; APP.shaders = []; APP.memc = ''; APP.custom = '';
   APP.disable = []; APP.pending = [];
   changed(); render();
@@ -620,7 +615,7 @@ function clearAll() {
 function clearShaders() {
   APP.shaders = []; APP.memc = '';
   changed(); render();
-  toast('已清空 shader 与补帧脚本', 'ok');
+  toast(I18N.t('adv.clearShadersToast'), 'ok');
 }
 
 function setWriteMode(m) {
@@ -630,9 +625,9 @@ function setWriteMode(m) {
   const t = document.getElementById('previewMode');
   const inc = m === 'include';
   if (h) h.innerHTML = inc
-    ? '生成 <code>mpv-builder.conf</code>，并在主配置里加一行 include。'
-    : '把勾选的键合并进现有 <code>mpv.conf</code>，取消勾选的键会被注释掉。';
-  if (t) t.textContent = inc ? '独立 include 文件（想卸载删文件即可）' : '合并进现有 mpv.conf';
+    ? I18N.t('adv.writeHintInclude')
+    : I18N.t('adv.writeHintMerge');
+  if (t) t.textContent = inc ? I18N.t('adv.previewModeInclude') : I18N.t('adv.previewModeMerge');
   document.querySelectorAll('#writeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === m));
   doPreview();
 }
@@ -640,35 +635,37 @@ function setWriteMode(m) {
 async function loadExisting() {
   const sel = document.getElementById('srcSelect');
   let path = sel && sel.value ? sel.value : (APP.source || '');
-  if (!path) { toast('目录里没有可读取的配置文件', 'err'); return; }
+  if (!path) { toast(I18N.t('adv.noConfigToLoad'), 'err'); return; }
   const r = await loadExistingConfig(path);
   if (r.ok) render();
 }
 
 async function detectTarget() {
   const s = await API.status();
-  if (s.lazy_pc) { setTarget(s.lazy_pc); toast('已用探测到的目录：' + s.lazy_pc, 'ok'); }
-  else toast('没探测到 mpv-lazy，手动填吧', 'err');
+  if (s.lazy_pc) { setTarget(s.lazy_pc); toast(I18N.t('adv.detectedTarget', { path: s.lazy_pc }), 'ok'); }
+  else toast(I18N.t('adv.noLazyFound'), 'err');
 }
 
 async function doScan() {
   const out = document.getElementById('scanOut');
-  if (!APP.target) { toast('先设置目标目录', 'err'); return; }
-  out.textContent = '扫描中…';
+  if (!APP.target) { toast(I18N.t('adv.scanNeedTarget'), 'err'); return; }
+  out.textContent = I18N.t('adv.scanning');
   const r = await API.scan(APP.target);
   if (!r.ok) { out.textContent = r.detail; return; }
-  out.textContent = `portable_config: ${r.pc}\n\nglsl (${r.shaders.length}):\n`
+  out.textContent = I18N.t('adv.scanResultPc', { pc: r.pc }) + '\n\n'
+    + I18N.t('adv.scanResultGlsl', { n: r.shaders.length }) + ':\n'
     + r.shaders.map(x => '  ' + x).join('\n')
-    + `\n\nvpy (${r.vpy.length}):\n` + r.vpy.map(x => '  ' + x).join('\n');
+    + '\n\n' + I18N.t('adv.scanResultVpy', { n: r.vpy.length }) + ':\n'
+    + r.vpy.map(x => '  ' + x).join('\n');
   await loadCatalog();
   render();
-  toast(`扫到 ${r.shaders.length} 个 glsl、${r.vpy.length} 个 vpy`, 'ok');
+  toast(I18N.t('adv.scanDone', { g: r.shaders.length, v: r.vpy.length }), 'ok');
 }
 
 async function copyConf() {
   const t = document.getElementById('preview').innerText;
-  try { await navigator.clipboard.writeText(t); toast('已复制到剪贴板', 'ok'); }
-  catch (e) { toast('复制失败，请手动选中', 'err'); }
+  try { await navigator.clipboard.writeText(t); toast(I18N.t('adv.copiedClipboard'), 'ok'); }
+  catch (e) { toast(I18N.t('st.copyFailed'), 'err'); }
 }
 
 function saveAs() {
@@ -690,13 +687,11 @@ function restoreHandoff() {
   try { h = JSON.parse(localStorage.getItem('mpvcb-handoff') || 'null'); } catch (e) { h = null; }
   if (!h || !h.text) return;
   try { localStorage.removeItem('mpvcb-handoff'); } catch (e) { /* 忽略 */ }
-  const label = h.name || '刚才体检的那份配置';
-  if (!confirm(`把「${label}」的内容放进自定义层吗？\n\n`
-    + '放进自定义层 = 原样追加到生成结果末尾，本工具不解析、不改写它。\n'
-    + '选取消则什么都不做。')) return;
+  const label = h.name || I18N.t('adv.handoffLabel');
+  if (!confirm(I18N.t('adv.handoffConfirm', { label }))) return;
   APP.custom = h.text;
   changed();
-  toast('已放进自定义层（原样保留，不会被工具改写）', 'ok');
+  toast(I18N.t('adv.handoffDone'), 'ok');
 }
 
 async function boot() {
@@ -733,6 +728,22 @@ async function boot() {
   doPreview();
   restoreHandoff();
 }
+
+/* 切语言后重刷。这一页的 DOM 几乎全是 JS 渲染的：侧栏、分区面板、secTitle/secSub、
+   模式条、预览卡（标题/计数/提示/评分/问题列表）、字幕预览、include 链提示、抽屉 ——
+   全不在任何 data-i18n 属性上，apply() 刷不到。i18n.js 的 setLang 专门派
+   i18n:change 给这类动态文案用（downloads 轮记下的坑，这里更依赖它）。
+   注意 render() 会按当前语言重渲染 PANES / mountOptions —— 那些模板里的中文
+   已全部换成 I18N.t()，所以重绘出来就是当前语言，不存在「切完还是中文」。 */
+document.addEventListener('i18n:change', () => {
+  render();                    // 侧栏 + 当前分区 + secTitle/secSub
+  renderModeBar();             // 模式条 hint 与主按钮文案（state.js）
+  doPreview();                 // 预览卡：标题/计数/待填提示/评分/问题列表
+  updateSubPreview();          // 字幕预览（当前分区挂着才有效果）
+  if (APP._loadInfo) renderLoadInfo(APP._loadInfo);   // include 链与 profile 条
+  const d = document.getElementById('drawer');
+  if (d && d.classList.contains('open') && _drawerItem) openDrawer(_drawerItem);
+});
 boot();
 </script>
 </body>

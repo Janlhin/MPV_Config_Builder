@@ -200,6 +200,10 @@ window.I18N_ZH2EN = {
   '（点「检查」自动填默认位置）': '(click "Check" to fill in the default location)',
 
   // ---------- 完全体 / 进阶 ----------
+  '（正在加载…）': '(Loading…)',
+  '给这套起个名字，例如：看番用': 'Name this set, e.g. "for anime"',
+  // 整句收录：不收录的话短条目「写入」会把标题切成「Write方式」
+  '写入方式': 'How to write',
   '全部选项': 'All options',
   '载入它的选项': 'Load its options',
   '独立文件': 'Separate file',
