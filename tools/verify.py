@@ -2664,8 +2664,16 @@ def cmd_electron():
         # 子进程继承后 electron.exe 退化成纯 Node：app undefined、调试端口不开。
         # 实测踩过（2026-10-10）：electron 验收全红，根因就是它。spawn 前必须摘掉。
         env.pop("ELECTRON_RUN_AS_NODE", None)
+        # ⚠ --in-process-gpu：本会话环境里独立 GPU 进程必崩（2026-10-14 实测，
+        # exit 0xC0000005，重试 9 次后 Electron FATAL "GPU process isn't
+        # usable. Goodbye" 整个退出）。现象极像 main.js 写错了 —— 窗口创建成功、
+        # 调试端口也开了，但 CDP 一连上就 ConnectionReset。三种绕法实测：
+        # --disable-gpu 无效（GPU 进程照崩）；--no-sandbox 能活但削弱安全面；
+        # --in-process-gpu 单独可解，且不改变被验证的行为（本检查验的是页面
+        # 渲染 / IPC / 导航，不是 GPU 性能）。CI（windows-latest）不受影响。
         proc = subprocess.Popen(
-            [str(ELECTRON_EXE), ".", f"--debug-port={port}"],
+            [str(ELECTRON_EXE), ".", f"--debug-port={port}",
+             "--in-process-gpu"],
             cwd=str(ELECTRON_DIR), env=env,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
@@ -2750,8 +2758,10 @@ def cmd_electron():
             ck("9 个页面在 Electron 里都能打开且有内容", not page_bad, "；".join(page_bad))
 
             # ---- 6. 单实例 ----
+            # 同一套开关：GPU 进程崩溃与传什么页面无关（见上面 spawn 处的注释）
             second = subprocess.Popen(
-                [str(ELECTRON_EXE), ".", f"--debug-port={free_port()}"],
+                [str(ELECTRON_EXE), ".", f"--debug-port={free_port()}",
+                 "--in-process-gpu"],
                 cwd=str(ELECTRON_DIR), env=env,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(4.0)
@@ -2887,7 +2897,10 @@ def cmd_packaged():
         # 同 cmd_electron：必须摘掉宿主的 ELECTRON_RUN_AS_NODE，否则退化成纯 Node
         env = dict(**__import__("os").environ)
         env.pop("ELECTRON_RUN_AS_NODE", None)
-        proc = subprocess.Popen([str(APP), f"--debug-port={port}"], cwd=str(APP.parent),
+        # 同 cmd_electron：--in-process-gpu 绕开本环境独立 GPU 进程必崩的问题
+        # （2026-10-14 实测，详见 cmd_electron spawn 处的注释）
+        proc = subprocess.Popen([str(APP), f"--debug-port={port}",
+                                 "--in-process-gpu"], cwd=str(APP.parent),
                                 env=env,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         try:
