@@ -141,8 +141,24 @@ class PreviewImplementationTest(unittest.TestCase):
         block = JS[start:start + 460]
         self.assertIn("'ff'", block)
         self.assertIn("'00'", block)
-        self.assertIn("AARRGGBB", block, "要说清正确顺序")
-        self.assertIn("最前", block)
+        self.assertIn("st.colorWarn", block,
+                      "警告文案走语言表键（st.colorWarn），不写死在 JS 里")
+
+    def test_alpha_warning_text_states_the_right_order(self):
+        """警告文案（两种语言）都必须说清 #AARRGGBB、透明度在最前两位。
+
+        2026-10-14：文案从 state.js 挪进了 i18n.js 的 st.colorWarn（advanced 轮
+        i18n 做深），判定位置随之迁移——用意不变：按 CSS 直觉把顺序"修"成
+        RRGGBBAA 要能被发现。现在双语各一份，两份都要守。
+        """
+        i18n = (STATIC / "i18n.js").read_text(encoding="utf-8")
+        warns = re.findall(r"'st\.colorWarn': '([^']*)'", i18n)
+        self.assertEqual(len(warns), 2, "st.colorWarn 应当中英各一份")
+        for w in warns:
+            self.assertIn("AARRGGBB", w, "警告要说清正确顺序")
+            self.assertIn("RRGGBBAA", w, "要点破那个错误写法")
+        self.assertIn("最前", warns[0], "中文要讲'最前'")
+        self.assertIn("first", warns[1], "英文要讲 first")
 
 
 class SchemaPlacementTest(unittest.TestCase):
