@@ -204,6 +204,7 @@ def cmd_all():
     def check_docs(r):
         p = subprocess.run([sys.executable, str(ROOT / "tools" / "verify.py"), "docs"],
                            capture_output=True, text=True, encoding="utf-8",
+                           errors="replace",
                            cwd=str(ROOT))
         tail = (p.stdout or "").strip().splitlines()[-1:] or [""]
         r.add("文档数字与实测一致", p.returncode == 0, "" if p.returncode == 0 else tail[0])
@@ -2594,11 +2595,19 @@ def cmd_electron():
         正确做法：列全部进程，在 Python 里数。慢一点，但判据是真的。
         """
         try:
+            # ⚠ encoding/errors 必须显式：tasklist 输出按控制台代码页（本机 936）
+            # 编码，环境里有中文进程行时 utf-8 严格解码会炸。而 Python 3.13 的
+            # text=True 解码在**读取线程**里进行，失败时主线程不抛异常 ——
+            # 线程把 traceback 打到 stderr 后静默返回 stdout=None，
+            # 下游就会撞上莫名的 AttributeError（2026-10-14 实测，见踩过的坑）。
+            # 这里只做 ASCII 子串匹配，errors="replace" 对判据无损。
             out = subprocess.run(["tasklist", "/NH", "/FO", "CSV"],
-                                 capture_output=True, text=True, timeout=30).stdout
+                                 capture_output=True, text=True,
+                                 encoding="utf-8", errors="replace",
+                                 timeout=30).stdout
         except Exception:
             return -1
-        return sum(1 for line in out.splitlines()
+        return sum(1 for line in (out or "").splitlines()
                    if "MPVConfigBuilderBackend.exe".lower() in line.lower())
 
 
@@ -2882,9 +2891,17 @@ def cmd_packaged():
 
     def backend_procs():
         # ⚠ 别用 tasklist 的 /FI 过滤器：Python 传 list 时引号会被拆开，永远匹配不到
-        out = subprocess.run(["tasklist", "/NH", "/FO", "CSV"],
-                             capture_output=True, text=True, timeout=30).stdout
-        return sum(1 for l in out.splitlines()
+        # ⚠ encoding/errors 必须显式 + try 兜底：与 cmd_electron 的同名函数同一套
+        #   坑（tasklist 输出是 936 编码；3.13 的 text=True 解码失败静默返回 None，
+        #   而这里原先连 try 都没有，解码一炸整个 packaged 检查直接崩）。
+        try:
+            out = subprocess.run(["tasklist", "/NH", "/FO", "CSV"],
+                                 capture_output=True, text=True,
+                                 encoding="utf-8", errors="replace",
+                                 timeout=30).stdout
+        except Exception:
+            return -1
+        return sum(1 for l in (out or "").splitlines()
                    if "MPVConfigBuilderBackend.exe".lower() in l.lower())
 
 

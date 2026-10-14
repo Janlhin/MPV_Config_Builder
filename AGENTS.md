@@ -96,6 +96,13 @@ git config core.hooksPath .githooks
 `pwsh -NoProfile -File .\启动.ps1`。双击 `.ps1` 默认是用记事本打开 —— 这是 Pwsh 的
 系统行为，文档里要交代清楚。
 
+**文档化例外（Q-002，2026-10-14 用户裁决）：`.githooks/pre-commit` 保持 sh**。
+这不是偏好，是工具链硬限制：Git for Windows 会把 `#!/usr/bin/env pwsh` 钩子转给
+PowerShell，但 PowerShell 拒绝用 `-File` 执行**无扩展名**文件，而 git 只认固定名
+`pre-commit` —— 两头夹死（实测记录见 `docs/踩过的坑.md`）。钩子本身只是 3 行
+分发器（跑 `verify.py precommit`），不含任何判断规则；规则全在 verify.py（Python）
+里，「规则只有一份」的纪律不受此例外影响。
+
 ### 2.5 界面文档渲染器不支持引用块内嵌表格
 `core/mdrender.py` 只支持标题 / 水平线 / 列表 / 围栏代码块 / 引用 / 表格。
 **表格不能放在 `>` 引用块里** —— 渲染器会把整段 join 成一行，表变成乱码。用列表代替。
