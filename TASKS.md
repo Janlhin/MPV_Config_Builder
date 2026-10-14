@@ -334,8 +334,8 @@
 | ID / 编号 | 事项 | 阻塞原因 |
 |---|---|---|
 | T2 | 推送到 `origin/master` | 可逆性低，属不可逆外部操作；且被 T1 阻塞。**不进入自动推进路径** |
-| T1 / T2 | 推送 CI 工作流 | **凭据缺 `workflow` scope** —— GitHub 拒绝创建/更新 `.github/workflows/*`（`refusing to allow an OAuth App to ... without workflow scope`）。2026-10-09 复核：凭据走 Windows 凭据管理器（`credential.helper=wincred`），本机 **无 SSH 公钥**（`~/.ssh/*.pub` 不存在）、**未装 `gh`**，因此没有绕开该 scope 的本机通道。需人重新授权或更换 PAT |
-| T1 / T2 | **这个仓库是私有的**（2026-10-09 实测） | `github.com/Janlhin` 公开页只列出 3 个仓库（Endgame_Gear_Web_Configurator / OpenRA_simplified_chinese / OpenSave），**不含本仓库**；匿名 `curl` 仓库页返回 **404**，匿名 `git ls-remote` 直接索要用户名。所以：① 匿名通道一律查不到它，别把 404 当成"仓库没了"；② 细粒度 PAT 必须在仓库列表里**显式勾上它**，否则 API 也返回 404（不是"不存在"）；③ 权限要 **Contents 读写 + Workflows 读写 + Metadata 读**。④ 本执行环境的 wincred **读不出也写不进**（`credential fill` 返回空），所以推送只能由人在自己终端执行 |
+| T1 / T2 | 推送 CI 工作流 | **已解决**（2026-10-14 20:50）：`git push origin master` 直接成功（`ea43d2e..4348b90`），未再报 `workflow scope` 错 —— 凭据疑已被重新授权。推送后 CI 自动触发（`4348b90` 的 verify run 创建于 2026-10-14T12:50Z，运行时 in_progress；此前各 run 均 success）。**若以后再遇 scope 报错，历史绕法见 T1 条目里的 `ci-bootstrap` 分支记录** |
+| T1 / T2 | **这个仓库是私有的**（2026-10-09 实测） | `github.com/Janlhin` 公开页只列出 3 个仓库（Endgame_Gear_Web_Configurator / OpenRA_simplified_chinese / OpenSave），**不含本仓库**；匿名 `curl` 仓库页返回 **404**，匿名 `git ls-remote` 直接索要用户名。所以：① 匿名通道一律查不到它，别把 404 当成"仓库没了"；② 细粒度 PAT 必须在仓库列表里**显式勾上它**，否则 API 也返回 404（不是"不存在"）；③ 权限要 **Contents 读写 + Workflows 读写 + Metadata 读**。④ ~~本执行环境的 wincred 读不出也写不进~~ **2026-10-14 复核：已能读出**（push 与 Actions API 都通了），「推送只能由人执行」的结论随之作废 |
 | Q3 | git 署名 | **已解决**（2026-10-09）：全局 `~/.gitconfig` 本就有 `Janlhin <72262030+Janlhin@users.noreply.github.com>`，是仓库的 `--local` 覆盖压成了占位符；已移除该覆盖。未能在线复核 id 归属（GitHub API 403 限流） |
 | — | MEMC 是否真的生效 | 只能由人真播一个视频看画面 |
 | — | 装一次安装包试试 | 会改程序目录与注册表 |
@@ -347,7 +347,7 @@
 | `verify.py docs` 单独跑会挂 | 2026-10-09：单独跑 **16 分钟未结束**；但同一个子命令在 `all` 里正常通过（全量 5m26s）。同一次调用、两种表现，原因未查清 | 怀疑某条测试起了服务子进程、端口或锁被残留进程占住；先清干净残留 `python.exe` 再复测，别急着改代码 |
 | `core.hooksPath` 不随仓库走 | Git 的**本地**配置，新克隆不会自动启用钩子，且未启用时**没有任何提示** | 已写进 `AGENTS.md` §1.2；若仍嫌易漏，可让 `verify.py all` 加一条**非阻断**提示 |
 | `docs/待做.md` §〇「动效等你拍板」已过期 | 裁决其实早已落账：`DECISIONS.md` 2026-10-09 R-27「全加」 | 下次动那份文件时顺手改成「已裁决：全加」，别再当成未决项 |
-| 18 个提交只在本机 | 无远端副本，且 CI 从未运行（`origin/master` 下无 `.github`） | 属 T1/T2，需人解决凭据；在此之前**不要**在别的机器上改这个仓库 |
+| ~~18 个提交只在本机~~ | **已解决**（2026-10-14 20:50）：`git rev-list --count @{u}..HEAD` = **0**，含 downloads 轮与门禁修复共 2 个新提交；CI 对 `4348b90` 已自动触发。此前「CI 从未运行」亦过期（T1 于 10-09 已首绿） | 无。**留一条判史**：10-09 至 10-14 之间凭据一度不可用，若以后再遇到 push 失败，先 `git credential fill` 试一次再下「需人执行」的结论 |
 | 「页面剩余汉字」里混着后端数据 | analyze 页前端做到 0 后仍报 2 字，dump 出来是后端返回的文件描述 `（profile 集合）` | **转 T14**（后端 149 条文案）作为它的第一项；不要用前端词典去盖后端字符串 |
 | **共用组件（api.js / state.js）里的用户可见中文** | 2026-10-14 downloads 轮归因时发现：api.js 注入的顶栏链接 `title`（「不用改任何东西，出一份体检报告」等 2 条）、`promptTarget()` 的 prompt 文案、语言切换按钮自身 `title` 点完不刷新（`bindToggle` 的 click 分支只更 textContent）；state.js 运行时 toast 约 10 条（「请先选目标配置目录」等）。这些不在任何页面的「剩余汉字」测量范围内（只在用户操作后出现） | 单独立项或并进 T14：属 9 页共用层，改一处 9 页受益；**不要塞进某一页的做深轮**（违反原子化） |
 | **hell 页遗留的用户操作字符串** | hell 轮做到「切后 0 汉字」，但那是**切语言那一刻**的测量值；该页 confirm/toast（「先填目录」「没有可打开的文件」「已复制」等约 8 条）只在用户操作后渲染，从未翻译 | 下一轮经过 hell 页时顺手做深，或并入上面那条共用组件项一起清 |
