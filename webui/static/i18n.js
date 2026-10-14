@@ -57,7 +57,9 @@
     'name', 'summary', 'enc', 'nl', 'v', 'pct', 'six', 'label', 'key',
     'rec', 'msg', 'shown', 'count', 'cond',
     // 进阶页：预设/扫描结果里的标识符与计数
-    'files', 'g', 'id', 'pc'];
+    'files', 'g', 'id', 'pc',
+    // 快捷键页：行数/键位/命令/文件名
+    'as', 'binds', 'shown', 'cmd'];
 
   var DICT = {
     'zh-CN': {
@@ -280,6 +282,44 @@
       'adv.handoffLabel': '刚才体检的那份配置',
       'adv.handoffConfirm': '把「{label}」的内容放进自定义层吗？\n\n放进自定义层 = 原样追加到生成结果末尾，本工具不解析、不改写它。\n选取消则什么都不做。',
       'adv.handoffDone': '已放进自定义层（原样保留，不会被工具改写）',
+
+      // ---------- 快捷键页（keys.html，2026-10-14 做深一轮） ----------
+      // 静态整句（HTML 里套 data-i18n）：内置键位卡的标题与说明被 <span>/<code>
+      // 切断成三段，包 span 走键，不拿词条表拼半句
+      'keys.refH2A': '📚 mpv 内置默认键位（',
+      'keys.refH2B': ' 条，只读参考）',
+      'keys.refNoteA': '这是从你自己的 mpv 里问出来的（',
+      'keys.refNoteB': ' 属性），带真实命令。左边那份配置里如果绑了同一个键，这里会标出来 —— 注意 mpv-lazy 默认关了内置键位（',
+      'keys.refNoteC': '），所以这些是「原版 mpv 的默认值」，仅供对照。',
+      // 运行时拼串（JS 渲染时走 I18N.t；数字占位符见 RUNTIME_VARS）
+      'keys.fileRead': 'mpv 读的是：',
+      'keys.fileSource': '来源：',
+      'keys.fileActive': '（mpv 正在用这个）',
+      'keys.rowsN': '{n} 条',
+      'keys.noInputFiles': '（目录里还没有 input 文件，保存时会新建 input.conf）',
+      'keys.newFileName': 'input.conf（将新建）',
+      'keys.encodingNew': 'UTF-8（新建）',
+      'keys.noInputConf': '（没有 input-conf 设置）',
+      'keys.countLine': '{binds} 条绑定 · 显示 {shown} 行',
+      'keys.countDirty': ' · ⚠ 有未保存改动',
+      'keys.promoteNote': '⚠ <b>你改的是播放器自带的键位表</b>（<code>{name}</code>）。升级 mpv-lazy 时它会被<b>覆盖回去</b>，你的改动就没了，而且不会有任何提示。<br>建议另存为 <code>{as}</code>：会生成一份属于你的键位表，并把 <code>mpv.conf</code> 的 <code>input-conf</code> 指过去（原自带文件一个字节都不动）。',
+      'keys.promoteBtn': '💾 另存为我自己的键位表',
+      'keys.promoteDirty': '有未保存的改动，先点「保存」再另存',
+      'keys.promoteConfirm': '会做两件事：\n\n① 生成 {name} 的副本作为你自己的键位表\n② 把 mpv.conf 里的 input-conf 指到它（mpv.conf 会先备份）\n\nmpv-lazy 自带的原文件不会被改动。要继续吗？',
+      'keys.switchDirtyConfirm': '这份文件有未保存的改动，切换会丢弃。继续？',
+      'keys.headKey': '键位',
+      'keys.headCmd': '命令',
+      'keys.headComment': '分类 &gt; 说明',
+      'keys.rowOnTitle': '取消勾选 = 注释掉这行',
+      'keys.rowKeyPh': '（没绑键）',
+      'keys.noKeyLabel': '（无键位）',
+      'keys.rowCmdPh': '命令',
+      'keys.rowCommentPh': '分类 > 说明',
+      'keys.rowDelTitle': '删掉这一行',
+      'keys.delConfirm': '删掉这一行？\n{key}  {cmd}',
+      'keys.noFileToSave': '没有可保存的文件',
+      'keys.refOverridden': '已被覆盖',
+      'keys.refNoMatch': '没有匹配的。',
 
       // ---------- state.js 共用层（st.*，advanced / expert 页的选项卡片与预览卡） ----------
       // 2026-10-14 advanced 轮抽出。这些串由 state.js 在运行时写进 DOM，
@@ -682,6 +722,41 @@
       'adv.handoffLabel': 'the config you just checked',
       'adv.handoffConfirm': 'Put the content of "{label}" into the custom layer?\n\nCustom layer = appended verbatim to the end of the generated output; this tool does not parse or rewrite it.\nCancel does nothing.',
       'adv.handoffDone': 'Moved into the custom layer (kept verbatim, never rewritten by the tool)',
+
+      // ---------- Keybindings page (keys.html) ----------
+      'keys.refH2A': '📚 mpv built-in default keybindings (',
+      'keys.refH2B': ' entries, read-only reference)',
+      'keys.refNoteA': 'This comes straight from your own mpv (',
+      'keys.refNoteB': ' property), with the real commands. If the config on the left binds the same key, it is flagged here — note that mpv-lazy disables the built-in keybindings by default (',
+      'keys.refNoteC': '), so these are "stock mpv defaults", for reference only.',
+      'keys.fileRead': 'mpv reads: ',
+      'keys.fileSource': 'Source: ',
+      'keys.fileActive': '(mpv is using this one)',
+      'keys.rowsN': '{n} rows',
+      'keys.noInputFiles': '(no input files in this folder yet — saving will create input.conf)',
+      'keys.newFileName': 'input.conf (will be created)',
+      'keys.encodingNew': 'UTF-8 (new)',
+      'keys.noInputConf': '(no input-conf setting)',
+      'keys.countLine': '{binds} bindings · {shown} rows shown',
+      'keys.countDirty': ' · ⚠ unsaved changes',
+      'keys.promoteNote': '⚠ <b>You are editing the player\'s bundled keybinding file</b> (<code>{name}</code>). Upgrading mpv-lazy will <b>overwrite it</b> — your changes will be gone, with no warning.<br>Consider saving it as <code>{as}</code>: that creates a keybinding file of your own and points <code>input-conf</code> in <code>mpv.conf</code> at it (the bundled file is not touched by a single byte).',
+      'keys.promoteBtn': '💾 Save as my own keybinding file',
+      'keys.promoteDirty': 'You have unsaved changes — click "Save" first',
+      'keys.promoteConfirm': 'This does two things:\n\n① Creates a copy of {name} as your own keybinding file\n② Points input-conf in mpv.conf at it (mpv.conf is backed up first)\n\nThe bundled mpv-lazy original is left untouched. Continue?',
+      'keys.switchDirtyConfirm': 'This file has unsaved changes; switching will discard them. Continue?',
+      'keys.headKey': 'Key',
+      'keys.headCmd': 'Command',
+      'keys.headComment': 'Category &gt; note',
+      'keys.rowOnTitle': 'Untick = comment out this line',
+      'keys.rowKeyPh': '(no key)',
+      'keys.noKeyLabel': '(no key bound)',
+      'keys.rowCmdPh': 'command',
+      'keys.rowCommentPh': 'category > note',
+      'keys.rowDelTitle': 'Delete this row',
+      'keys.delConfirm': 'Delete this row?\n{key}  {cmd}',
+      'keys.noFileToSave': 'No file to save',
+      'keys.refOverridden': 'overridden',
+      'keys.refNoMatch': 'No matches.',
 
       // ---------- state.js shared layer (advanced / expert option cards & preview) ----------
       'st.primaryApply': 'Apply changes',

@@ -65,11 +65,9 @@
   </div>
 
   <div class="card">
-    <h2>📚 mpv 内置默认键位（<span id="defCount">0</span> 条，只读参考）</h2>
-    <p class="note">这是从你自己的 mpv 里问出来的（<code>input-bindings</code> 属性），
-      带真实命令。左边那份配置里如果绑了同一个键，这里会标出来 ——
-      注意 mpv-lazy 默认关了内置键位（<code>input-builtin-bindings=no</code>），
-      所以这些是「原版 mpv 的默认值」，仅供对照。</p>
+    <h2><span data-i18n="keys.refH2A">📚 mpv 内置默认键位（</span><span id="defCount">0</span><span data-i18n="keys.refH2B"> 条，只读参考）</span></h2>
+    <p class="note"><span data-i18n="keys.refNoteA">这是从你自己的 mpv 里问出来的（</span><code>input-bindings</code><span data-i18n="keys.refNoteB"> 属性），带真实命令。左边那份配置里如果绑了同一个键，这里会标出来 ——
+      注意 mpv-lazy 默认关了内置键位（</span><code>input-builtin-bindings=no</code><span data-i18n="keys.refNoteC">），所以这些是「原版 mpv 的默认值」，仅供对照。</span></p>
     <div class="toolbar" style="margin-top:10px">
       <input type="text" id="q2" placeholder="🔍 搜内置键位" style="flex:1;min-width:200px">
       <label class="row" style="gap:6px"><input type="checkbox" id="onlyHit"> 只看被覆盖的</label>
@@ -115,31 +113,37 @@ async function boot() {
 
 async function load() {
   const r = await API.get('/api/keys' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
-  if (!r.ok) { toast('❌ ' + (r.detail || '读取失败'), 'err'); return; }
+  if (!r.ok) { toast('❌ ' + (r.detail || I18N.t('st.vpyLoadFailed')), 'err'); return; }
   KEY.defaults = r.defaults || [];
   KEY.commands = r.commands || [];
   KEY.files = r.files || [];
   KEY.warnings = r.warnings || [];
-  document.getElementById('defCount').textContent = KEY.defaults.length;
-  const dl = document.getElementById('cmdList');
-  dl.innerHTML = KEY.commands.map(c =>
-    `<option value="${esc(c.name)}">${esc(c.desc || c.sig || '')}</option>`).join('');
-  document.getElementById('fileSelect').innerHTML = KEY.files.map(f =>
-    `<option value="${esc(f.path)}"${f.path === r.main ? ' selected' : ''}>`
-    + `${esc(f.name)}${f.active ? '（mpv 正在用这个）' : ''} · ${f.rows.filter(x => x.kind === 'bind').length} 条</option>`).join('')
-    || '<option value="">（目录里还没有 input 文件，保存时会新建 input.conf）</option>';
-  KEY.main = r.main || (APP.target ? APP.target.replace(/[\\/]$/, '') + '\\input.conf' : '');
   const f = KEY.files.find(x => x.path === r.main) || KEY.files[0];
+  KEY.main = r.main || (APP.target ? APP.target.replace(/[\\/]$/, '') + '\\input.conf' : '');
   KEY.rows = f ? f.rows : [];
-  KEY.encoding = f ? f.encoding : 'UTF-8（新建）';
-  document.getElementById('fileName').textContent = f ? f.name : 'input.conf（将新建）';
-  document.getElementById('fileInfo').innerHTML =
-    `mpv 读的是：<code>${esc((f && f.path) || KEY.main)}</code> · ${esc(KEY.encoding)} · `
-    + `来源：${esc(r.source || '（没有 input-conf 设置）')}`;
+  KEY.encoding = f ? f.encoding : I18N.t('keys.encodingNew');
+  KEY._last = { r, f };                 // 切语言时按同一份响应重绘（i18n:change）
+  renderMeta(r, f);
   renderWarn();
   renderPromote(r);
   renderRows();
   renderRef();
+}
+
+/** 文件信息那一卡：只认已拿到的响应，不发请求 —— 切语言重绘也走它。 */
+function renderMeta(r, f) {
+  document.getElementById('defCount').textContent = KEY.defaults.length;
+  const dl = document.getElementById('cmdList');
+  dl.innerHTML = KEY.commands.map(c =>
+    `<option value="${esc(c.name)}">${esc(c.desc || c.sig || '')}</option>`).join('');
+  document.getElementById('fileSelect').innerHTML = KEY.files.map(x =>
+    `<option value="${esc(x.path)}"${x.path === r.main ? ' selected' : ''}>`
+    + `${esc(x.name)}${x.active ? I18N.t('keys.fileActive') : ''} · ${I18N.t('keys.rowsN', { n: x.rows.filter(y => y.kind === 'bind').length })}</option>`).join('')
+    || `<option value="">${I18N.t('keys.noInputFiles')}</option>`;
+  document.getElementById('fileName').textContent = f ? f.name : I18N.t('keys.newFileName');
+  document.getElementById('fileInfo').innerHTML =
+    `${I18N.t('keys.fileRead')}<code>${esc((f && f.path) || KEY.main)}</code> · ${esc(KEY.encoding)} · `
+    + `${I18N.t('keys.fileSource')}${esc(r.source || I18N.t('keys.noInputConf'))}`;
 }
 
 /** R-24：正在改自带的键位表时，提示「另存为自己的」。
@@ -151,13 +155,12 @@ function renderPromote(r) {
   box.innerHTML = `
     <div class="note warn-text" style="margin-top:10px;padding:10px 12px;
       border:1px solid var(--border);border-radius:10px">
-      ⚠ <b>你改的是播放器自带的键位表</b>（<code>${esc(KEY.main.split(/[\\/]/).pop())}</code>）。
-      升级 mpv-lazy 时它会被<b>覆盖回去</b>，你的改动就没了，而且不会有任何提示。<br>
-      建议另存为 <code>${esc(r.promote_name || 'input-user.conf')}</code>：
-      会生成一份属于你的键位表，并把 <code>mpv.conf</code> 的
-      <code>input-conf</code> 指过去（原自带文件一个字节都不动）。
+      ${I18N.t('keys.promoteNote', {
+        name: esc(KEY.main.split(/[\\/]/).pop()),
+        as: esc(r.promote_name || 'input-user.conf')
+      })}
       <div class="actions" style="margin-top:8px">
-        <button class="btn primary" id="promoteBtn">💾 另存为我自己的键位表</button>
+        <button class="btn primary" id="promoteBtn">${I18N.t('keys.promoteBtn')}</button>
       </div>
     </div>`;
   const b = document.getElementById('promoteBtn');
@@ -165,15 +168,13 @@ function renderPromote(r) {
 }
 
 async function doPromote() {
-  if (!APP.target) { toast('先设置目标目录', 'err'); return; }
+  if (!APP.target) { toast(I18N.t('adv.scanNeedTarget'), 'err'); return; }
   if (KEY.dirty) {
-    toast('有未保存的改动，先点「保存」再另存', 'err');
+    toast(I18N.t('keys.promoteDirty'), 'err');
     return;
   }
-  if (!confirm('会做两件事：\n\n'
-    + `① 生成 ${KEY.main ? KEY.main.split(/[\\/]/).pop() : ''} 的副本作为你自己的键位表\n`
-    + '② 把 mpv.conf 里的 input-conf 指到它（mpv.conf 会先备份）\n\n'
-    + 'mpv-lazy 自带的原文件不会被改动。要继续吗？')) return;
+  if (!confirm(I18N.t('keys.promoteConfirm',
+    { name: KEY.main ? KEY.main.split(/[\\/]/).pop() : '' }))) return;
   const r = await API.post('/api/keys/promote', { target: APP.target, rows: KEY.rows });
   toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
   if (r.ok) load();
@@ -182,7 +183,7 @@ async function doPromote() {
 function loadFile(path) {
   const f = KEY.files.find(x => x.path === path);
   if (!f) return;
-  if (KEY.dirty && !confirm('这份文件有未保存的改动，切换会丢弃。继续？')) return;
+  if (KEY.dirty && !confirm(I18N.t('keys.switchDirtyConfirm'))) return;
   KEY.main = f.path;
   KEY.rows = f.rows;
   KEY.dirty = false;
@@ -220,17 +221,17 @@ function renderRows() {
       return `<div class="row"><div class="${cls}">${esc(r.raw || ' ')}</div></div>`;
     }
     return `<div class="row${r.enabled ? '' : ' off'}" data-i="${i}">
-      <input type="checkbox" data-role="on" ${r.enabled ? 'checked' : ''} title="取消勾选 = 注释掉这行">
-      <input type="text" class="keycell" data-role="key" value="${esc(r.key)}" placeholder="（没绑键）">
-      <input type="text" class="cmdcell" data-role="cmd" value="${esc(r.cmd)}" list="cmdList" placeholder="命令">
-      <input type="text" data-role="comment" value="${esc(r.comment)}" placeholder="分类 > 说明">
-      <button class="icon-btn" data-role="del" title="删掉这一行">✕</button>
+      <input type="checkbox" data-role="on" ${r.enabled ? 'checked' : ''} title="${esc(I18N.t('keys.rowOnTitle'))}">
+      <input type="text" class="keycell" data-role="key" value="${esc(r.key)}" placeholder="${esc(I18N.t('keys.rowKeyPh'))}">
+      <input type="text" class="cmdcell" data-role="cmd" value="${esc(r.cmd)}" list="cmdList" placeholder="${esc(I18N.t('keys.rowCmdPh'))}">
+      <input type="text" data-role="comment" value="${esc(r.comment)}" placeholder="${esc(I18N.t('keys.rowCommentPh'))}">
+      <button class="icon-btn" data-role="del" title="${esc(I18N.t('keys.rowDelTitle'))}">✕</button>
     </div>`;
   }).join('');
-  host.innerHTML = `<div class="row head"><span></span><span>键位</span><span>命令</span>
-      <span>分类 &gt; 说明</span><span></span></div>` + html;
+  host.innerHTML = `<div class="row head"><span></span><span>${I18N.t('keys.headKey')}</span><span>${I18N.t('keys.headCmd')}</span>
+      <span>${I18N.t('keys.headComment')}</span><span></span></div>` + html;
   document.getElementById('count').textContent =
-    `${binds} 条绑定 · 显示 ${shown} 行` + (KEY.dirty ? ' · ⚠ 有未保存改动' : '');
+    I18N.t('keys.countLine', { binds, shown }) + (KEY.dirty ? I18N.t('keys.countDirty') : '');
 }
 
 function onEdit(ev) {
@@ -246,7 +247,7 @@ function onEdit(ev) {
     renderRows();
   }
   document.getElementById('count').textContent =
-    document.getElementById('count').textContent.replace(/ · ⚠.*$/, '') + ' · ⚠ 有未保存改动';
+    document.getElementById('count').textContent.replace(/ · ⚠.*$/, '') + I18N.t('keys.countDirty');
 }
 
 function onRowClick(ev) {
@@ -254,7 +255,7 @@ function onRowClick(ev) {
   const row = ev.target.closest('[data-i]');
   const i = +row.dataset.i;
   const r = KEY.rows[i];
-  if (!confirm(`删掉这一行？\n${r.key || '（无键位）'}  ${r.cmd}`)) return;
+  if (!confirm(I18N.t('keys.delConfirm', { key: r.key || I18N.t('keys.noKeyLabel'), cmd: r.cmd }))) return;
   KEY.rows.splice(i, 1);
   KEY.dirty = true;
   renderRows();
@@ -273,7 +274,7 @@ function addRow() {
 }
 
 async function save() {
-  if (!KEY.main) { toast('没有可保存的文件', 'err'); return; }
+  if (!KEY.main) { toast(I18N.t('keys.noFileToSave'), 'err'); return; }
   const r = await API.post('/api/keys/save', { path: KEY.main, rows: KEY.rows });
   toast((r.ok ? '✅ ' : '❌ ') + r.detail, r.ok ? 'ok' : 'err');
   if (r.ok) { KEY.dirty = false; await load(); }
@@ -298,13 +299,23 @@ function renderRef() {
   host.innerHTML = list.map(d => {
     const hit = mine[d.key] !== undefined;
     return `<div class="row${hit ? ' hit' : ''}">
-      <div class="keycell">${esc(d.key)} ${hit ? '<span class="badge choice">已被覆盖</span>' : ''}</div>
+      <div class="keycell">${esc(d.key)} ${hit ? `<span class="badge choice">${I18N.t('keys.refOverridden')}</span>` : ''}</div>
       <div class="cmdcell">${esc(mine[d.key] !== undefined ? mine[d.key] : d.cmd)}</div>
       <div class="note">${esc(d.comment || '')} <span class="muted">${esc(d.label || '')}</span></div>
     </div>`;
-  }).join('') || '<div class="row"><div class="note">没有匹配的。</div></div>';
+  }).join('') || `<div class="row"><div class="note">${I18N.t('keys.refNoMatch')}</div></div>`;
 }
 
+/* 切语言后重绘。这一页的 DOM 几乎全是 JS 渲染的（文件信息卡、行表、内置对照表），
+   不在任何 data-i18n 属性上。注意**不能**重新 load()：那会丢掉用户未保存的编辑
+   （KEY.rows 会被服务端响应覆盖）—— 按 KEY._last 缓存重绘，不发请求。 */
+document.addEventListener('i18n:change', () => {
+  if (!KEY._last) return;
+  renderMeta(KEY._last.r, KEY._last.f);
+  renderPromote(KEY._last.r);
+  renderRows();
+  renderRef();
+});
 boot();
 </script>
 </body>

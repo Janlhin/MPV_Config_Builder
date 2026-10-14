@@ -153,17 +153,14 @@ window.I18N_ZH2EN = {
   '文件': 'File',
 
   // ---------- 快捷键 ----------
+  // 2026-10-14 keys 页做深一轮：整句全部改走 keys.* 键（data-i18n / I18N.t），
+  // 下面五条半句词条随之删除；'属性' 也删——它没有任何前端 UI 文本引用，
+  // 却在 36 处后端选项说明里把「控制 X 的属性」切成「控制 X 的Property」。
   '只看我改过的': 'Only what I changed',
   '只看未启用': 'Only disabled ones',
   '只看被覆盖的': 'Only overridden ones',
-  'mpv 内置默认键位': 'mpv built-in default keybindings',
-  '这是从你自己的 mpv 里问出来的': 'This comes straight from your own mpv',
-  '属性': 'Property',
-  '带真实命令。左边那份配置里如果绑了同一个键，这里会标出来':
-    'With the real command. If the config on the left binds the same key, it is flagged here',
-  '注意 mpv-lazy 默认关了内置键位':
-    'Note: mpv-lazy disables the built-in keybindings by default',
-  '仅供对照': 'For reference only',
+  '🔍 搜键位 / 命令 / 说明': '🔍 Search keys / commands / notes',
+  '🔍 搜内置键位': '🔍 Search built-in keybindings',
   '点别处 / 再点一次 i / Esc / 右键 都能关':
     'Click elsewhere, press i again, Esc, or right-click — any of them closes it',
 

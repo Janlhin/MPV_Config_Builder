@@ -230,13 +230,15 @@
 | 依赖 | T8（机制已就绪） |
 | 可逆性 | 中 |
 | 完成判据 | 9 个页面都能切换语言；顶栏切过去后 0 汉字；整页剩余中文持续下降（`verify.py i18n` 会打出每页数字） |
-| 状态 | **进行中**（2026-10-09 第 1 批：8 个内页接上 i18n，收录约 130 条**语义完整**的词条；9 页顶栏已 0 汉字。**纵向做深第一批（同日）：analyze 页 93 → 2**，前端文案归零；**第二批：hell 页 306 → 0 全归零**；**第三批：basic 377 → 41**（剩 41 字全归因到后端）；**第四批：downloads 914 → 292**（2026-10-14，剩 292 字全归因到后端清单数据）；**第五批：advanced 755 → 214**（2026-10-14，剩 214 字全归因到后端：group 名/选项说明/组合预设/vpy role_label/预览头），合计 11527 → 10663。见下方「剩余工作量」） |
+| 状态 | **进行中（可执行部分已收官）**（2026-10-09 第 1 批：8 个内页接上 i18n，收录约 130 条**语义完整**的词条；9 页顶栏已 0 汉字。**纵向做深第一批（同日）：analyze 页 93 → 2**，前端文案归零；**第二批：hell 页 306 → 0 全归零**；**第三批：basic 377 → 41**（剩 41 字全归因到后端）；**第四批：downloads 914 → 292**（2026-10-14）；**第五批：advanced 755 → 214**（2026-10-14）；**第六批：keys 1025 → 542**（2026-10-14，剩 542 字为后端 label + 用户键位表内容）。七页前端归零，合计 11527 → 10481。剩余 guide/expert 两页按设计压轴，见下方「剩余工作量」） |
 
 > **纵向做深的推进顺序**（每轮一页，做透再换页）：analyze ✅ → hell ✅ →
-> basic ✅ → **downloads ✅（2026-10-14）** → **advanced ✅（2026-10-14）** →
-> **keys（891）← 下一轮**。
-> guide 与 expert 按设计留到最后 —— 前者是文档翻译（顺序表第 11 项），
-> 后者 726 条选项说明要取 mpv 官方原文（第 5 项）。
+> basic ✅ → downloads ✅ → advanced ✅ → **keys ✅（2026-10-14）**。
+> **9 个页面里 7 页前端已归零**（index / analyze / hell / basic / downloads /
+> advanced / keys）；guide 与 expert 按设计留到最后 —— 前者是文档翻译
+> （顺序表第 11 项，用户原话「最后做文档翻译吧」），后者 726 条选项说明要取
+> mpv 官方原文（第 5 项）。**T13 的可执行部分到此收官**，剩下的等 T14（后端
+> 文案）与第 5 项（官方英文原文）到位后才能继续降剩余汉字。
 >
 > **advanced 轮的机制选择**：这一页的 DOM 几乎全是 JS 渲染的（PANES 模板、侧栏、
 > state.js 的选项卡片、预览卡），机制与 downloads 轮同构——字符串全部走 `I18N.t()`
@@ -277,7 +279,7 @@
 | 页面 | 切前 → 切后 | 主要剩余是什么 |
 |---|---|---|
 | expert | 6983 → 6676 | **726 条选项说明**，按设计不翻译（待做.md：直接取 mpv 官方英文原文，属顺序表第 5 项） |
-| keys | 1021 → 891 | mpv 内置键位的键名与命令名 |
+| keys | 1025 → **542** | ✅ **前端归零**（2026-10-14，CDP dump 逐节点归因）：静态整句 data-i18n，文件信息卡/行表/内置对照表/promote 提示全部 I18N.t + i18n:change 按缓存重绘；剩 542 字**全部来自后端与用户数据**（`data/mpv_keybindings.json` 的 label 字段 209 条、后端 `r.source` 串、**用户自己键位表文件里的注释行**——那些是要原样写回的内容，不译），转 T14 |
 | downloads | 914 → **292** | ✅ **前端归零**（2026-10-14，CDP dump 逐节点归因）：静态整句走 data-i18n/-html，运行时拼串（列表/状态/确认框/toast/安装计划/链接校验）全部走 I18N.t + i18n:change 重刷；剩 292 字**全部来自后端**（`core/dlcenter.py` 清单的 note / author / license / needs / note_extra / version_note / 字体名，转 T14） |
 | guide | 2238 → 2092 | 文档正文（属顺序表第 11 项「4 份文档翻译」，单独立项） |
 | advanced | 755 → **214** | ✅ **前端归零**（2026-10-14，CDP dump 逐节点归因，分默认视图与 g: 分区两路）：静态整句 data-i18n；PANES 模板 / 侧栏 / 选项卡片（st.* 层）全部 I18N.t + i18n:change 重渲染；剩 214 字**全部来自后端**（侧栏 group 名与选项标签/说明、`core/combo.py` 与 `core/presets.py` 的组合与预设名/注、`/api/vpy/list` 的 role_label、`core/builder.py` 的预览头，转 T14） |
@@ -289,7 +291,7 @@
 |---|---|
 | 目标 | 报错、提示、报告结论等后端文案也随界面语言切换 |
 | 动作 | 后端文案抽键；前端按当前语言取对应译文 |
-| 已归因来源 | ① basic 预览：`core/presets.py:84` 预设 note、`core/writer.py:26-27` 预览头注释（basic 页切后剩 41 字的全部来源）；② analyze 文件描述（剩 2 字的来源）；③ **downloads 清单数据（剩 292 字的全部来源）：`core/dlcenter.py` 的 note / author / license / needs / note_extra / version_note / 字体名，共 9 条目；另加该页 API 侧的 `r.detail`（接口错误）、安装计划的 `reason` / `notes` / `space_detail`、任务轮询的 `j.detail`**；④ **advanced 页数据（剩 214 字的全部来源）：侧栏 group 名与选项标签/说明（精选层，`core/` 里的 curated 列表）、`core/combo.py` 与 `core/presets.py` 的组合/预设名与 note、`/api/vpy/list` 的 role_label、`core/builder.py:196` 的预览头** |
+| 已归因来源 | ① basic 预览：`core/presets.py:84` 预设 note、`core/writer.py:26-27` 预览头注释（basic 页切后剩 41 字的全部来源）；② analyze 文件描述（剩 2 字的来源）；③ **downloads 清单数据（剩 292 字的全部来源）：`core/dlcenter.py` 的 note / author / license / needs / note_extra / version_note / 字体名，共 9 条目；另加该页 API 侧的 `r.detail`（接口错误）、安装计划的 `reason` / `notes` / `space_detail`、任务轮询的 `j.detail`**；④ **advanced 页数据（剩 214 字的全部来源）：侧栏 group 名与选项标签/说明（精选层，`core/` 里的 curated 列表）、`core/combo.py` 与 `core/presets.py` 的组合/预设名与 note、`/api/vpy/list` 的 role_label、`core/builder.py:196` 的预览头**；⑤ **keys 页数据（剩 542 字的全部来源）：`data/mpv_keybindings.json` 的 `label` 字段（209 条分组名）、后端 `r.source` 串、以及用户自己键位表文件里的注释与命令内容——后者是要原样写回文件的，不译** |
 | 依赖 | T13 |
 | 可逆性 | 中 |
 | 完成判据 | 切到英文时后端返回的提示也是英文；相关测试全绿 |
