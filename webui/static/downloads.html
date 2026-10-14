@@ -20,8 +20,11 @@
 <div class="content" style="max-width:1180px;margin:0 auto">
 
   <div class="card">
-    <h2>🚀 一键安装 mpv-lazy <span class="muted" style="font-weight:400;font-size:12px">整包</span></h2>
-    <p class="note">
+    <h2>🚀 一键安装 mpv-lazy <span class="muted" style="font-weight:400;font-size:12px" data-i18n="dl.archiveBadge">整包</span></h2>
+    <!-- 整句走 data-i18n-html：段内只有 <b> / <a> / <code> / <br> 内联标签，
+         译文要原样带上这些标签（含 <a> 的 href）。两个原因不拆文本节点：
+         词条表按节点精确匹配，拆开的半句各译各的会「语法对、意思不通」。 -->
+    <p class="note" data-i18n-html="dl.lazyNote">
       本工具是以 <b>mpv-lazy</b> 为底座的。这台机器还没装的话，这里可以直接装 ——
       从 <a href="https://github.com/hooke007/mpv_PlayKit" target="_blank" rel="noopener">官方 release</a>
       取最新版，<b>不内置也不转发</b>任何文件。<br>
@@ -31,15 +34,15 @@
     <div class="dirbar" style="margin-top:10px">
       <label class="note">装到</label>
       <input type="text" id="lzTarget" style="min-width:320px" placeholder="（点「检查」自动填默认位置）">
-      <button class="btn" id="lzPlan">🔍 检查（不下载）</button>
-      <button class="btn primary" id="lzGo" style="display:none">🚀 开始安装</button>
+      <button class="btn" id="lzPlan" data-i18n="dl.checkOnly">🔍 检查（不下载）</button>
+      <button class="btn primary" id="lzGo" style="display:none" data-i18n="dl.startInstall">🚀 开始安装</button>
     </div>
     <div id="lzOut" style="margin-top:12px"></div>
   </div>
 
   <div class="card">
     <h2>📦 mpv 脚本与字幕字体</h2>
-    <p class="note">
+    <p class="note" data-i18n-html="dl.singleFileNote">
       这里只装<b>单文件</b>的东西：脚本进 <code>scripts\</code>，字体进 <code>fonts\</code>。
       全部从各项目的<b>官方地址</b>下载，本工具不内置、不转发任何第三方文件。<br>
       装过什么会记在本机清单里，列表上直接能看能卸。
@@ -57,11 +60,11 @@
     <h2>🧩 选择分类</h2>
     <div class="seg" id="kindSeg" style="display:inline-flex">
       <button data-k="" class="on">全部</button>
-      <button data-k="script">mpv 脚本</button>
-      <button data-k="font">字幕字体</button>
+      <button data-k="script" data-i18n="dl.kindScript">mpv 脚本</button>
+      <button data-k="font" data-i18n="dl.kindFont">字幕字体</button>
     </div>
     <label class="note" style="margin-left:14px;cursor:pointer">
-      <input type="checkbox" id="overwrite"> 覆盖已存在的文件（会先备份）
+      <input type="checkbox" id="overwrite"> <span data-i18n="dl.overwrite">覆盖已存在的文件（会先备份）</span>
     </label>
   </div>
 
@@ -70,14 +73,14 @@
   <div class="card">
     <h2>❓ 说明</h2>
     <ul class="note" style="margin:0;padding-left:20px">
-      <li><b>装到哪儿</b>：<code>scripts\</code> 与 <code>fonts\</code> 就在你选的配置目录里。
+      <li data-i18n-html="dl.faqWhere"><b>装到哪儿</b>：<code>scripts\</code> 与 <code>fonts\</code> 就在你选的配置目录里。
         脚本放进去后 mpv 下次启动就会加载；字体还要在 <code>mpv.conf</code> 里写
         <code>sub-font=字体名</code> 才会用上。</li>
-      <li><b>「已装（未校验）」是什么意思</b>：上游没公开提供 sha256，我们无法验证文件完整性。
+      <li data-i18n-html="dl.faqUnverified"><b>「已装（未校验）」是什么意思</b>：上游没公开提供 sha256，我们无法验证文件完整性。
         但安装清单里记了<b>你装到的那份文件的哈希</b> —— 所以至少能判断"装完之后有没有被改过"。</li>
-      <li><b>为什么列表里没有 uosc</b>：它现在只以 <code>.zip</code> 发布（仓库里没有单文件），
+      <li data-i18n-html="dl.faqUosc"><b>为什么列表里没有 uosc</b>：它现在只以 <code>.zip</code> 发布（仓库里没有单文件），
         属于下一阶段（L2「压缩包里挑文件」）的活。这一阶段故意不放必然 404 的条目。</li>
-      <li><b>VapourSynth 插件（滤镜）不在这里</b>：那些 <code>.dll</code> 必须安装到 mpv 配置目录
+      <li data-i18n-html="dl.faqVapoursynth"><b>VapourSynth 插件（滤镜）不在这里</b>：那些 <code>.dll</code> 必须安装到 mpv 配置目录
         <b>之外</b>，而且有版本与依赖要求，风险高一个量级，安排在 L3。</li>
     </ul>
   </div>
@@ -91,16 +94,20 @@
 <script>
 /* 下载中心（R-8x · L1）：mpv 脚本 + 字幕字体，单文件、可卸载。 */
 const el = id => document.getElementById(id);
-const DL = { kind: '', items: [], poll: null, lazy: null };
+/* plan / links 记最近一次渲染的数据：切语言时按已拿到的响应重画面板，
+   不发重复请求（i18n:change 的重刷用的是缓存，见文件末尾）。 */
+const DL = { kind: '', items: [], poll: null, lazy: null, plan: null, links: null };
 
 
+/* 状态标签只存键名，渲染时走 I18N.t()：同一句话不许在语言表和词条表里各存一份。
+   切语言时整个列表重刷（见文件末尾的 i18n:change 监听）。 */
 const STATE_TEXT = {
-  not_installed:    ['', '未安装'],
-  installed:        ['ok', '已安装'],
-  modified:         ['warn', '已安装（文件被改过）'],
-  missing:          ['danger', '记录在，文件没了'],
-  present_untracked:['warn', '文件在，但不是这里装的'],
-  broken:           ['danger', '目标目录不可用'],
+  not_installed:     ['', 'dl.state.notInstalled'],
+  installed:         ['ok', 'dl.state.installed'],
+  modified:          ['warn', 'dl.state.modified'],
+  missing:           ['danger', 'dl.state.missing'],
+  present_untracked: ['warn', 'dl.state.untracked'],
+  broken:            ['danger', 'dl.state.broken'],
 };
 
 function kindIcon(kind) { return kind === 'font' ? '🔤' : '🧩'; }
@@ -108,37 +115,41 @@ function kindIcon(kind) { return kind === 'font' ? '🔤' : '🧩'; }
 function renderList() {
   const box = el('list');
   if (!DL.items.length) {
-    box.innerHTML = '<div class="card"><p class="note">这个分类下没有条目。</p></div>';
+    box.innerHTML = `<div class="card"><p class="note">${esc(I18N.t('dl.emptyKind'))}</p></div>`;
     return;
   }
   const byKind = {};
   DL.items.forEach(x => (byKind[x.kind] = byKind[x.kind] || []).push(x));
-  box.innerHTML = Object.keys(byKind).map(k => `
+  box.innerHTML = Object.keys(byKind).map(k => {
+    const n = byKind[k].length;
+    return `
     <div class="card">
-      <h2>${kindIcon(k)} ${k === 'font' ? '字幕字体' : 'mpv 脚本'}
-        <span class="muted" style="font-weight:400;font-size:12px"> · ${byKind[k].length} 项</span></h2>
+      <h2>${kindIcon(k)} ${k === 'font' ? I18N.t('dl.kindFont') : I18N.t('dl.kindScript')}
+        <span class="muted" style="font-weight:400;font-size:12px"> · ${n === 1 ? I18N.t('dl.items1') : I18N.t('dl.itemsN', { n })}</span></h2>
       ${byKind[k].map(rowHtml).join('')}
-    </div>`).join('');
+    </div>`;
+  }).join('');
   box.onclick = onListClick;
 }
 
 function rowHtml(it) {
-  const [cls, label] = STATE_TEXT[it.state] || ['', it.state];
+  const [cls, key] = STATE_TEXT[it.state] || ['', ''];
+  const label = key ? I18N.t(key) : it.state;
   const installed = it.state === 'installed' || it.state === 'modified';
   const ver = it.verified ? '' :
-    '<span class="badge" title="上游没有提供 sha256，无法验证完整性">未校验</span>';
+    `<span class="badge" title="${esc(I18N.t('dl.unverifiedTitle'))}">${esc(I18N.t('dl.unverified'))}</span>`;
   const when = it.installed_at
-    ? `<small class="muted">装于 ${esc(it.installed_at)}</small>` : '';
-  const need = it.needs ? `<small class="muted">需要：${esc(it.needs)}</small>` : '';
+    ? `<small class="muted">${esc(I18N.t('dl.installedAt', { when: it.installed_at }))}</small>` : '';
+  const need = it.needs ? `<small class="muted">${esc(I18N.t('dl.needs', { what: it.needs }))}</small>` : '';
   // archive 型（L2）：装的是一棵目录树，把"装了几个文件、有没有被改过"说清楚
   const arc = it.archive
-    ? `<span class="badge choice" title="这是一个压缩包，按白名单挑文件装进去">整包</span>`
-      + (it.file_count ? `<small class="muted" style="margin-left:6px">${it.file_count} 个文件`
-          + (it.files_changed ? ` · <span class="warn-text">${it.files_changed} 个被改过</span>` : '')
-          + (it.files_missing ? ` · <span class="bad-text">${it.files_missing} 个不见了</span>` : '')
+    ? `<span class="badge choice" title="${esc(I18N.t('dl.archiveTitle'))}">${esc(I18N.t('dl.archiveBadge'))}</span>`
+      + (it.file_count ? `<small class="muted" style="margin-left:6px">${esc(I18N.t('dl.filesN', { n: it.file_count }))}`
+          + (it.files_changed ? ` · <span class="warn-text">${esc(I18N.t('dl.filesChangedN', { n: it.files_changed }))}</span>` : '')
+          + (it.files_missing ? ` · <span class="bad-text">${esc(I18N.t('dl.filesMissingN', { n: it.files_missing }))}</span>` : '')
           + `</small>` : '')
     : '';
-  const where = it.dest_rel ? `<code>${esc(it.dest_rel)}</code>` : '<span class="muted">配置目录根</span>';
+  const where = it.dest_rel ? `<code>${esc(it.dest_rel)}</code>` : `<span class="muted">${esc(I18N.t('dl.destRoot'))}</span>`;
   return `
   <div class="opt${installed ? ' on' : ''}" style="align-items:flex-start">
     <div style="flex:1;min-width:0">
@@ -155,11 +166,11 @@ function rowHtml(it) {
     </div>
     <div class="right" style="display:flex;flex-direction:column;gap:6px;min-width:104px">
       <button class="btn small primary" data-dl="${esc(it.id)}">
-        ${installed ? '⬇️ 重新下载' : '⬇️ 下载'}</button>
+        ${installed ? I18N.t('dl.redownload') : I18N.t('dl.download')}</button>
       ${installed || it.state === 'missing'
-        ? `<button class="btn small danger" data-rm="${esc(it.id)}">🗑️ 卸载</button>` : ''}
+        ? `<button class="btn small danger" data-rm="${esc(it.id)}">${I18N.t('dl.uninstall')}</button>` : ''}
       <a class="btn small ghost" href="${esc(it.home || '#')}" target="_blank"
-         rel="noopener">项目主页</a>
+         rel="noopener">${I18N.t('dl.homepage')}</a>
     </div>
   </div>`;
 }
@@ -167,10 +178,10 @@ function rowHtml(it) {
 async function load() {
   if (!APP.target) {
     el('list').innerHTML = '<div class="card"><p class="note warn-text">' +
-      '先设置目标目录（配置目录一般是 portable_config）。</p></div>';
+      esc(I18N.t('dl.setTargetFirst')) + '</p></div>';
     return;
   }
-  el('stat').textContent = '读取中…';
+  el('stat').textContent = I18N.t('dl.reading');
   const r = await API.get('/api/downloads?target=' + encodeURIComponent(APP.target)
     + (DL.kind ? '&kind=' + encodeURIComponent(DL.kind) : ''));
   if (!r.ok) {
@@ -179,7 +190,8 @@ async function load() {
     return;
   }
   DL.items = r.items || [];
-  el('stat').textContent = `共 ${r.counts.total} 项，已安装 ${r.counts.installed} 项`;
+  el('stat').textContent = I18N.t('dl.statCounts',
+    { total: r.counts.total, installed: r.counts.installed });
   renderList();
 }
 
@@ -194,9 +206,9 @@ async function doDownload(id) {
   const it = DL.items.find(x => x.id === id);
   const overwrite = el('overwrite').checked;
   if (overwrite && it && (it.state === 'installed' || it.state === 'modified')) {
-    if (!confirm(`覆盖 ${it.dest_rel}？\n\n原文件会先备份成 .bak-时间戳。`)) return;
+    if (!confirm(I18N.t('dl.confirmOverwrite', { path: it.dest_rel }))) return;
   } else if (it && it.state === 'present_untracked' && !overwrite) {
-    toast('这个文件已经在了。要换成清单里的版本，请先勾选「覆盖已存在的文件」', 'err');
+    toast(I18N.t('dl.alreadyThere'), 'err');
     return;
   }
   const r = await API.post('/api/download/start',
@@ -213,7 +225,7 @@ function pollJob(jid, name) {
     const r = await API.get('/api/download/job?id=' + encodeURIComponent(jid));
     if (!r.ok) {
       clearInterval(DL.poll); DL.poll = null;
-      box.textContent = r.detail || '任务丢了';
+      box.textContent = r.detail || I18N.t('dl.jobLost');
       return;
     }
     const j = r.job;
@@ -229,11 +241,10 @@ function pollJob(jid, name) {
 
 async function doRemove(id) {
   const it = DL.items.find(x => x.id === id);
-  if (!confirm(`卸载 ${it ? it.dest_rel : id}？\n\n删之前会备份一份 .bak-时间戳。\n` +
-    '如果你自己改过这个文件，工具会拒绝删除并提示你。')) return;
+  if (!confirm(I18N.t('dl.confirmRemove', { path: it ? it.dest_rel : id }))) return;
   let r = await API.post('/api/download/remove', { target: APP.target, id });
   if (!r.ok && r.modified) {
-    if (!confirm((r.detail || '') + '\n\n确定要强制删除吗？')) return;
+    if (!confirm((r.detail || '') + '\n\n' + I18N.t('dl.confirmForceRemove'))) return;
     r = await API.post('/api/download/remove', { target: APP.target, id, force: true });
   }
   toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
@@ -253,38 +264,33 @@ function fmtSize(n) {
   return n + ' B';
 }
 
-async function lazyPlan() {
+/* 渲染与取数分开：renderPlan 只认已拿到的响应 r，切语言时用 DL.plan 缓存
+   重刷同一块面板，不发重复请求（i18n:change 的重刷，见文件末尾）。 */
+function renderPlan(r) {
   const out = el('lzOut');
-  const target = (el('lzTarget').value || '').trim();
-  out.innerHTML = '<p class="note">正在读取最新版本…（要联网）</p>';
-  const r = await API.installPlan(target, '');
-  if (!r.ok) {
-    out.innerHTML = `<p class="note danger">❌ ${esc(r.detail || '读取失败')}</p>`;
-    return;
-  }
   if (!el('lzTarget').value) el('lzTarget').value = r.target;
   const sp = r.space || {};
   const a = r.asset || {};
   const rows = [
-    ['最新版本', r.tag || '（没读到）'],
-    ['要下的包', `${a.name} · ${fmtSize(a.size)}`
-      + (a.split ? `（分卷 ${a.volumes} 个，会依次下载）` : '')],
-    ['sha256', a.digest ? a.digest.slice(0, 16) + '…' : '⚠ 这个 release 没给，装完只能报「未校验」'],
-    ['装到', r.target + (r.target_exists ? '' : '（目录还不存在，会创建）')],
-    ['空间', sp.free == null ? '拿不到剩余空间'
-      : `需要约 ${fmtSize(sp.need)}（按包大小 2 倍算）／可用 ${fmtSize(sp.free)}`],
+    [I18N.t('dl.rowTag'), r.tag || I18N.t('dl.noTag')],
+    [I18N.t('dl.rowAsset'), `${a.name} · ${fmtSize(a.size)}`
+      + (a.split ? I18N.t('dl.splitVolumes', { n: a.volumes }) : '')],
+    [I18N.t('dl.rowSha'), a.digest ? a.digest.slice(0, 16) + '…' : I18N.t('dl.noSha')],
+    [I18N.t('dl.rowTarget'), r.target + (r.target_exists ? '' : I18N.t('dl.targetWillCreate'))],
+    [I18N.t('dl.rowSpace'), sp.free == null ? I18N.t('dl.spaceUnknown')
+      : I18N.t('dl.spaceNeed', { need: fmtSize(sp.need), free: fmtSize(sp.free) })],
   ];
   const opts = (r.options || []).length > 1
     ? `<details style="margin-top:8px"><summary class="note" style="cursor:pointer">
-         这个 release 里还有别的包（点开看）</summary>
+         ${I18N.t('dl.otherAssets')}</summary>
          <table class="kv" style="margin-top:6px;width:100%">
          ${r.options.map(o => `<tr>
            <td><code>${esc(o.name)}</code></td>
            <td class="muted">${fmtSize(o.size)}</td>
-           <td>${o.compact ? '⚠ 不含 VapourSynth（补帧/融合用不了）'
-                           : (o.has_vapoursynth ? '✅ 含 VapourSynth' : '')}
-               ${o.split ? ` · ${o.volumes} 个分卷` : ''}
-               ${o.complete ? '' : ` · ❌ 缺第 ${o.missing_volumes} 卷`}</td>
+           <td>${o.compact ? I18N.t('dl.noVapoursynth')
+                           : (o.has_vapoursynth ? I18N.t('dl.hasVapoursynth') : '')}
+               ${o.split ? ` · ${I18N.t('dl.volumesN', { n: o.volumes })}` : ''}
+               ${o.complete ? '' : ` · ${I18N.t('dl.missingVolumeN', { n: o.missing_volumes })}`}</td>
          </tr>`).join('')}
          </table></details>`
     : '';
@@ -297,18 +303,30 @@ async function lazyPlan() {
     ${opts}
     ${(r.notes || []).map(n => `<p class="note" style="margin-top:6px">ℹ️ ${esc(n)}</p>`).join('')}
     ${r.already_installed
-      ? '<p class="note warn-text" style="margin-top:8px">⚠ 这个目录下已经有 portable_config 了 —— ' +
-        '一键安装<b>不会覆盖</b>它。想重装请自己先挪走或删掉。</p>'
+      ? `<p class="note warn-text" style="margin-top:8px">${I18N.t('dl.alreadyInstalled')}</p>`
       : (r.space_ok ? '' : `<p class="note danger" style="margin-top:8px">❌ ${esc(r.space_detail)}</p>`)}`;
   el('lzGo').style.display = (r.already_installed || !r.space_ok) ? 'none' : '';
+}
+
+async function lazyPlan() {
+  const out = el('lzOut');
+  const target = (el('lzTarget').value || '').trim();
+  out.innerHTML = `<p class="note">${esc(I18N.t('dl.planReading'))}</p>`;
+  const r = await API.installPlan(target, '');
+  if (!r.ok) {
+    out.innerHTML = `<p class="note danger">❌ ${esc(r.detail || I18N.t('dl.planFailed'))}</p>`;
+    return;
+  }
+  DL.plan = r;
+  renderPlan(r);
 }
 
 async function lazyGo() {
   const target = (el('lzTarget').value || '').trim();
   const r = await API.installStart({ target });
-  if (!r.ok) { toast('❌ ' + (r.detail || '启动失败'), 'err'); return; }
+  if (!r.ok) { toast('❌ ' + (r.detail || I18N.t('dl.startFailed')), 'err'); return; }
   el('lzGo').style.display = 'none';
-  el('lzOut').innerHTML = '<p class="note" id="lzProg">准备中…</p>';
+  el('lzOut').innerHTML = `<p class="note" id="lzProg">${esc(I18N.t('dl.preparing'))}</p>`;
   lazyPoll(r.job);
 }
 
@@ -319,7 +337,7 @@ function lazyPoll(jid) {
     const box = el('lzProg') || el('lzOut');
     if (!r.ok) {
       clearInterval(DL.lazy); DL.lazy = null;
-      box.innerHTML = `<p class="note danger">任务丢了：${esc(r.detail || '')}</p>`;
+      box.innerHTML = `<p class="note danger">${esc(I18N.t('dl.jobLostDetail', { detail: r.detail || '' }))}</p>`;
       return;
     }
     const j = r.job;
@@ -334,29 +352,34 @@ function lazyPoll(jid) {
     const res = j.result || {};
     if (j.state === 'ok') {
       box.innerHTML = `<p class="note">✅ ${esc(j.detail || '')}</p>
-        <p class="note">配置目录：<code>${esc(res.portable_config || '')}</code><br>
-        下载线路：${esc(res.mirror || '-')} · 解压方式：${esc(res.method || '-')}</p>
-        <p class="note">接下来去 <a href="index.html">入口页</a> 或基础模式，把目标目录设成那个
-        <code>portable_config</code> 就行。</p>`;
+        <p class="note">${esc(I18N.t('dl.configDir'))}<code>${esc(res.portable_config || '')}</code><br>
+        ${esc(I18N.t('dl.mirrorMethod', { mirror: res.mirror || '-', method: res.method || '-' }))}</p>
+        <p class="note">${I18N.t('dl.nextStep')}</p>`;
     } else {
-      box.innerHTML = `<p class="note danger">❌ ${esc(j.detail || '安装失败')}</p>
-        ${res.staged ? `<p class="note">半个包留在 <code>${esc(res.staged)}</code>，
-          下次装会接着下（断点续传），确认不要了可以自己删。</p>` : ''}`;
+      box.innerHTML = `<p class="note danger">❌ ${esc(j.detail || I18N.t('dl.installFailed'))}</p>
+        ${res.staged ? `<p class="note">${I18N.t('dl.stagedHint', { path: esc(res.staged) })}</p>` : ''}`;
     }
     toast((j.state === 'ok' ? '✅ ' : '❌ ') + (j.detail || ''), j.state === 'ok' ? 'ok' : 'err');
   }, 800);
 }
 
-async function checkLinks() {
+/* 同上：渲染与取数分开，切语言时按 DL.links 缓存重刷。 */
+function renderLinks(r) {
   const box = el('linkOut');
-  box.innerHTML = '<p class="note">正在逐条校验下载地址…（要联网，可能要十几秒）</p>';
-  const r = await API.post('/api/download/check', {});
   const rows = r.results || [];
   const bad = rows.filter(x => !x.ok);
   box.innerHTML = `<p class="note ${bad.length ? 'warn-text' : ''}">
-      ${rows.length} 条地址，${bad.length ? `❌ ${bad.length} 条失效` : '✅ 全部可用'}</p>`
+      ${I18N.t(bad.length ? 'dl.linksBad' : 'dl.linksOk', { total: rows.length, bad: bad.length })}</p>`
     + (bad.length ? '<pre class="conf">' + bad.map(x =>
         `${x.id}  ${x.detail}\n  ${x.url}`).join('\n\n') + '</pre>' : '');
+}
+
+async function checkLinks() {
+  const box = el('linkOut');
+  box.innerHTML = `<p class="note">${esc(I18N.t('dl.checking'))}</p>`;
+  const r = await API.post('/api/download/check', {});
+  DL.links = r;
+  renderLinks(r);
 }
 
 async function boot() {
@@ -380,6 +403,17 @@ async function boot() {
   };
   load();
 }
+
+// 切语言后重刷三类「渲染完就不变」的 DOM：条目列表、安装计划面板、链接校验结果。
+// 它们全是 JS 拼出来写进 innerHTML / textContent 的，不在任何 data-i18n 属性上，
+// apply() 刷不到 —— 不监听的话会一直停在加载时那门语言（hell 轮记下的坑：
+// i18n.js 的 setLang 专门派 i18n:change 给动态文案用）。计划与校验结果按 DL 里
+// 缓存的响应重绘，不重新发请求；列表走 load() 重取（本地接口，顺带刷新状态）。
+document.addEventListener('i18n:change', () => {
+  load();
+  if (DL.plan) renderPlan(DL.plan);
+  if (DL.links) renderLinks(DL.links);
+});
 boot();
 </script>
 </body>

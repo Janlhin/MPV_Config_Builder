@@ -190,15 +190,14 @@ window.I18N_ZH2EN = {
   '体检这段文本': 'Check this text',
 
   // ---------- 下载中心 ----------
-  '整包': 'Whole package',
-  '每一步都会显示进度，可以随时关掉页面':
-    'Progress is shown for every step — you can close the page at any time',
-  '检查（不下载': 'Check (without downloading',
+  // 2026-10-14 做深一轮后，本页整句全部改走 data-i18n / I18N.t（见 i18n.js 的 dl.* 键），
+  // 词条表只留三处：两个 h2 标题、input 的 placeholder（属性分支按原文精确匹配）。
+  // 删掉的三条（'检查（不下载' / '每一步都会显示进度…' / '装过什么会记在本机清单里…'）
+  // 是半句或整句被 data-i18n 接管后的死条目 —— 其中 '检查（不下载' 还少个右括号，
+  // 会把按钮文案切成「🔍 Check (without downloading）」，正是收录标准要避免的半句匹配。
   'mpv 脚本与字幕字体': 'mpv scripts and subtitle fonts',
-  '装过什么会记在本机清单里，列表上直接能看能卸':
-    'Whatever you installed is recorded locally — the list shows it and uninstalls it',
-  'mpv 脚本': 'mpv scripts',
-  '字幕字体': 'Subtitle fonts',
+  '❓ 说明': '❓ Notes',
+  '（点「检查」自动填默认位置）': '(click "Check" to fill in the default location)',
 
   // ---------- 完全体 / 进阶 ----------
   '全部选项': 'All options',
