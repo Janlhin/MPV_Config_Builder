@@ -38,7 +38,7 @@ py -3 tools\build.py version       :: 改过 core\schema.py 的 VERSION 之后
 ### 1.2 提交门禁（pre-commit，每次 commit 都会跑）
 
 `.githooks/pre-commit` 在每次 `git commit` 时跑 `verify.py precommit`——
-**源码可编译 / 暂存文本文件行尾必须 LF / `.bat` 必须无 BOM + CRLF**，秒级，
+**源码可编译 / 暂存文本文件行尾必须 LF / 脚本基线（仓库无 `.bat`/`.cmd`；`.ps1` 带 BOM + CRLF）**，秒级，
 任何一项不过就不许提交。
 
 **每个克隆都要开一次** —— `core.hooksPath` 是 Git 的**本地**配置，不会随仓库走：
@@ -76,26 +76,25 @@ git config core.hooksPath .githooks
 `Path.write_text()` 在 Windows 上会把 LF 写成 CRLF，然后 `git diff` 全是行尾噪音、
 `verify.py docs` 的逐字节读也会读到不一样的内容。
 
-### 2.4 `.bat`：UTF-8 **无 BOM** + CRLF，开头要短且纯 ASCII
+### 2.4 脚本基线：Pwsh-only，仓库无 `.bat`/`.cmd`；`.ps1` 带 BOM + CRLF
 
-用工具改完 `.bat` 之后必须跑 `python tools\build.py bat`。
+**2026-10-14 起，启动器由 `启动.bat` 转为 `启动.ps1`，仓库全面禁用 `.bat`/`.cmd`**
+（工程规则把「禁止 cmd/bat、统一 Pwsh 7+」列为**护栏而非调度变量**：
+不得为不停机而降级到 cmd，也不得把「是否允许 cmd」列为可放宽选项）。
+门禁判据：`verify.py` 的「脚本基线」项（`script_baseline_problems`，全仓库只有这一份规则）。
 
-⚠ **2026-10-09 实测推翻了原先「必须带 BOM」的约定**。四条都要记住：
+**`.ps1` 的编码约定与 `.bat` 时代正好相反，别把旧结论套过来**：
 
-1. **不要 BOM**。双击打开是**全新控制台（代码页 936）**，cmd 把开头的 `EF BB BF`
-   当成命令的一部分 —— 实测 3/3 稳定复现 `'@echo' 不是内部或外部命令`，
-   `@echo off` 根本没执行（echo 关不掉、`rem` 注释被当命令跑、满屏报错）。
-   中文显示靠 `chcp 65001`，**不靠 BOM**。
-2. **`chcp 65001` 放第二行**（第一行是 `@echo off`）。
-3. **开头别放大段中文注释**。cmd 会用控制台代码页**预读**文件头部，
-   `chcp` 之前的中文注释会被按 936 解码而错乱，甚至被当成命令执行。
-   要写就写进文档（`AGENTS.md` / `docs\踩过的坑.md`），脚本里只留英文短注。
-4. **CRLF 仍然必须**：LF 的批处理在 Windows 上行为不可靠。
-   `.gitattributes` 只管行尾、**不管 BOM**，所以 BOM 得靠 `build.py bat` 剥掉。
+1. **必须带 BOM**。Windows PowerShell 5.1 读 UTF-8 无 BOM 的脚本时按系统代码页
+   （936）解码，中文一律乱码；Pwsh 7 默认 UTF-8、两种都认。带 BOM 是唯一让
+   5.1 / 7 都正确的写法。
+2. **CRLF 仍然必须**；`.gitattributes` 只管行尾、不管 BOM。
+3. 用工具改完 `.ps1` 之后必须跑 `python tools\build.py ps1`（它保证「有且只有一个
+   BOM + 纯 CRLF」，模型工具写出的是 LF、无 BOM）。
 
-> 这个坑最坑的地方是**时好时坏**：同一会话里跑过 `chcp 65001` 之后代码页已是
-> 65001，BOM 被当 U+FEFF 忽略 —— **在终端里试是对的，双击就是坏的**。
-> 所以测 `.bat` 必须开一个干净控制台（`chcp 936` 之后再跑），别在已切过代码页的窗口里试。
+用户运行方式（写进 README）：右键 `启动.ps1` →「使用 PowerShell 运行」，或终端里
+`pwsh -NoProfile -File .\启动.ps1`。双击 `.ps1` 默认是用记事本打开 —— 这是 Pwsh 的
+系统行为，文档里要交代清楚。
 
 ### 2.5 界面文档渲染器不支持引用块内嵌表格
 `core/mdrender.py` 只支持标题 / 水平线 / 列表 / 围栏代码块 / 引用 / 表格。

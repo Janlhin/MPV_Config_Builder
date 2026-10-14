@@ -373,3 +373,21 @@
 * **被否决的替代方案**：移植它的部分实现。
 * **理由**：它是 GPL-2.0-only，与本项目 GPL-3.0 **不兼容**，粘过来就是许可污染。
 * **同类**：MattMcManis/Glow（GPL-3.0）只做功能对比，未引入代码，其图标等资源有独立版权、未使用。
+
+## 2026-10-14 启动器转 Pwsh：`启动.bat` → `启动.ps1`，仓库 Pwsh-only
+
+* **决策**：用户裁决（Q-001）——`启动.bat` 删除，改用 `启动.ps1`（UTF-8 **带** BOM
+  + CRLF）；仓库全面禁用 `.bat` / `.cmd`（工程规则「禁止 cmd/bat、统一 Pwsh 7+」为
+  护栏）。门禁同步：`verify.py` 新增「脚本基线」项（无 `.bat`/`.cmd`；`.ps1` 带
+  BOM + CRLF），`build.py` 的 `bat` 模式改为 `ps1` 模式，`AGENTS.md` §2.4 重写。
+* **被否决的替代方案**：(A) 保留 `启动.bat` 并登记例外 —— 原本执行者的推荐，
+  被用户否决；(C) 双入口（`.ps1` 供开发、`.bat` 仅转发壳）—— 判据仍不达标，否决。
+* **理由**：用户明确选择与工程规则对齐，宁可承担 `.ps1` 的启动门槛。`.ps1` 的 BOM
+  约定与 2026-10-09 的 `.bat` 结论**正好相反**（5.1 靠 BOM 识别 UTF-8），两份结论
+  都保留在 `build.py ps1` 与 `AGENTS.md` §2.4 的注释里，谁用错谁会当场被门禁拦住。
+* **代价（诚实登记）**：`.ps1` 双击默认是记事本打开、执行策略可能拦截 —— 普通用户
+  的启动方式从「双击」变为「右键 → 使用 PowerShell 运行」或终端命令，README 已写清
+  （含 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` 的解法）。
+* **留痕**：实测 Git for Windows 会把 `#!/usr/bin/env pwsh` 钩子转给 PowerShell，
+  但 PowerShell 拒绝用 `-File` 执行无扩展名文件 —— **git 钩子无法直接改为 .ps1**，
+  另立待裁决项 Q-002（见 `TASKS.md` 被阻塞区）。

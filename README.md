@@ -33,15 +33,21 @@
 
 ### 从源码跑（需要 Python 3.8+，只用标准库，不用 `pip install`）
 
-```bat
-双击  启动.bat
+在项目根目录**右键 `启动.ps1` →「使用 PowerShell 运行」**，或在终端里：
+
+```powershell
+pwsh -NoProfile -File .\启动.ps1
 ```
 
 它会起一个本地服务并自动打开浏览器。也可以手动：
 
 ```bat
-py -3 webui\server.py
+python webui\server.py
 ```
+
+> 执行策略提示：若「使用 PowerShell 运行」被策略拦截，以当前用户跑一次
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` 即可（只放行本机脚本）。
+> 双击 `.ps1` 默认是用记事本打开 —— 这是 Windows 的系统行为，请用右键或终端。
 
 四档模式：**基础**（4 问向导）→ **进阶**（常用参数 + Shader 链 + 补帧）→
 **完全体**（813 项全量搜索）→ **地狱**（裸写文本框，不给护栏但写前仍备份）。

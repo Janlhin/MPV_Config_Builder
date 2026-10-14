@@ -8,8 +8,8 @@
 # ── 两个设计决定，改之前先看 ──────────────────────────────────────────
 #
 # 1. 为什么是 windows-latest，不是 ubuntu-latest
-#    本项目只支持 Windows：启动器是 .bat（UTF-8 BOM + CRLF）、安装包是 Electron
-#    Windows 版、用户数据落在 %LOCALAPPDATA% / %APPDATA%。
+#    本项目只支持 Windows：启动器是 启动.ps1（UTF-8 带 BOM + CRLF，Pwsh 入口）、
+#    安装包是 Electron Windows 版、用户数据落在 %LOCALAPPDATA% / %APPDATA%。
 #    更关键的是 verify.py 的两项实机检查在 Linux 上会**退化成「跳过」**：
 #       · 顶栏常驻入口 —— 要 Edge / Chrome（tools/uidriver.py 的 find_browser）
 #       · Electron 外壳 —— 要 electron/node_modules/electron/dist/electron.exe
