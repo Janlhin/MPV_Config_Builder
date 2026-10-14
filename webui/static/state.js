@@ -40,11 +40,11 @@ var APP = {
 function isEditMode() { return APP.mode === 'edit'; }
 
 /** 主按钮该叫什么 —— 同一个动作只能有一个名字。 */
-function primaryLabel() { return isEditMode() ? '应用修改' : '生成配置'; }
+function primaryLabel() { return I18N.t(isEditMode() ? 'st.primaryApply' : 'st.primaryGenerate'); }
 
 /** 预览卡标题。 */
 function previewTitle() {
-  return isEditMode() ? '合并后的完整文件' : '将生成的配置';
+  return I18N.t(isEditMode() ? 'st.previewMerge' : 'st.previewCreate');
 }
 
 /** 切换语义。默认写入方式跟着变，但用户手动改过就不硬拽（见 setWriteMode）。 */
@@ -86,16 +86,15 @@ function renderModeBar() {
   const hint = document.getElementById('modeHint');
   if (hint) {
     if (isEditMode() && !APP.loaded && !APP.source) {
-      hint.innerHTML = '✏️ 改现有配置：先点「📂 读取现有配置」，' +
-        '否则主按钮不可用（避免你以为在读文件、其实在凭空生成）。';
+      hint.innerHTML = I18N.t('st.modeHintBlocked');
       hint.className = 'note warn-text';
     } else if (isEditMode()) {
-      hint.innerHTML = `✏️ 改现有配置：只改你动过的键，` +
-        `原文件其它内容与注释都保留。取消勾选 = 把原来那行<b>注释掉</b>。`;
+      hint.innerHTML = I18N.t('st.modeHintEdit');
       hint.className = 'note';
     } else {
-      hint.innerHTML = '🆕 从零创建：生成一份新配置。取消勾选只是<b>不写这一项</b>，' +
-        '不会去动你已有的文件。';
+      // 与 basic.html 的 data-i18n-html 共用同一个键：两页这句话一字不差，
+      // 不许在各处各存一份译文（basic.modeHintCreate 在 basic.html 的 HTML 里）。
+      hint.innerHTML = I18N.t('basic.modeHintCreate');
       hint.className = 'note';
     }
   }
@@ -103,7 +102,7 @@ function renderModeBar() {
   document.querySelectorAll('[data-primary]').forEach(b => {
     b.textContent = (b.dataset.primaryIcon || '✅') + ' ' + primaryLabel();
     b.disabled = blockedByNoSource();
-    b.title = blockedByNoSource() ? '先读取现有配置' : '';
+    b.title = blockedByNoSource() ? I18N.t('st.readFirstTitle') : '';
   });
 }
 
@@ -222,8 +221,8 @@ async function loadExistingConfig(path) {
   renderLoadInfo(r);
   renderModeBar();
   changed();
-  let msg = `✅ 已读取 ${r.name}：${r.summary}`;
-  if (APP.profiles.length) msg += `；另有 ${APP.profiles.length} 个 profile 没动，需要的话在右边单独载入`;
+  let msg = I18N.t('st.readOk', { name: r.name, summary: r.summary });
+  if (APP.profiles.length) msg += I18N.t('st.readProfilesNote', { n: APP.profiles.length });
   toast(msg, 'ok');
   (r.warnings || []).forEach((w, i) => setTimeout(() => toast('⚠ ' + w, 'err'), 1200 + i * 1200));
   return r;
@@ -231,23 +230,24 @@ async function loadExistingConfig(path) {
 
 /** 加载完把「这文件是什么来头」讲清楚：编码、include 链、profile */
 function renderLoadInfo(r) {
+  APP._loadInfo = r || null;          // 切语言时按同一份响应重刷（i18n:change）
   const box = document.getElementById('chainHint');
   if (box) {
     if (!r) { box.innerHTML = ''; }
     else {
       const files = (r.chain && r.chain.files) || [];
       const bits = [];
-      bits.push(`编码 <b>${esc(r.encoding || 'UTF-8')}</b> · 换行 ${esc(r.newline || 'LF')}`);
+      bits.push(I18N.t('st.loadEncoding', { enc: r.encoding || 'UTF-8', nl: r.newline || 'LF' }));
       if (files.length > 1) {
-        bits.push('跟随 include 读到 ' + files.length + ' 个文件：'
+        bits.push(I18N.t('st.loadChain', { n: files.length })
           + files.map(f => `${esc(f.name)}<span class="muted">(${f.count})</span>`).join(' · '));
       } else if (files.length === 1) {
-        bits.push('没有 include 其它文件');
+        bits.push(I18N.t('st.loadNoInclude'));
       }
       if (r.chain && r.chain.files) {
         const missing = (r.chain.files[0] && r.chain.files[0].missing) || [];
         if (missing.length) {
-          bits.push(`<span class="warn-text">⚠ ${missing.length} 个 include 指向的文件不存在：`
+          bits.push(`<span class="warn-text">${I18N.t('st.loadMissingInclude', { n: missing.length })}`
             + missing.map(m => esc(m.target)).join('、') + '</span>');
         }
       }
@@ -265,7 +265,7 @@ function renderLoadInfo(r) {
       if (sel) {
         sel.innerHTML = APP.profiles.map((p, i) =>
           `<option value="${i}">${esc(p.name)}${p.desc ? ' · ' + esc(p.desc) : ''}`
-          + `（${Object.keys(p.values || {}).length} 项）</option>`).join('');
+          + I18N.t('st.profileItemsN', { n: Object.keys(p.values || {}).length }) + '</option>').join('');
       }
     }
   }
@@ -277,12 +277,12 @@ function loadProfile(index) {
   if (!p) return;
   const vals = p.values || {};
   const n = Object.keys(vals).length;
-  if (!n) { toast(`profile「${p.name}」里没有可识别的选项`, 'err'); return; }
+  if (!n) { toast(I18N.t('st.profileEmpty', { name: p.name }), 'err'); return; }
   APP.values = Object.assign({}, APP.values, vals);
   APP.disable = []; APP.pending = [];
   changed();
-  toast(`已载入 profile「${p.name}」的 ${n} 项 —— `
-    + `它原本只在 ${p.cond ? '条件满足时' : '被调用时'} 生效，写进配置后就是全局生效了`, 'err');
+  toast(I18N.t(p.cond ? 'st.profileLoadedCond' : 'st.profileLoadedCall',
+    { name: p.name, n }), 'err');
 }
 
 let _previewTimer = null;
@@ -325,7 +325,7 @@ function toggleDiff() {
   DIFF.shown = !DIFF.shown;
   pre.style.display = DIFF.shown ? 'none' : '';
   box.style.display = DIFF.shown ? '' : 'none';
-  if (btn) btn.textContent = DIFF.shown ? '📄 看完整文件' : '🔀 逐行对比';
+  if (btn) btn.textContent = I18N.t(DIFF.shown ? 'st.diffShowFull' : 'st.diffShowDiff');
 }
 
 /** 根据预览结果决定「逐行对比」按钮该不该出现。 */
@@ -341,31 +341,31 @@ function updateDiffToggle(r) {
     DIFF.shown = false;
     const pre = document.getElementById('preview');
     if (pre) pre.style.display = '';
-    btn.textContent = '🔀 逐行对比';
+    btn.textContent = I18N.t('st.diffShowDiff');
     return;
   }
   renderDiff(r.diff);
   const st = r.diff_stats || {};
   btn.textContent = DIFF.shown
-    ? '📄 看完整文件'
-    : `🔀 逐行对比（${st.changes || 0} 处）`;
+    ? I18N.t('st.diffShowFull')
+    : I18N.t('st.diffToggleN', { n: st.changes || 0 });
 }
 
 async function doPreview() {
   const box = document.getElementById('preview');
   if (!box) return;
-  if (!APP.target) { box.textContent = '（先选目标目录）'; return; }
+  if (!APP.target) { box.textContent = I18N.t('st.previewNoTarget'); return; }
   const r = await API.post('/api/config/preview', payload());
-  if (!r.ok) { box.textContent = r.detail || '预览失败'; return; }
+  if (!r.ok) { box.textContent = r.detail || I18N.t('st.previewFailed'); return; }
   const empty = countValues() === 0 && !String(APP.custom || '').trim();
   const shown = (r.mode === 'merge' && r.merged_text) ? r.merged_text : r.text;
   box.innerHTML = paintConf(shown) + (empty
-    ? '\n<span class="c"># 还没有勾选任何选项 —— 左边随便点一个，这里就实时变</span>' : '');
+    ? '\n<span class="c">' + esc(I18N.t('st.previewEmptyHint')) + '</span>' : '');
   const title = document.getElementById('previewTitle');
   if (title) {
     // 标题跟着「创建 / 修改」语义走，而不是只看写入方式
     title.textContent = r.mode === 'merge'
-      ? `合并后的完整文件（${r.changes.length} 处改动）` : previewTitle();
+      ? I18N.t('st.previewMergeTitle', { n: r.changes.length }) : previewTitle();
   }
   const c = document.getElementById('changeCount');
   if (c) c.textContent = r.mode === 'merge' ? String(r.changes.length) : String(countValues());
@@ -377,17 +377,17 @@ async function doPreview() {
   }
   const ph = document.getElementById('pendingHint');
   if (ph) ph.innerHTML = APP.pending.length
-    ? `<span class="warn-text">⚠ ${APP.pending.length} 项勾选了但没填值，不会被写入</span>` : '';
+    ? `<span class="warn-text">${I18N.t('st.pendingHint', { n: APP.pending.length })}</span>` : '';
   const eh = document.getElementById('encodingHint');
   if (eh) {
     eh.textContent = r.mode === 'merge' && r.encoding
-      ? `按原编码写回：${r.encoding}` : '';
+      ? I18N.t('st.encodingHint', { enc: r.encoding }) : '';
   }
   renderIssues(r.issues || [], r.conflicts || []);
   updateDiffToggle(r);
   if (empty) {
     const sbox = document.getElementById('scoreBox');
-    if (sbox) sbox.innerHTML = '<p class="note">配置里还没有内容，先勾几个选项再看评分。</p>';
+    if (sbox) sbox.innerHTML = `<p class="note">${esc(I18N.t('st.scoreEmpty'))}</p>`;
   } else {
     analyze(shown);
   }
@@ -416,15 +416,15 @@ function countValues() {
 }
 
 async function applyConfig() {
-  if (!APP.target) { toast('请先选目标配置目录', 'err'); return; }
+  if (!APP.target) { toast(I18N.t('st.applyNoTarget'), 'err'); return; }
   // R-26：edit 语义下必须先读取现有配置 —— 否则你以为在读文件、其实在凭空生成，
   // 而且 merge 会把生成结果写进那个"没读过"的文件。
   if (blockedByNoSource()) {
-    toast('「改现有配置」模式下要先点「📂 读取现有配置」', 'err');
+    toast(I18N.t('st.applyNeedRead'), 'err');
     return;
   }
   if (APP.writeMode === 'merge' && !APP.source) {
-    toast('合并模式需要先「读取现有配置」', 'err'); return;
+    toast(I18N.t('st.applyMergeNeedRead'), 'err'); return;
   }
   const r = await API.post('/api/config/apply', payload());
   toast((r.ok ? '✅ ' : '❌ ') + r.detail, r.ok ? 'ok' : 'err');
@@ -438,14 +438,14 @@ async function analyze(text) {
   const s = r.scores || {};
   box.innerHTML = `
     <div class="kv">
-      <span class="muted">综合</span><b>${r.overall} / 100 · ${r.grade}</b>
-      <span class="muted">清晰度</span><b>${s.quality}</b>
-      <span class="muted">锐度</span><b>${s.sharp}</b>
-      <span class="muted">流畅度</span><b>${s.smooth}</b>
-      <span class="muted">色彩</span><b>${s.color}</b>
-      <span class="muted">GPU 负载</span><b>${s.load}</b>
+      <span class="muted">${I18N.t('st.scoreOverall')}</span><b>${r.overall} / 100 · ${r.grade}</b>
+      <span class="muted">${I18N.t('st.scoreQuality')}</span><b>${s.quality}</b>
+      <span class="muted">${I18N.t('st.scoreSharp')}</span><b>${s.sharp}</b>
+      <span class="muted">${I18N.t('st.scoreSmooth')}</span><b>${s.smooth}</b>
+      <span class="muted">${I18N.t('st.scoreColor')}</span><b>${s.color}</b>
+      <span class="muted">${I18N.t('st.scoreLoad')}</span><b>${s.load}</b>
     </div>
-    <p class="note" style="margin-top:8px">⚠ 评分为启发式估算，请以 mpv 的 stats（按 <code>i</code> 再按 <code>2</code>）实测为准</p>`;
+    <p class="note" style="margin-top:8px">${I18N.t('st.scoreNote')}</p>`;
 }
 
 function renderIssues(issues, conflicts) {
@@ -456,7 +456,7 @@ function renderIssues(issues, conflicts) {
   markConflictRows();
   if (!box) return;
   if (!issues.length) {
-    box.innerHTML = '<p class="note">✅ 没有发现明显问题</p>';
+    box.innerHTML = `<p class="note">${esc(I18N.t('st.issuesNone'))}</p>`;
     return;
   }
   const icon = { error: '❌', warn: '⚠', info: 'ℹ️' };
@@ -473,13 +473,14 @@ function markConflictRows() {
     if (!head) return;
     const old = head.querySelector('.conflict-flag');
     if (!lv) { if (old) old.remove(); return; }
-    const label = { error: '❌ 冲突', warn: '⚠ 冲突', info: 'ℹ️ 提示' }[lv] || '⚠ 冲突';
+    const label = I18N.t(lv === 'error' ? 'st.conflictError'
+      : lv === 'warn' ? 'st.conflictWarn' : 'st.conflictInfo');
     if (old) { old.textContent = label; old.className = `badge choice conflict-flag lv-${lv}`; }
     else {
       const b = document.createElement('span');
       b.className = `badge choice conflict-flag lv-${lv}`;
       b.textContent = label;
-      b.title = '点右边的 i 看说明；下方「评估与体检」里有完整原因和改法';
+      b.title = I18N.t('st.conflictTitle');
       head.insertBefore(b, head.querySelector('.right'));
     }
   });
@@ -487,9 +488,12 @@ function markConflictRows() {
 
 /* ---------------- 选项行渲染 ---------------- */
 
+/* 类型徽标：[CSS 类, i18n 键] —— 键而不是中文字面量：这些徽标是运行时渲染的，
+   词条表兜底盖不到（会被 <label> / <span> 切断），切语言靠 i18n:change 重刷。 */
 const TYPE_BADGE = {
-  bool: ['flag', '开关'], enum: ['choice', '枚举'], int: ['int', '整数'],
-  float: ['int', '小数'], str: ['', '文本'], color: ['color', '颜色'], list: ['', '列表']
+  bool: ['flag', 'st.typeBool'], enum: ['choice', 'st.typeEnum'], int: ['int', 'st.typeInt'],
+  float: ['int', 'st.typeFloat'], str: ['', 'st.typeStr'], color: ['color', 'st.typeColor'],
+  list: ['', 'st.typeList']
 };
 
 function optRow(item, index) {
@@ -498,7 +502,7 @@ function optRow(item, index) {
   const need = APP.pending.includes(key);
   const val = hasOption(key) ? APP.values[key] : '';
   const typ = item.type || (item.values && item.values.length && isBoolValues(item.values) ? 'bool' : 'enum');
-  const badge = TYPE_BADGE[typ] || ['', '文本'];
+  const badge = TYPE_BADGE[typ] || ['', 'st.typeStr'];
   // suggest = 精选层写的建议值（只是举例）；options = 真正允许的取值（库里查得到的话）
   const suggest = item.suggest || item.values || [];
   const options = item.options || item.values || [];
@@ -515,7 +519,7 @@ function optRow(item, index) {
   if (!open && options.length) {
     const opts = options.map(v =>
       `<option value="${esc(v)}"${String(v) === String(val) ? ' selected' : ''}>${esc(v)}</option>`).join('');
-    control = `<select data-role="value"><option value="">（选一个值）</option>${opts}</select>`;
+    control = `<select data-role="value"><option value="">${esc(I18N.t('st.pickOne'))}</option>${opts}</select>`;
   } else {
     // 候选列表自己画（见 openCombo 的注释：原生 datalist 的气泡没法跟着主题走）
     control = `<span class="combo"><input type="text" data-role="value" value="${esc(val)}"
@@ -523,33 +527,33 @@ function optRow(item, index) {
       placeholder="${esc(suggest[0] || item.range || '')}" style="min-width:130px" autocomplete="off"
       spellcheck="false">${options.length
         ? '<button type="button" class="combo-arrow" data-role="combo-toggle" tabindex="-1" '
-          + 'title="展开候选值">▼</button>'
+          + `title="${esc(I18N.t('st.expandCandidates'))}">▼</button>`
         : ''}</span>`;
   }
 
   const list = suggest.length
-    ? `<div class="note" style="margin-top:4px">建议值：${suggest.map(v => `<code>${esc(v)}</code>`).join(' ')}</div>`
+    ? `<div class="note" style="margin-top:4px">${I18N.t('st.suggestLabel')}${suggest.map(v => `<code>${esc(v)}</code>`).join(' ')}</div>`
     : '';
   // 候选比建议多时说明"不止这几个"，说清楚免得用户以为只有这些
   const more = (options.length > suggest.length)
-    ? `<div class="note" style="margin-top:4px">这个选项实际有 <b>${options.length}</b> 个可选值`
-      + `（上面只是常用建议）—— 输入框可以下拉看全部，也可以直接敲。</div>`
+    ? `<div class="note" style="margin-top:4px">${I18N.t('st.moreOptions', { n: options.length })}</div>`
     : '';
   const freeHint = (open && options.length)
-    ? `<div class="note" style="margin-top:4px">也可以自己填：不限于上面这些值。</div>`
+    ? `<div class="note" style="margin-top:4px">${I18N.t('st.freeHint')}</div>`
     : '';
   const lv = (APP.conflictKeys || {})[key];
   const flag = lv
-    ? `<span class="badge choice conflict-flag lv-${lv}" title="与其它选项冲突，看下方体检">`
-      + `${lv === 'error' ? '❌ 冲突' : lv === 'warn' ? '⚠ 冲突' : 'ℹ️ 提示'}</span>`
+    ? `<span class="badge choice conflict-flag lv-${lv}" title="${esc(I18N.t('st.conflictFlagTitle'))}">`
+      + I18N.t(lv === 'error' ? 'st.conflictError' : lv === 'warn' ? 'st.conflictWarn' : 'st.conflictInfo')
+      + '</span>'
     : '';
   const extra = [];
   if (item.default !== undefined && item.default !== '' && item.kind === 'db') {
-    extra.push(`<span class="badge" title="mpv 的默认值">默认 ${esc(item.default)}</span>`);
+    extra.push(`<span class="badge" title="${esc(I18N.t('st.defaultTitle'))}">${esc(I18N.t('st.defaultBadge', { v: item.default }))}</span>`);
   }
-  if (item.deprecated) extra.push('<span class="badge color">已弃用</span>');
+  if (item.deprecated) extra.push(`<span class="badge color">${esc(I18N.t('st.deprecated'))}</span>`);
   const hint = need
-    ? `<span class="warn-text">⚠ 已勾选，但还没填值 —— 填了才会写进配置</span>`
+    ? `<span class="warn-text">${I18N.t('st.pendingRowHint')}</span>`
     : esc(item.desc || '');
   return `<div class="opt${on ? ' on' : ''}${lv ? ' has-conflict' : ''}" data-key="${esc(key)}"
     data-kind="${esc(item.kind || '')}" data-idx="${index}">
@@ -557,16 +561,16 @@ function optRow(item, index) {
       <input type="checkbox" data-role="check"${on ? ' checked' : ''}>
       <label data-role="label">${esc(item.label)}</label>
       ${item.label === key ? '' : `<span class="key">${esc(key)}</span>`}
-      <span class="badge ${badge[0]}">${badge[1]}</span>
+      <span class="badge ${badge[0]}">${I18N.t(badge[1])}</span>
       ${extra.join('')}
       ${flag}
       <div class="right">${control}
-        <button class="icon-btn" data-role="info" title="完整说明">i</button>
+        <button class="icon-btn" data-role="info" title="${esc(I18N.t('st.infoTitle'))}">i</button>
       </div>
     </div>
     <div class="hint" data-role="hint">${hint}</div>
     <div class="expand" data-role="expand">${list}${more}${freeHint}${item.range
-      ? `<div class="note" style="margin-top:4px">取值范围：<code>${esc(item.range)}</code></div>` : ''}</div>
+      ? `<div class="note" style="margin-top:4px">${I18N.t('st.rangeLabel')}<code>${esc(item.range)}</code></div>` : ''}</div>
   </div>`;
 }
 
@@ -729,7 +733,7 @@ function comboRender() {
   if (!show.length) {
     const d = document.createElement('div');
     d.className = 'combo-empty';
-    d.textContent = q ? '没有匹配的候选值 —— 直接敲你自己的值就行' : '没有候选值';
+    d.textContent = I18N.t(q ? 'st.comboNoMatch' : 'st.comboNoOptions');
     comboPop.appendChild(d);
   } else {
     show.forEach(v => {
@@ -751,7 +755,7 @@ function comboRender() {
     if (list.length > show.length) {
       const d = document.createElement('div');
       d.className = 'combo-empty';
-      d.textContent = `候选值太多，只显示前 ${show.length} 个（继续输入可以缩小范围）`;
+      d.textContent = I18N.t('st.comboTooMany', { n: show.length });
       comboPop.appendChild(d);
     }
   }
@@ -908,7 +912,7 @@ var SUB_PREVIEW_KEYS = {
   'sub-back-color': 1, 'sub-pos': 1, 'sub-margin-x': 1,
 };
 
-var SUB_PREVIEW_TEXT = '这是字幕预览效果 Subtitle Preview 0123';
+var SUB_PREVIEW_TEXT_KEY = 'st.subpvText';
 
 /** 解析 mpv 的颜色值。返回 {css, warn}。
  *
@@ -951,10 +955,11 @@ function parseMpvColor(v) {
     const first2 = hex.slice(0, 2).toLowerCase();
     let warn = '';
     if ((last2 === 'ff' || last2 === '00') && first2 !== 'ff' && first2 !== '00') {
-      const swapped = last2 + hex.slice(0, 6);
-      warn = `mpv 的 8 位颜色是 #AARRGGBB（透明度在**最前**两位），不是 #RRGGBBAA。`
-        + `你写的 ${s} 会被当成「透明度 ${Math.round(parseInt(aa, 16) / 255 * 100)}%」。`
-        + `若想表达「不透明」请写 #FF${hex.slice(0, 6)}，或直接用 6 位的 #${hex.slice(0, 6)}。`;
+      warn = I18N.t('st.colorWarn', {
+        v: s,
+        pct: Math.round(parseInt(aa, 16) / 255 * 100),
+        six: hex.slice(0, 6)
+      });
     }
     return { css, warn };
   }
@@ -967,7 +972,7 @@ function parseMpvColor(v) {
     const al = (parts.length >= 4 && !isNaN(a)) ? Math.max(0, Math.min(1, Number(a))) : 1;
     return { css: `rgba(${to255(r)},${to255(g)},${to255(b)},${al})`, warn: '' };
   }
-  return { css: '', warn: `看不懂这个颜色值：${s}` };
+  return { css: '', warn: I18N.t('st.colorBad', { v: s }) };
 }
 
 function subVal(key, fallback) {
@@ -1000,7 +1005,7 @@ function updateSubPreview() {
   host.innerHTML = `
     <div class="subpv-wrap">
       <div class="subpv-stage">
-        <div class="subpv-meta">预览（按当前设置实时渲染）</div>
+        <div class="subpv-meta">${I18N.t('st.subpvMeta')}</div>
         <div class="subpv-sub" style="
           font-family:${esc(font)};
           font-size:${px}px;
@@ -1010,15 +1015,9 @@ function updateSubPreview() {
           ${shadowO !== 0 && shadowC.css ? `text-shadow:${Math.round(shadowO * 2)}px ${Math.round(shadowO * 2)}px 2px ${shadowC.css};` : ''}
           bottom:${bottom}px;
           ${marginX ? `left:${Math.max(4, Math.min(40, Math.round(marginX / 4)))}px;right:${Math.max(4, Math.min(40, Math.round(marginX / 4)))}px;` : 'left:12px;right:12px;'}
-        ">${esc(SUB_PREVIEW_TEXT)}</div>
+        ">${esc(I18N.t(SUB_PREVIEW_TEXT_KEY))}</div>
       </div>
-      <p class="note" style="margin-top:6px">
-        样式来自 <code>sub-font</code> / <code>sub-font-size</code> / <code>sub-color</code>
-        / <code>sub-border-*</code> / <code>sub-shadow-offset</code> / <code>sub-back-color</code>
-        / <code>sub-pos</code>。
-        实际观感还与片源分辨率、窗口大小、以及 ASS 字幕自带的样式有关 ——
-        ASS 字幕默认<b>不</b>吃这些设置（见 <code>sub-ass-override</code>）。
-      </p>
+      <p class="note" style="margin-top:6px">${I18N.t('st.subpvNote')}</p>
       ${warns.length ? `<div class="note warn-text" style="margin-top:6px">⚠ ${
         warns.map(esc).join('<br>⚠ ')}</div>` : ''}
     </div>`;
@@ -1058,7 +1057,8 @@ function onOptEvent(ev) {
         row.classList.add('on');
         setRowHint(row, item, '');
         input.focus();
-        if (input.tagName === 'SELECT') toast(`给「${item ? item.label : key}」选一个值才会写进配置`, '');
+        if (input.tagName === 'SELECT') toast(I18N.t('st.pickValueToast',
+          { label: item ? item.label : key }), '');
       }
     } else {
       clearOption(key);
@@ -1118,9 +1118,9 @@ function checkValue(item, v) {
   v = String(v == null ? '' : v).trim();
   if (!v) return '';
   const t = item.type;
-  if (t === 'int' && !RE_INT.test(v)) return '这里要填整数';
-  if (t === 'float' && !RE_FLOAT.test(v)) return '这里要填数字';
-  if (t === 'color' && !RE_COLOR.test(v)) return '颜色要写成 #RRGGBB 或 #AARRGGBB';
+  if (t === 'int' && !RE_INT.test(v)) return I18N.t('st.errInt');
+  if (t === 'float' && !RE_FLOAT.test(v)) return I18N.t('st.errFloat');
+  if (t === 'color' && !RE_COLOR.test(v)) return I18N.t('st.errColor');
 
   // 只有**封闭枚举**才拦值。判据是后端的 open 标记（最终来自 mpv 的类型表），
   // 不是"参数表里写没写建议值" —— 以前拿建议值当白名单，导致
@@ -1138,7 +1138,7 @@ function checkValue(item, v) {
   if (!allowed.length) return '';
   if (allowed.map(String).includes(v)) return '';
   const shown = allowed.slice(0, 14).join(' / ') + (allowed.length > 14 ? ' …' : '');
-  return `这个选项只能填固定取值：${shown}`;
+  return I18N.t('st.errEnum', { shown });
 }
 
 /** 一行只能显示一条提示：值不合法 > 还没填值 > 原本的说明 */
@@ -1148,9 +1148,9 @@ function setRowHint(row, item, badMsg) {
   const key = row.dataset.key;
   row.classList.toggle('bad', !!badMsg);
   if (badMsg) {
-    hint.innerHTML = `<span class="bad-text">❌ ${esc(badMsg)} —— 这样写 mpv 会报错，先改对再写</span>`;
+    hint.innerHTML = `<span class="bad-text">${I18N.t('st.rowBad', { msg: esc(badMsg) })}</span>`;
   } else if (APP.pending.includes(key)) {
-    hint.innerHTML = '<span class="warn-text">⚠ 已勾选，但还没填值 —— 填了才会写进配置</span>';
+    hint.innerHTML = `<span class="warn-text">${I18N.t('st.pendingRowHint')}</span>`;
   } else {
     hint.innerHTML = esc((item && item.desc) || '');
   }
@@ -1158,25 +1158,28 @@ function setRowHint(row, item, badMsg) {
 
 /* ---------------- 抽屉 ---------------- */
 
+var _drawerItem = null;      // 当前抽屉里展示的那一项（切语言时重画用）
+
 function openDrawer(item) {
   const d = document.getElementById('drawer');
   if (!d) return;
+  _drawerItem = item;                   // 切语言时按同一项重画（i18n:change）
   d.dataset.key = item.key || '';
   d.querySelector('h3').innerHTML = `${esc(item.label || item.key)} <span class="key">${esc(item.key)}</span>`;
   const sig = d.querySelector('.sig');
   if (sig) sig.textContent = `--${item.key}${item.type ? '=<' + item.type + '>' : ''}`;
   const body = d.querySelector('.body');
   if (body) {
-    body.innerHTML = `<p class="muted">${esc(item.desc || '（暂无说明）')}</p>`
+    body.innerHTML = `<p class="muted">${esc(item.desc || I18N.t('st.noDesc'))}</p>`
       + ((item.values && item.values.length)
-        ? `<div class="sec"><h4>建议取值</h4><p class="muted">${item.values.map(v => `<code>${esc(v)}</code>`).join('　')}</p></div>`
+        ? `<div class="sec"><h4>${I18N.t('st.suggestValues')}</h4><p class="muted">${item.values.map(v => `<code>${esc(v)}</code>`).join('　')}</p></div>`
         : '');
   }
   const fill = d.querySelector('[data-role="fill"]');
   if (fill) {
     const rec = (item.values && item.values[0]) || '';
     fill.style.display = rec ? '' : 'none';
-    fill.onclick = () => { setOption(item.key, rec); rerender(); toast(`已填入 ${item.key} = ${rec}`, 'ok'); };
+    fill.onclick = () => { setOption(item.key, rec); rerender(); toast(I18N.t('st.filledToast', { key: item.key, rec }), 'ok'); };
   }
   d.classList.add('open');
   markInfoButtons(d.dataset.key);
@@ -1197,7 +1200,7 @@ function markInfoButtons(key) {
     const on = !!key && !!row && row.dataset.key === key;
     b.classList.toggle('active', on);
     b.textContent = on ? '×' : 'i';
-    b.title = on ? '收起说明（双击 / 右键任意处也能关）' : '完整说明';
+    b.title = on ? I18N.t('st.infoClose') : I18N.t('st.infoTitle');
   });
 }
 
@@ -1246,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', initDrawerGestures);
 
 function addShader(path) {
   if (!path) return;
-  if (APP.shaders.includes(path)) { toast('这个 shader 已经在链里了', 'err'); return; }
+  if (APP.shaders.includes(path)) { toast(I18N.t('st.shaderDup'), 'err'); return; }
   APP.shaders.push(path);
   changed();
 }
@@ -1280,14 +1283,16 @@ async function prepareFusion() {
 
 /* ---------------- VPY 融合（R-3） ---------------- */
 
+/* 融合面板里角色徽标的 CSS 类。徽标**文字**用后端给的 s.role_label（中文，归 T14），
+   所以这里只存类名。第二列的中文标签 2026-10-14 清掉：grep 确证没有任何引用点。 */
 const ROLE_BADGE = {
-  deint: ['flag', '反交错'], denoise: ['int', '降噪'], superres: ['choice', '超分'],
-  memc: ['color', '补帧'], other: ['', '其它'], unfusable: ['color', '不能融合']
+  deint: 'flag', denoise: 'int', superres: 'choice',
+  memc: 'color', other: '', unfusable: 'color'
 };
 
 async function loadVpyList() {
   const r = await API.get('/api/vpy/list' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''))
-    .catch(() => ({ ok: false, detail: '读取失败' }));
+    .catch(() => ({ ok: false, detail: I18N.t('st.vpyLoadFailed') }));
   APP.vpyList = r.ok ? (r.scripts || []) : [];
   APP.vpyError = r.ok ? '' : (r.detail || '');
   return r;
@@ -1298,37 +1303,35 @@ function fusionPanelHtml() {
   const list = APP.vpyList || [];
   if (!list.length) {
     return `<div class="card">
-      <h2>🔗 多脚本融合</h2>
+      <h2>${I18N.t('st.fuseH2')}</h2>
       <p class="note">${APP.vpyError
         ? '❌ ' + esc(APP.vpyError)
-        : '目标目录里没有 <code>vs/</code> 脚本可选。'}</p></div>`;
+        : I18N.t('st.fuseNoVpy')}</p></div>`;
   }
   const rows = list.map((s, i) => `<div class="radio-item${s.fusable ? '' : ' disabled'}"
       data-vpy="${i}" style="${s.fusable ? '' : 'opacity:.5;cursor:not-allowed'}">
       <input type="checkbox" data-role="vpy" data-i="${i}" ${s.fusable ? '' : 'disabled'}>
       <div style="min-width:0"><div>${esc(s.name)}
-        ${s.generated ? '<span class="badge choice">本工具生成</span>' : ''}</div>
+        ${s.generated ? `<span class="badge choice">${I18N.t('st.fuseGenerated')}</span>` : ''}</div>
         <small>${esc(s.role_label)} · ${s.size} B</small></div>
-      <span class="badge ${(ROLE_BADGE[s.role] || ['', ''])[0]}" style="margin-left:auto"
+      <span class="badge ${ROLE_BADGE[s.role] || ''}" style="margin-left:auto"
         title="${esc(s.reason || s.role_label)}">${esc(s.role_label)}</span>
     </div>`).join('');
   return `
   <div class="card">
-    <h2>🔗 多脚本融合（把「补帧 + 超分」合成一个 .vpy）</h2>
-    <p class="note">mpv 同时只能挂一个 vapoursynth 脚本。勾几个脚本，这里按
-      <b>反交错 → 降噪 → 超分 → 补帧</b> 串成一个 <code>_mb_xxx.vpy</code>：
-      每个脚本的用户选项与管线原样保留、各自独立，原脚本一个都不动。</p>
+    <h2>${I18N.t('st.fuseH2Long')}</h2>
+    <p class="note">${I18N.t('st.fuseNote')}</p>
     <div class="radio-list" id="fuseList" style="margin-top:10px">${rows}</div>
     <div class="picker">
-      <input type="text" id="fuseName" placeholder="文件名（留空就是 fused）" style="min-width:170px">
-      <button class="btn" id="fusePreview">🔍 预览</button>
-      <button class="btn primary" id="fuseWrite">💾 写进 vs 目录</button>
+      <input type="text" id="fuseName" placeholder="${esc(I18N.t('st.fuseNamePh'))}" style="min-width:170px">
+      <button class="btn" id="fusePreview">${I18N.t('st.fusePreview')}</button>
+      <button class="btn primary" id="fuseWrite">${I18N.t('st.fuseWrite')}</button>
     </div>
     <p class="note" id="fuseWarn" style="margin-top:8px"></p>
     <pre class="conf" id="fuseOut" style="display:none;margin-top:10px;max-height:40vh"></pre>
     <div class="actions" id="fuseUse" style="display:none">
-      <button class="btn primary" id="fuseUseBtn">✅ 就用这个脚本</button>
-      <button class="btn" id="fuseCopy">📋 复制代码</button>
+      <button class="btn primary" id="fuseUseBtn">${I18N.t('st.fuseUse')}</button>
+      <button class="btn" id="fuseCopy">${I18N.t('st.fuseCopy')}</button>
     </div>
   </div>`;
 }
@@ -1340,7 +1343,7 @@ function selectedVpy() {
 
 async function fuseSelected(write) {
   const picked = selectedVpy();
-  if (picked.length < 2) { toast('至少勾两个脚本才需要融合', 'err'); return null; }
+  if (picked.length < 2) { toast(I18N.t('st.fuseNeedTwo'), 'err'); return null; }
   const nameEl = document.getElementById('fuseName');
   const r = await API.post('/api/vpy/fuse', {
     target: APP.target, scripts: picked.map(x => x.path),
@@ -1353,15 +1356,15 @@ async function fuseSelected(write) {
     warn.innerHTML = (r.warnings || []).map(w => `<span class="warn-text">⚠ ${esc(w)}</span>`).join('<br>')
       || (r.check ? `✅ ${esc(r.check.detail || '')}` : '');
   }
-  if (!r.ok) { toast('❌ ' + (r.detail || '融合失败'), 'err'); return r; }
+  if (!r.ok) { toast('❌ ' + (r.detail || I18N.t('st.fuseFailed')), 'err'); return r; }
   if (out) { out.style.display = ''; out.textContent = r.text; }
   if (useBox) useBox.style.display = '';
   if (write && r.path) {
     APP.fusedPath = r.path;
-    toast(`✅ ${r.detail}，可以用「就用这个脚本」挂上`, 'ok');
+    toast(I18N.t('st.fuseDoneToast', { detail: r.detail }), 'ok');
   } else {
     APP.fusedPath = (APP.target ? APP.target.replace(/[\\/]$/, '') + '\\vs\\' : '') + r.filename;
-    toast('已生成预览，确认没问题再写进 vs 目录', '');
+    toast(I18N.t('st.fusePreviewToast'), '');
   }
   return r;
 }
@@ -1372,7 +1375,7 @@ function initFusionPanel() {
   list.onclick = e => {
     const row = e.target.closest('[data-vpy]');
     if (!row || !row.querySelector('input').disabled) return;
-    toast('这个脚本是音频处理，不能拼进视频链', 'err');
+    toast(I18N.t('st.fuseAudioOnly'), 'err');
   };
   const pv = document.getElementById('fusePreview');
   if (pv) pv.onclick = () => fuseSelected(false);
@@ -1382,15 +1385,15 @@ function initFusionPanel() {
   if (use) use.onclick = () => {
     if (!APP.fusedPath) return;
     setMemc(APP.fusedPath.replace(/^.*[\\/]vs[\\/]/i, '~~/vs/'));
-    toast('已把融合脚本挂上（记得点「应用修改」写进配置）', 'ok');
+    toast(I18N.t('st.fuseAttached'), 'ok');
     rerender();
   };
   const cp = document.getElementById('fuseCopy');
   if (cp) cp.onclick = async () => {
     try {
       await navigator.clipboard.writeText(document.getElementById('fuseOut').textContent);
-      toast('已复制', 'ok');
-    } catch (e) { toast('复制失败，请手动选中', 'err'); }
+      toast(I18N.t('st.copied'), 'ok');
+    } catch (e) { toast(I18N.t('st.copyFailed'), 'err'); }
   };
 }
 
@@ -1405,7 +1408,7 @@ function setTarget(dir) {
 
 function configOptions() {
   const list = APP.catalog.configs || [];
-  if (!list.length) return '<option value="">（目录里还没有配置文件）</option>';
+  if (!list.length) return `<option value="">${esc(I18N.t('st.noConfigFiles'))}</option>`;
   return list.map(c => `<option value="${esc(c.path)}">${esc(c.name)}`
-    + `${c.kind === 'profiles' ? '（profile 集合）' : ''} · ${c.size} B</option>`).join('');
+    + `${c.kind === 'profiles' ? I18N.t('st.profileSet') : ''} · ${c.size} B</option>`).join('');
 }
