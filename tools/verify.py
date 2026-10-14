@@ -34,6 +34,7 @@ import argparse
 import importlib.util
 import io
 import json
+import os
 import re
 import socket
 import subprocess
@@ -48,27 +49,48 @@ sys.path.insert(0, str(ROOT / "tools"))
 sys.stdout.reconfigure(encoding="utf-8")
 
 
-def bat_problems():
-    """仓库里所有 `.bat` 的格式问题清单 —— **BOM / CRLF 规则全仓库只有这一份**。
+def script_baseline_problems():
+    """脚本基线（主规范 Pwsh-only）—— **规则全仓库只有这一份**。
 
-    为什么要抽出来：`cmd_all` 的 `check_bat` 与提交门禁 `cmd_precommit` 都要判
-    `.bat` 格式。两处各写一遍正则，迟早会长歪 —— 这正是 `AGENTS.md` §2.6
-    「数字不要手抄」那条纪律的同种毛病，只不过抄的是规则。
+    为什么要抽出来：`cmd_all` 的 `check_script_baseline` 与提交门禁
+    `cmd_precommit` 都要判它。两处各写一遍，迟早会长歪 —— 这正是
+    `AGENTS.md` §2.6「数字不要手抄」的同种毛病，只不过抄的是规则。
 
-    返回 `(问题列表, .bat 总数)`。
+    判两条（2026-10-14 立：启动.bat 转成 启动.ps1、仓库 Pwsh-only 之后）：
+      1. 仓库里**没有** `.bat` / `.cmd`。构建产物目录除外 —— `node_modules` /
+         `dist` / `electron/release` 不入库、由打包流程重新生成，判它们等于判打包机。
+      2. `.ps1` 必须是 **UTF-8 带 BOM + CRLF**。BOM 是必须的：Windows
+         PowerShell 5.1 靠 BOM 识别 UTF-8（无 BOM 中文乱码），Pwsh 7 两种都认。
+         ⚠ 与 2026-10-09 的 .bat「**无** BOM」结论正好相反，别把旧结论套过来。
+
+    返回 `(问题列表, 统计dict)`。
     """
-    BOM = b"\xef\xbb\xbf"
-    bats = sorted(ROOT.glob("*.bat")) + sorted(ROOT.glob("*/*.bat"))
     bad = []
-    for p in bats:
+    # 1. 全仓库扫 .bat / .cmd（跳过构建产物与依赖目录）
+    SKIP_DIRS = {".git", "node_modules", "__pycache__", "dist",
+                 "release", "win-unpacked", "cache", ".venv", "venv"}
+    bats = []
+    for dirpath, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for fn in filenames:
+            if fn.lower().endswith((".bat", ".cmd")):
+                bats.append(str((Path(dirpath) / fn).relative_to(ROOT)))
+    if bats:
+        bad.append(f"仓库还有 {len(bats)} 个 .bat/.cmd（Pwsh-only 基线，见 AGENTS.md §2.4）："
+                   + "、".join(sorted(bats)[:5]))
+    # 2. .ps1 格式（BOM 必须**有**，CRLF 必须纯）
+    BOM = b"\xef\xbb\xbf"
+    ps1s = sorted(ROOT.glob("*.ps1")) + sorted(ROOT.glob("*/*.ps1"))
+    for p in ps1s:
         b = p.read_bytes()
         rel = str(p.relative_to(ROOT))
-        if b.startswith(BOM):
-            bad.append(f"{rel} 带 BOM（必须去掉）")
+        if not b.startswith(BOM):
+            bad.append(f"{rel} 缺 BOM（.ps1 必须带 BOM：5.1 靠它识别 UTF-8；"
+                       f"跑 python tools\\build.py ps1）")
         lf = b.count(b"\n") - b.count(b"\r\n")
         if lf:
-            bad.append(f"{rel} 有 {lf} 处裸 LF")
-    return bad, len(bats)
+            bad.append(f"{rel} 有 {lf} 处裸 LF（.ps1 要 CRLF）")
+    return bad, {"bat": len(bats), "ps1": len(ps1s)}
 
 
 # ==========================================================================
@@ -317,21 +339,18 @@ def cmd_all():
               tail[-1] if tail else "(没有输出)")
 
 
-    def check_bat(r):
-        """.bat 必须是 **UTF-8 无 BOM + CRLF**。
+    def check_script_baseline(r):
+        """脚本基线：仓库无 `.bat`/`.cmd`；`.ps1` 带 BOM + CRLF。
 
-        为什么门禁要查这两条：两个坑都真发生过，而当时没有任何拦截路径。
-          · **BOM**（2026-10-09 实测）：双击打开是全新控制台、代码页 936，
-            cmd 把开头的 EF BB BF 当命令的一部分，`@echo off` 变成
-            `'﻿@echo' 不是内部或外部命令` —— echo 关不掉、rem 注释被当命令执行。
-            实测 3/3 稳定复现。中文靠 `chcp 65001` 解决，**不靠 BOM**。
-            最坑的是它时好时坏：同一会话里跑过 `chcp 65001` 之后代码页变 65001，
-            BOM 被当 U+FEFF 忽略，于是在终端里试是对的、双击就是坏的。
-          · **裸 LF**：.bat 在 Windows 上要 CRLF；`.gitattributes` 只管行尾、不管 BOM。
+        2026-10-14 立。为什么门禁要查：主规范把「禁止 cmd/bat、统一 Pwsh」
+        列为**护栏而非调度变量**（不得为不停机而降级），所以它必须可机器判定。
+        规则只有一份，在 `script_baseline_problems`，提交门禁共用。
+        .ps1 的 BOM 要求与 2026-10-09 的 .bat「无 BOM」结论相反，原因见那函数。
         """
-        bad, total = bat_problems()
-        r.add("批处理文件格式（无 BOM + CRLF）", not bad,
-              "；".join(bad) if bad else f"{total} 个")
+        bad, st = script_baseline_problems()
+        r.add("脚本基线（无 .bat/.cmd，.ps1 带 BOM+CRLF）", not bad,
+              "；".join(bad) if bad
+              else f".bat/.cmd {st['bat']} 个 · .ps1 {st['ps1']} 个且格式正确")
 
 
     def check_status(r):
@@ -426,7 +445,7 @@ def cmd_all():
         check_files(r)
         check_license_content(r)
         check_absolute_paths(r)
-        check_bat(r)
+        check_script_baseline(r)
         check_links(r, offline=args.offline)
         check_ui_nav(r)
         check_i18n(r)
@@ -3357,7 +3376,8 @@ def cmd_precommit():
     跑什么：
       1. 源码可编译 —— `core/` `webui/` `tools/` `tests/` 下所有 `.py`
       2. 暂存的文本文件行尾必须是 LF（`.bat` / `.cmd` / `.ps1` 除外，它们要 CRLF）
-      3. 仓库里所有 `.bat` 必须 UTF-8 无 BOM + CRLF（规则见 `bat_problems`）
+      3. 脚本基线：仓库无 `.bat`/`.cmd`；`.ps1` 必须 UTF-8 带 BOM + CRLF
+         （规则见 `script_baseline_problems`，2026-10-14 起）
 
     用法（仓库根目录）：
         python tools/verify.py precommit
@@ -3410,13 +3430,14 @@ def cmd_precommit():
         print("  ❌ 这些文件含 CRLF，必须 LF（AGENTS.md §2.3）：" + "、".join(eol_bad[:10]))
         bad.append("行尾")
 
-    # 3. .bat 格式（规则与 cmd_all 的 check_bat 共用 bat_problems，只有一份）
-    bat_bad, bat_total = bat_problems()
-    if bat_bad:
-        print("  ❌ 批处理文件格式（必须无 BOM + CRLF）：" + "；".join(bat_bad))
-        bad.append("批处理格式")
+    # 3. 脚本基线（规则与 cmd_all 的 check_script_baseline 共用，只有一份）
+    sb_bad, sb_stat = script_baseline_problems()
+    if sb_bad:
+        print("  ❌ 脚本基线不过：" + "；".join(sb_bad))
+        bad.append("脚本基线")
     else:
-        print(f"  ✅ 批处理文件格式（无 BOM + CRLF）：{bat_total} 个")
+        print(f"  ✅ 脚本基线（无 .bat/.cmd，.ps1 带 BOM+CRLF）："
+              f".ps1 {sb_stat['ps1']} 个")
 
     if bad:
         print(f"\n❌ 不许提交：{'、'.join(bad)} 没过。"
