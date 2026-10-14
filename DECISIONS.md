@@ -391,3 +391,17 @@
 * **留痕**：实测 Git for Windows 会把 `#!/usr/bin/env pwsh` 钩子转给 PowerShell，
   但 PowerShell 拒绝用 `-File` 执行无扩展名文件 —— **git 钩子无法直接改为 .ps1**，
   另立待裁决项 Q-002（见 `TASKS.md` 被阻塞区）。
+
+## 2026-10-14 git 钩子保持 sh：登记为 Pwsh-only 的文档化例外（Q-002）
+
+* **决策**：用户裁决（选项 A）——`.githooks/pre-commit` 保持 sh 原样，登记为
+  Pwsh-only 基线的**唯一例外**；例外写进 `AGENTS.md` §2.4。
+* **被否决的替代方案**：(B) sh 转发壳 + 逻辑挪进 `pre-commit.ps1` —— 仍要留一个
+  sh 文件，形式上不达标，却多一层间接，否决。
+* **理由**：工具链硬限制（2026-10-14 实测，详见 `docs/踩过的坑.md`）：Git for
+  Windows 把 `#!/usr/bin/env pwsh` 钩子转给 PowerShell，但 PowerShell 拒绝用
+  `-File` 执行无扩展名文件，而 git 只认固定名 `pre-commit`。且钩子只是 3 行
+  分发器（跑 `verify.py precommit`），不含任何判断规则——「规则只有一份」的
+  纪律不受影响。方案落地清单在本仓库的达成口径：`.bat`/`.cmd` 计数 0（已达），
+  钩子为 sh 是已登记例外。
+* **未裁决时的默认行为已按约定执行**：登记期间钩子保持原样，未做任何变更。

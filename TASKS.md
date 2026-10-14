@@ -366,7 +366,7 @@
 | ID / 编号 | 事项 | 阻塞原因 |
 |---|---|---|
 | Q-001 | 启动器转 Pwsh（`启动.bat` → `启动.ps1`） | **已解决**（2026-10-14 用户裁决：转 PS1，仓库 Pwsh-only）。`DECISIONS.md` 已落账；`verify.py` 新增「脚本基线」门禁项；`AGENTS.md` §2.4 重写。详见 DECISIONS.md 2026-10-14 条目 |
-| Q-002 | git 钩子（`.githooks/pre-commit`）能否改为 .ps1 | **待裁决**（2026-10-14 实测）：Git for Windows 会把 `#!/usr/bin/env pwsh` 钩子转给 PowerShell，但 PowerShell 拒绝用 `-File` 执行**无扩展名**文件，而 git 只认固定名 `pre-commit` —— 钩子文件本身无法命名为 .ps1。选项：A. 保持 sh 不动并登记例外（推荐：钩子只是 3 行分发器，不含任何判断规则，规则全在 verify.py）；B. sh 转发壳 + 逻辑进 pre-commit.ps1（仍留一个 sh 文件，形式不达标）。**未裁决时的默认行为：A（现状不动）**——可逆、低风险，钩子内容不涉及 cmd/bat |
+| Q-002 | git 钩子（`.githooks/pre-commit`）能否改为 .ps1 | **已解决**（2026-10-14 用户裁决：选项 A——钩子保持 sh，登记为 Pwsh-only 的文档化例外）。理由与实测记录见 DECISIONS.md 2026-10-14 条目与 `docs/踩过的坑.md`：Git for Windows 转发 shebang 后被 PowerShell 的 `-File` 扩展名校验卡死，而 git 只认固定名 `pre-commit`。例外已登记 AGENTS.md §2.4 |
 | T2 | 推送到 `origin/master` | 可逆性低，属不可逆外部操作；且被 T1 阻塞。**不进入自动推进路径** |
 | T1 / T2 | 推送 CI 工作流 | **已解决**（2026-10-14 20:50）：`git push origin master` 直接成功（`ea43d2e..4348b90`），未再报 `workflow scope` 错 —— 凭据疑已被重新授权。推送后 CI 自动触发（`4348b90` 的 verify run 创建于 2026-10-14T12:50Z，运行时 in_progress；此前各 run 均 success）。**若以后再遇 scope 报错，历史绕法见 T1 条目里的 `ci-bootstrap` 分支记录** |
 | T1 / T2 | **这个仓库是私有的**（2026-10-09 实测） | `github.com/Janlhin` 公开页只列出 3 个仓库（Endgame_Gear_Web_Configurator / OpenRA_simplified_chinese / OpenSave），**不含本仓库**；匿名 `curl` 仓库页返回 **404**，匿名 `git ls-remote` 直接索要用户名。所以：① 匿名通道一律查不到它，别把 404 当成"仓库没了"；② 细粒度 PAT 必须在仓库列表里**显式勾上它**，否则 API 也返回 404（不是"不存在"）；③ 权限要 **Contents 读写 + Workflows 读写 + Metadata 读**。④ ~~本执行环境的 wincred 读不出也写不进~~ **2026-10-14 复核：已能读出**（push 与 Actions API 都通了），「推送只能由人执行」的结论随之作废 |
