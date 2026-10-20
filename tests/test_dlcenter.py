@@ -141,6 +141,50 @@ class ManifestTest(unittest.TestCase):
         self.assertFalse(row["verified"])
         self.assertTrue(row["installed_at"])
 
+    def test_unverified_item_has_state_note(self):
+        """没校验过就如实标 unverified，不能假装校验过。"""
+        it = self._first("script")
+        p = self.target / it["dest"]
+        p.write_text("-- body", encoding="utf-8")
+        dc.record_install(it, p, actual_sha=dc._file_sha(p), verified=False)
+        row = [x for x in dc.list_items(self.target) if x["id"] == it["id"]][0]
+        self.assertEqual(row.get("verification"), "unverified")
+        self.assertIn("未校验", row.get("state_note", ""))
+
+    def test_save_manifest_readback(self):
+        data = dc.load_manifest()
+        data["items"]["y"] = {"id": "y"}
+        self.assertTrue(dc.save_manifest(data))
+        self.assertTrue(dc.manifest_path().is_file())
+        self.assertEqual(dc.manifest_status()["state"], "ok")
+
+    def test_broken_manifest_preserved_on_disk(self):
+        """清单损坏时必须保留原文件，不能静默清空历史记录。"""
+        p = dc.manifest_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("{ not json", encoding="utf-8")
+        self.assertEqual(dc.manifest_status()["state"], "broken")
+        self.assertEqual(dc.load_manifest()["items"], {})
+        self.assertEqual(p.read_text(encoding="utf-8"), "{ not json")
+
+    def test_broken_manifest_marks_items_broken(self):
+        p = dc.manifest_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("{ not json", encoding="utf-8")
+        rows = dc.list_items(self.target)
+        self.assertTrue(rows)
+        self.assertTrue(all(r["state"] == "broken" for r in rows), rows)
+        self.assertTrue(all("损坏" in r.get("state_note", "") for r in rows))
+
+    def test_record_install_failure_is_reported(self):
+        """清单写失败必须返回 False，调用方据此给用户 warning。"""
+        from unittest import mock
+        it = self._first("script")
+        p = self.target / it["dest"]
+        p.write_text("-- body", encoding="utf-8")
+        with mock.patch.object(dc, "save_manifest", return_value=False):
+            self.assertFalse(dc.record_install(it, p, actual_sha="", verified=False))
+
     def test_modified_after_install_is_flagged(self):
         it = self._first("script")
         p = self.target / it["dest"]
