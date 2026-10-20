@@ -16,6 +16,7 @@
 
 所以这一组**特意造出冻结形态**（假的 `sys.executable` + `sys.frozen`）来验。
 """
+import json
 import os
 import re
 import subprocess
@@ -343,6 +344,27 @@ class IsolationTest(unittest.TestCase):
         after = sorted(p.name for p in real.iterdir()) if real.is_dir() else None
         self.assertEqual(before, after,
                          f"真实用户数据目录被动了：{before} -> {after}")
+
+
+class SettingsPathOverrideTest(unittest.TestCase):
+    """settings.json 的落点必须可注入，否则测试会改真实用户配置（T21 的前置）。"""
+
+    def tearDown(self):
+        from core import schema
+        schema.set_settings_path(None)
+
+    def test_override_is_honored_and_resettable(self):
+        from core import schema
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "settings.json"
+            schema.set_settings_path(p)
+            self.assertEqual(schema.settings_path(), p)
+            self.assertTrue(schema.save_settings({"target": d}))
+            self.assertEqual(schema.load_settings().get("target"), d)
+            self.assertTrue(p.is_file())
+            self.assertEqual(json.loads(p.read_text(encoding="utf-8"))["target"], d)
+        schema.set_settings_path(None)
+        self.assertNotEqual(schema.settings_path(), p)
 
 
 if __name__ == "__main__":
