@@ -7,6 +7,7 @@
 
 编码一律走 core.textio：读的时候认得出 GBK，写回去还按原编码，不把用户的文件偷偷改成 UTF-8。
 """
+import posixpath
 import re
 from pathlib import Path
 
@@ -215,12 +216,44 @@ def write_include(target_dir, text, filename=INCLUDE_FILENAME):
     return target, backup
 
 
+def _norm_mpv_value(value):
+    """规范化 mpv 的路径值：去引号 / 反斜杠转正斜杠 / 去掉 ./ / 小写。"""
+    v = str(value or "").strip().strip('"').strip("'").strip()
+    v = v.replace("\\", "/")
+    while v.startswith("./"):
+        v = v[2:]
+    return posixpath.normpath(v).lower() if v else ""
+
+
+def has_include_line(text):
+    """主配置的**全局区**是否已有指向 mpv-builder.conf 的启用 include 行。
+
+    旧实现是 `INCLUDE_FILENAME in text`：注释行、别的 profile 里的引用都会命中，
+    于是接口报「已有 include 行」，配置却永远不生效（踩过的坑）。
+    """
+    lines = text.splitlines()
+    where = _section_map(lines)
+    want = _norm_mpv_value(f"~~/{INCLUDE_FILENAME}")
+    for i, ln in enumerate(lines):
+        if where[i] is not None:              # profile 小节里的 include 不算
+            continue
+        m = KEY_RE.match(ln)
+        if not m or m.group(2):               # 注释行不算
+            continue
+        if m.group(3).lower() not in ("include", "include-append"):
+            continue
+        value = re.split(r"\s+#", m.group(4), 1)[0]
+        if _norm_mpv_value(value) == want:
+            return True
+    return False
+
+
 def ensure_include_line(main_conf):
     """确保主 mpv.conf 里有 include 行；返回 (是否修改, 备份路径, 说明)。"""
     main = Path(main_conf)
     tf = textio.read(main)
     text = tf.text if tf is not None else ""
-    if INCLUDE_FILENAME in text:
+    if has_include_line(text):
         return False, None, "主配置里已有 include 行，未改动"
     backup = backup_file(main) if main.is_file() else None
     body = text.rstrip("\n")
@@ -254,6 +287,25 @@ def _section_map(lines):
     return out
 
 
+# 追加型键：同名多行是**合法语义**（mpv 会依次追加），不能像普通键那样统一改写。
+APPEND_KEYS = {
+    "glsl-shader", "glsl-shaders-append", "glsl-shader-append",
+    "vf-append", "af-append", "include", "include-append",
+}
+
+
+def _active_rows(lines, where, key, want_sections):
+    """全局区（及指定小节）里该键的**全部启用行**，按文件顺序。"""
+    rows = []
+    for i, ln in enumerate(lines):
+        if where[i] is not None and where[i] not in want_sections:
+            continue
+        m = KEY_RE.match(ln)
+        if m and not m.group(2) and m.group(3) == key:
+            rows.append((i, m))
+    return rows
+
+
 def apply_params_to_lines(lines, params, sections=None):
     """把键值合并进已有行：替换启用行 → 取消注释同名行 → 追加。返回 (新行, 改动说明)。
 
@@ -266,25 +318,45 @@ def apply_params_to_lines(lines, params, sections=None):
     where = _section_map(out)
     want_sections = set(sections or ())
 
-    def find(key, active):
+    def find_comment(key):
         for i, ln in enumerate(out):
             if where[i] is not None and where[i] not in want_sections:
                 continue                      # profile 小节里的行不动
             m = KEY_RE.match(ln)
-            if m and m.group(3) == key and (bool(m.group(2)) != active):
+            if m and m.group(3) == key and m.group(2):
                 return i, m
         return None, None
 
     appended = []
     for key, value in params.items():
-        idx_active, m_active = find(key, True)
-        idx_comment, m_comment = find(key, False)
-        if idx_active is not None:
-            old = m_active.group(4).strip()
-            out[idx_active] = m_active.group(1) + format_option_line(key, value)
-            if old != str(value).strip():
-                changes.append(f"{key}: {old} -> {value}")
-        elif idx_comment is not None:
+        actives = _active_rows(out, where, key, want_sections)
+        if actives:
+            if key in APPEND_KEYS:
+                # 追加型键：多行是合法语义，只改最后一处（mpv 依次追加）
+                i, m = actives[-1]
+                old = m.group(4).strip()
+                out[i] = m.group(1) + format_option_line(key, value)
+                if old != str(value).strip():
+                    changes.append(f"{key}: {old} -> {value}")
+                if len(actives) > 1:
+                    changes.append(f"{key}: 追加型键，只改最后一处")
+                continue
+            # 普通键：mpv 以**最后一处**为准，读侧（loader）也是这么读的。
+            # 所以把所有同名启用行统一改成新值 —— 否则界面显示「已合并」，
+            # 播放行为却被后面的旧值覆盖（踩过的坑）。
+            olds = []
+            for i, m in actives:
+                olds.append(m.group(4).strip())
+                out[i] = m.group(1) + format_option_line(key, value)
+            if len(actives) > 1:
+                changes.append(
+                    f"{key}: 修正了 {len(actives) - 1} 处重复"
+                    f"（{len(actives)} 处同名键已统一）")
+            elif olds[0] != str(value).strip():
+                changes.append(f"{key}: {olds[0]} -> {value}")
+            continue
+        idx_comment, m_comment = find_comment(key)
+        if idx_comment is not None:
             out[idx_comment] = m_comment.group(1) + format_option_line(key, value)
             changes.append(f"{key}: 取消注释 -> {value}")
         else:

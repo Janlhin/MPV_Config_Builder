@@ -11,12 +11,13 @@ import unittest
 from pathlib import Path
 
 from core.writer import (
-    INCLUDE_FILENAME, MERGE_MARKER,
+    INCLUDE_FILENAME, INCLUDE_LINE, MERGE_MARKER,
     build_include_text, write_include, ensure_include_line,
     apply_params_to_lines, merge_into_file, backup_file,
     marker_block_span, clean_duplicate_markers, has_duplicate_marker,
-    tidy_conf_file,
+    comment_keys_in_lines, tidy_conf_file,
 )
+from core.loader import parse_config_text
 
 
 def marks(lines):
@@ -299,6 +300,95 @@ class TestFiles(unittest.TestCase):
     def test_backup_missing_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertIsNone(backup_file(Path(tmp) / "不存在.conf"))
+
+
+class IncludeDetectionTest(unittest.TestCase):
+    """T19：只有「全局区、启用行、值指向 mpv-builder.conf」才算已有 include。"""
+
+    def _write(self, d, text):
+        p = Path(d) / "mpv.conf"
+        p.write_text(text, encoding="utf-8")
+        return p
+
+    def test_commented_include_is_not_counted(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write(d, '# include = "~~/mpv-builder.conf"\nscale = bilinear\n')
+            changed, _bak, _msg = ensure_include_line(p)
+            self.assertTrue(changed)
+            active = [ln.strip() for ln in p.read_text(encoding="utf-8").splitlines()
+                      if ln.strip() == INCLUDE_LINE]
+            self.assertEqual(active, [INCLUDE_LINE])
+
+    def test_include_inside_profile_is_not_counted(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write(d, '[movie]\ninclude = "~~/mpv-builder.conf"\n')
+            changed, _bak, _msg = ensure_include_line(p)
+            self.assertTrue(changed)
+            self.assertEqual(p.read_text(encoding="utf-8").count(INCLUDE_LINE), 2)
+
+    def test_include_append_counts_as_present(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write(d, 'include-append = "~~/mpv-builder.conf"\n')
+            changed, _bak, _msg = ensure_include_line(p)
+            self.assertFalse(changed)
+
+    def test_unquoted_value_counts(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write(d, 'include = ~~/mpv-builder.conf\n')
+            changed, _bak, _msg = ensure_include_line(p)
+            self.assertFalse(changed)
+
+    def test_inline_comment_after_include_counts(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write(d, 'include = "~~/mpv-builder.conf" # keep\n')
+            changed, _bak, _msg = ensure_include_line(p)
+            self.assertFalse(changed)
+
+    def test_foreign_include_is_not_counted(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write(d, 'include = "~~/other.conf"\n')
+            changed, _bak, _msg = ensure_include_line(p)
+            self.assertTrue(changed)
+
+
+class DuplicateKeysTest(unittest.TestCase):
+    """T20：读写对齐 —— mpv 以最后一处为准，写侧不能只改第一处。"""
+
+    def test_last_occurrence_gets_new_value(self):
+        lines = ["vo = gpu", "vo = vulkan", "scale = bilinear"]
+        new, changes = apply_params_to_lines(lines, {"vo": "gpu-next"})
+        self.assertEqual([ln for ln in new if ln.startswith("vo")],
+                         ["vo = gpu-next", "vo = gpu-next"])
+        self.assertTrue(any("修正了 1 处重复" in c for c in changes))
+
+    def test_effective_value_matches_reader(self):
+        lines = ["vo = gpu", "vo = vulkan"]
+        new, _changes = apply_params_to_lines(lines, {"vo": "gpu-next"})
+        parsed = parse_config_text("\n".join(new))
+        self.assertEqual(parsed["values"].get("vo"), "gpu-next")
+
+    def test_duplicate_report_mentions_count(self):
+        lines = ["scale = a", "scale = b", "scale = c"]
+        _new, changes = apply_params_to_lines(lines, {"scale": "d"})
+        self.assertTrue(any("修正了 2 处重复" in c for c in changes))
+
+    def test_append_type_key_only_changes_last_row(self):
+        lines = ["glsl-shader = a.glsl", "glsl-shader = b.glsl"]
+        new, changes = apply_params_to_lines(lines, {"glsl-shader": "c.glsl"})
+        self.assertEqual(new[0], "glsl-shader = a.glsl")
+        self.assertIn("c.glsl", new[1])
+        self.assertTrue(any("追加型键" in c for c in changes))
+
+    def test_duplicate_in_marker_block_keeps_block_shape(self):
+        lines = block("vo = gpu", "vo = vulkan")
+        new, _changes = apply_params_to_lines(lines, {"vo": "gpu-next"})
+        self.assertEqual(marks(new), 1)
+        self.assertEqual(sum(1 for ln in new if "vo = gpu-next" in ln), 2)
+
+    def test_disable_still_comments_all_duplicates(self):
+        lines = ["vo = gpu", "vo = vulkan"]
+        new, _changes = comment_keys_in_lines(lines, ["vo"])
+        self.assertEqual(sum(1 for ln in new if ln.startswith("#")), 2)
 
 
 if __name__ == "__main__":
