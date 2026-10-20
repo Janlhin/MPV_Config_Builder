@@ -10,6 +10,10 @@ mpv.conf 在 Windows 上不保证是 UTF-8：老配置常见 GBK/GB18030，偶�
     3. 写：按原编码写回（新文件默认 UTF-8 无 BOM）
 """
 import codecs
+import os
+import stat
+import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -142,21 +146,77 @@ def read_text(path, encoding=None, default=""):
     return tf.text if tf is not None else default
 
 
-def encode(text, encoding="utf-8", bom=False, newline=None):
-    """把文本编回字节。newline 只影响换行归一化。"""
+def encode_report(text, encoding="utf-8", bom=False, newline=None):
+    """把文本编回字节，并报告**实际使用**的编码。
+
+    返回 (bytes, used_encoding)。used_encoding 与请求的 encoding 不同，
+    说明原文编码表示不了新内容（例如 GBK 里加了 emoji），已回退到 UTF-8 ——
+    调用方应当把这件事告诉用户，而不是假装"按原编码写回"。
+    """
     if newline:
         text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", newline)
     if encoding == "utf-8" and bom:
-        return codecs.BOM_UTF8 + text.encode("utf-8")
+        return codecs.BOM_UTF8 + text.encode("utf-8"), "utf-8"
     if encoding == "utf-8-sig":
-        return codecs.BOM_UTF8 + text.encode("utf-8")
+        return codecs.BOM_UTF8 + text.encode("utf-8"), "utf-8"
     if encoding in ("utf-16-le", "utf-16-be", "utf-32-le", "utf-32-be"):
-        return text.encode(encoding)      # utf-16/32 的 BOM 由 codec 自己处理
+        return text.encode(encoding), encoding      # BOM 由 codec 自己处理
     try:
-        return text.encode(encoding)
+        return text.encode(encoding), encoding
     except (UnicodeEncodeError, LookupError):
-        # 原文是 GBK，但用户新加了 GBK 编不出来的字（比如 emoji）：退回 utf-8 更安全
-        return text.encode("utf-8")
+        # 原文是 Big5 / GBK 这类窄编码，但用户新加了它编不出来的字（比如 emoji）：
+        # 退回 utf-8 更安全。gb18030 覆盖全部 Unicode，通常不会走到这里。
+        # 但**必须让上层知道**：否则界面写着"按原编码写回"，实际整篇换了编码。
+        return text.encode("utf-8"), "utf-8"
+
+
+def encode(text, encoding="utf-8", bom=False, newline=None):
+    """把文本编回字节。newline 只影响换行归一化。"""
+    return encode_report(text, encoding, bom, newline)[0]
+
+
+def write_atomic(path, data, *, fsync=True, retries=3, tmp_suffix=".tmp"):
+    """原子写字节：同目录临时文件 → flush/fsync → os.replace。
+
+    为什么必须这样：直接 write_bytes 是「先截断目标再写」，写到一半崩溃/断电，
+    用户的 mpv.conf 就变成半截 —— 备份文件在，也救不了"原文件已毁"。
+    同目录 + os.replace 保证替换是原子动作（Windows 同卷同样成立）。
+
+    返回写入的 Path；失败抛 OSError，并**保证不留下临时文件**。
+    目标被 mpv / 编辑器占用时 os.replace 会抛 PermissionError，按 retries 重试。
+    """
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    if isinstance(data, str):          # 容错：允许直接给 str（按 utf-8）
+        data = data.encode("utf-8")
+    fd, tmp = tempfile.mkstemp(dir=str(p.parent),
+                               prefix="." + p.name + ".", suffix=tmp_suffix)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+            f.flush()
+            if fsync:
+                os.fsync(f.fileno())
+        if p.exists():                 # 保留原权限位（POSIX；Windows 上是 no-op）
+            try:
+                os.chmod(tmp, stat.S_IMODE(p.stat().st_mode))
+            except OSError:
+                pass
+        last = None
+        for i in range(max(1, retries)):
+            try:
+                os.replace(tmp, p)
+                return p
+            except PermissionError as e:   # Windows：目标被 mpv / 编辑器占用
+                last = e
+                time.sleep(0.05 * (i + 1))
+        raise last
+    finally:
+        if os.path.exists(tmp):        # 成功替换后 tmp 已不存在，这里是失败清理
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass                   # 不能因为清理失败盖掉真正的错误
 
 
 def backup(path):
@@ -176,14 +236,22 @@ def backup(path):
         while dst.exists() and n < 1000:
             dst = p.with_name(p.name + f".bak-{stamp}-{n}")
             n += 1
-    dst.write_bytes(p.read_bytes())
+    write_atomic(dst, p.read_bytes())
     return dst
 
 
-def write(path, text, encoding="utf-8", bom=False, newline="\n", do_backup=True):
-    """按指定编码写回，返回备份路径（没备份就是 None）。"""
+def write(path, text, encoding="utf-8", bom=False, newline="\n", do_backup=True,
+          report=None):
+    """按指定编码写回，返回备份路径（没备份就是 None）。
+
+    report 传一个 dict 时，写入 {"encoding": 实际编码, "fallback": 是否回退}，
+    供上层在"原文编码表示不了新内容、已改存 UTF-8"时如实告知用户。
+    """
     p = Path(path)
     bak = backup(p) if do_backup else None
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_bytes(encode(text, encoding, bom, newline))
+    data, used = encode_report(text, encoding, bom, newline)
+    if report is not None:
+        report["encoding"] = used
+        report["fallback"] = used != ("utf-8" if encoding == "utf-8-sig" else encoding)
+    write_atomic(p, data)
     return bak

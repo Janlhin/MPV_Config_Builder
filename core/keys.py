@@ -329,7 +329,7 @@ def promote_to_user_file(target, rows, name=USER_INPUT_NAME):
 
     body = "\n".join(PROMOTE_HEADER) + render_rows(rows)
     try:
-        dest.write_text(body, encoding="utf-8")
+        textio.write_atomic(dest, body.encode("utf-8"))
     except OSError as e:
         return {"ok": False, "detail": f"写不了 {name}：{e}"}
 
@@ -386,7 +386,7 @@ def save_keymap(path, rows, create_if_missing=True):
         backup = None
         try:
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(text, encoding="utf-8")
+            textio.write_atomic(p, text.encode("utf-8"))
         except OSError as e:
             return {"ok": False, "detail": f"写入失败：{e}"}
         return {"ok": True, "detail": f"已新建 {p.name}", "path": str(p)}

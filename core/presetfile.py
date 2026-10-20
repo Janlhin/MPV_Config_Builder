@@ -47,6 +47,8 @@ import re
 import time
 from pathlib import Path
 
+from . import textio
+
 KIND = "mpv-config-builder-preset"
 VERSION = 1
 
@@ -277,7 +279,8 @@ def save_preset(state, name, note="", app_version="", overwrite=False):
     p = registry_dir() / f"{stem}.json"
     if p.exists() and not overwrite:
         return False, f"「{stem}」已经存在了；勾选覆盖或者换个名字", None
-    p.write_text(json.dumps(preset, ensure_ascii=False, indent=1), encoding="utf-8")
+    textio.write_atomic(
+        p, json.dumps(preset, ensure_ascii=False, indent=1).encode("utf-8"))
     return True, f"已存为「{stem}」", preset
 
 
