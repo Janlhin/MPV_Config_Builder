@@ -18,7 +18,7 @@
 |---|---|---|
 | 覆盖的选项 | 几十个（同类工具最多 74 个） | **813 个**（全量库） |
 | 冲突检测 | 没有 | **17 条规则**，每条注明手册原文 |
-| 选项说明 | 没有或靠联网查 | **726 条中文说明**内嵌 |
+| 选项说明 | 没有或靠联网查 | **714 条中文说明**内嵌（原始 726 条，12 条随命令行专用项滤除） |
 | 会不会写出已废弃的选项 | 会 | 读取时**滤掉** 16 条命令行专用项，并标出 deprecated |
 
 ## 怎么用
@@ -77,6 +77,7 @@ python webui\server.py
 这个工具动的是你的文件，所以规矩写在代码里也写在测试里：
 
 - **写前必备份**，文件名带时间戳
+- **落盘是原子的**：同目录临时文件 + `os.replace`，断电/强杀也不会留下半截配置
 - **取消勾选 ≠ 删除**：只是注释掉，原文件里那行还在
 - **只动全局区**：`[profile]` 小节里的同名键一律不碰
 - **按原编码写回**：不会把 GBK 的配置偷偷改成 UTF-8
@@ -97,9 +98,9 @@ Electron 外壳与打包形态（装了 `electron/node_modules` 才跑）。
 界面相关的实机验证（需要本机有 Edge/Chrome，脚本会自己起后端）：
 
 ```bat
-py -3 tools\verify.py topnav     :: 9 个页面的顶栏入口
-py -3 tools\verify.py stdio      :: 9 个页面跑在 stdio 通道上
-py -3 tools\verify.py electron   :: Electron 开发形态
+python tools\verify.py topnav     :: 9 个页面的顶栏入口
+python tools\verify.py stdio      :: 9 个页面跑在 stdio 通道上
+python tools\verify.py electron   :: Electron 开发形态
 ```
 
 每次 `push` 与 PR 都会在 CI 上跑一遍上面的自检，配置在
@@ -111,7 +112,7 @@ runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Electron 检查要
 ## 目录结构
 
 ```
-core/          与界面无关的逻辑（25 个模块，两个界面共用）
+core/          与界面无关的逻辑（25 个模块）
 webui/         网页界面
   server.py      本地服务 + JSON API（39 个接口，只用标准库）
                加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Electron 用）

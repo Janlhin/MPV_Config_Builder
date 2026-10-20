@@ -1,4 +1,4 @@
-MPV Config Builder 2.0
+MPV Config Builder 0.1.0
 给普通人的 mpv 配置工具：装好就能用，改配置不用手写。
 （非官方第三方工具，与 mpv / mpv-lazy 作者无隶属关系）
 
@@ -44,6 +44,7 @@ MPV Config Builder 2.0
 - 两种写入方式：独立 include 文件（推荐，便于卸载）/ 直接合并进 mpv.conf
   - include：生成 mpv-builder.conf 并追加一行 include，卸载只需删文件
   - merge：保留原文件里的注释与其它选项，只改勾选的键，取消勾选的键会被注释掉
+    同名键出现多次时按 mpv 语义以**最后一处**为准（工具会把重复行统一改写）
   - 右侧预览在 merge 模式下显示「合并后的完整文件」
 - 读现有配置：跟随 include 链读全（标明每个键来自哪个文件），
   profile 小节单独列出、不混进全局值（要载入得手动选，会提示后果）
@@ -85,7 +86,7 @@ MPV Config Builder 2.0
 【下载与安装】
 - 一键安装 mpv-lazy：从官方 release 取最新版 → 下载（断点续传 / 镜像加速 / 进度）
   → sha256 校验 → 解压（zip 优先，7z 走 7z.exe 或系统 tar）→ 自动定位 portable_config
-  默认装到 %LOCALAPPDATA%\mpv-lazy（免管理员）※ 目前只在旧版 Tkinter 界面里可用
+  默认装到 %LOCALAPPDATA%\mpv-lazy（免管理员）；下载页可一键安装
 - 下载器：内置 14 个常用 shader 直链，勾选后自动放进 shaders\ 对应子目录；
   覆盖前备份；下载后自检内容；带「校验链接」批量检查清单
 - 资源 / 下载页：24 个外部链接（播放器、着色器库、VS 插件、官方文档）
@@ -112,8 +113,8 @@ MPV Config Builder 2.0
                           **stdout 只走协议，日志一律 stderr**（规格见 specs\stdio-transport.md）
       static\             index / basic / advanced / expert / analyze / keys
                           / downloads / guide / hell（9 个页面）
-                          + style.css + api.js + state.js
-  core\                   核心逻辑，与界面无关（两个界面共用，25 个模块）
+                          + style.css + api.js + state.js + i18n.js + i18n-zh2en.js
+  core\                   核心逻辑，与界面无关（25 个模块）
       schema.py           参数表 / shader·vpy 清单 / 原生选项 / 路径辅助
                           / 选项格式化（写盘唯一入口）
       options_db.py       全量选项库的读取与搜索（813 项可写进配置）
@@ -146,22 +147,23 @@ MPV Config Builder 2.0
       mpv_keybindings.json 209 条内置默认按键（从你自己的 mpv 里导出）
       mpv_commands.json   86 条 mpv 命令（--input-cmdlist）
   tools\
-      build.py           构建/生成总入口（options-db / keybindings / icon / bat / version / golden）
+      build.py           构建/生成总入口（options-db / keybindings / icon / ps1 / version / golden）
       verify.py          验证总入口（发布前自检 = all；单跑一项：
-                         docs / topnav / stdio / presets / ui / electron / packaged / pack / conflicts）
+                         docs / i18n / status / ctxmenu / topnav / stdio / presets / ui
+                         / electron / packaged / pack / conflicts / precommit）
       uidriver.py        浏览器 / CDP 公共驱动（实机验证脚本共用）
       _dump_bindings.lua mpv 导出按键的临时脚本（build.py keybindings 用）
   packaging\
       backend.spec        PyInstaller 配方：把后端打成独立 exe（用户机器不需要 Python）
                           用法：py -m PyInstaller packaging\backend.spec
   electron\               Electron 桌面外壳（安装器就出自这里）
-      main.js             主进程：spawn 后端走 stdio、按 id 配对、退出杀子进程、单实例、CSP
+      main.js             主进程：spawn 后端走 stdio、按 id 配对、退出等待子进程优雅结束、单实例、CSP
       preload.js          唯一的桥，只暴露 __MPVCB_INVOKE__（contextIsolation 开着）
       menu.js             原生菜单
       scripts\sync-renderer.js  把 webui\static 复制到 electron\renderer（单一来源）
       renderer\           构建期复制产物，**不要手改、不入库**
       用法：cd electron && npm install && npm run dist
-  tests\                  单元测试（650 项，含接口端到端与真实脚本测试）
+  tests\                  单元测试（701 项，含接口端到端与真实脚本测试）
   docs\                   开发笔记（面向改这个代码的人，不是给用户的）
       踩过的坑.md         实测出来的结论 —— 想知道「为什么这么做」看这份
       待做.md             **还没做的事**（做完一条删一条，只减不增）
@@ -173,25 +175,25 @@ MPV Config Builder 2.0
 ────────────────────────────────────────
 跑测试 / 发布前自检
 ────────────────────────────────────────
-  py -3 -m unittest discover -s tests -t .
-  py -3 tools\verify.py docs     # 文档数字对不对
-  py -3 tools\verify.py          # 发布前一次跑完（加 --offline 跳过联网检查）
+  python -m unittest discover -s tests -t .
+  python tools\verify.py docs     # 文档数字对不对
+  python tools\verify.py          # 发布前一次跑完（加 --offline 跳过联网检查）
   ⚠ tests\__init__.py 是 0 字节但**必须留着**，删了测试跑不起来
 
 ────────────────────────────────────────
 打包发布（顺序不能颠倒）
 ────────────────────────────────────────
   ① 打后端（Electron 要把它塞进 resources\backend\）
-         py -3 -m PyInstaller packaging\backend.spec
-         py -3 tools\verify.py pack           # 验产物真的能用（21 项）
+         python -m PyInstaller packaging\backend.spec
+         python tools\verify.py pack          # 验产物真的能用（21 项）
 
   ② 打 Electron 应用 + 安装器
          cd electron
          npm install                          # 第一次要下 Electron 二进制（几百 MB）
          npm run dist                         # 产出 release\MPV Config Builder-<版本>-Setup.exe
          cd ..
-         py -3 tools\verify.py electron       # 开发形态（19 项）
-         py -3 tools\verify.py packaged       # 打包形态（13 项）
+         python tools\verify.py electron       # 开发形态（19 项）
+         python tools\verify.py packaged       # 打包形态（13 项）
 
   普通用户拿到安装包双击就行 —— **不需要装 Python**（后端 exe 自带解释器）。
 

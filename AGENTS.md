@@ -15,9 +15,9 @@ Windows 上的 mpv 配置工具（GPL-3.0）：不播放视频，只负责把 `m
 ## 1. 三个必须记住的命令
 
 ```bat
-py -3 tools\verify.py --offline    :: 提交前全量门禁；退出码非 0 不许提交
-py -3 tools\verify.py docs         :: 只查文档数字与实测是否一致（快）
-py -3 tools\build.py version       :: 改过 core\schema.py 的 VERSION 之后
+python tools\verify.py --offline    :: 提交前全量门禁；退出码非 0 不许提交
+python tools\verify.py docs         :: 只查文档数字与实测是否一致（快）
+python tools\build.py version       :: 改过 core\schema.py 的 VERSION 之后
 ```
 
 `verify.py help` / `build.py help` 可列出全部子命令。
@@ -117,13 +117,13 @@ PowerShell，但 PowerShell 拒绝用 `-File` 执行**无扩展名**文件，而
 以及 `README.txt` 的「单元测试（N 项）」。忘了会误报成"不一致"。
 
 ### 2.8 版本号只有一个来源
-`core/schema.py` 的 `VERSION`。改完跑 `py -3 tools\build.py version`。
+`core/schema.py` 的 `VERSION`。改完跑 `python tools\build.py version`。
 `APP_VERSION` 是给**仓外归档的旧界面**留的，主界面不许显示它。
 
 ### 2.9 加冲突规则前，先找到手册原话
 `core/conflicts.py` 的 17 条规则，每条注释里都标了依据属于三类
 （**手册原文 / 设计原则 / 逻辑判断**）。新规则照这个格式写。
-**不许凭印象加规则** —— 误报比不报更烦人。改完跑 `py -3 tools\verify.py conflicts`。
+**不许凭印象加规则** —— 误报比不报更烦人。改完跑 `python tools\verify.py conflicts`。
 
 ### 2.10 不要"顺手统一"
 合并/重构**只做收拢，不趁机改逻辑**。发现两个实现相似，加前缀并存，
@@ -152,6 +152,17 @@ PowerShell，但 PowerShell 拒绝用 `-File` 执行**无扩展名**文件，而
 
 语言包**内嵌在 JS 里，不许改成 fetch JSON**：Electron 用 `loadFile` 从 `file://`
 载入页面，`file://` 下 fetch 相对路径的 JSON 会被 CORS 挡掉。
+
+### 2.12 写用户文件一律走 `core.textio.write_atomic`
+
+**禁止新增 `Path.write_text()` / `Path.write_bytes()` 直接落盘**（临时文件、测试夹具除外）：
+
+- 直接写是「先截断目标再写」—— 写一半崩溃 / 断电 / 被强杀，用户的 `mpv.conf`
+  就是半截；备份文件在也救不了"原文件已毁"。
+- `write_atomic` 走「同目录临时文件 → fsync → `os.replace`」，Windows 同卷成立；
+  目标被 mpv / 编辑器占用时抛 `PermissionError` 并自动重试。
+- 换行一律 LF（见 §2.3）；编码回退要如实告知用户（`encode_report` / `report=` 出参），
+  别再出现"界面说按原编码写回、实际整篇变 UTF-8"。
 
 ## 3. 工作纪律
 
@@ -196,7 +207,7 @@ PowerShell，但 PowerShell 拒绝用 `-File` 执行**无扩展名**文件，而
 1. [`docs/待做.md`](docs/待做.md) §〇 —— 下一步做什么、按什么顺序、为什么是这个顺序
 2. [`docs/踩过的坑.md`](docs/踩过的坑.md) —— 实测出来的结论（含"这个检查抓到了什么"）
 3. [`README.md`](README.md) —— 怎么跑、目录结构
-4. `py -3 tools\verify.py help` —— 有哪些验证手段
+4. `python tools\verify.py help` —— 有哪些验证手段
 
 > 本文只写"怎么干活"。**"活是什么"在 `docs/待做.md`，"坑是什么"在 `docs/踩过的坑.md`** ——
 > 四份文档各有单一职责，不要合并，否则校验规则无法按文件粒度生效。
