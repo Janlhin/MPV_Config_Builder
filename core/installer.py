@@ -15,6 +15,7 @@ import zipfile
 from pathlib import Path
 
 from .net import build_url_candidates, http_fetch
+from . import textio
 
 REPO = "hooke007/mpv_PlayKit"
 GITHUB_API = f"https://api.github.com/repos/{REPO}/releases/latest"
@@ -247,18 +248,86 @@ def recommend_asset(assets, want_vapoursynth=True):
     return pick, f"选了 {pick['name']}（{pick['size'] / (1 << 20):.0f} MB）", usable, notes
 
 
+def _content_range_start(value):
+    """解析 "bytes 1024-2047/2048" 的起点；格式不对返回 None。"""
+    m = re.match(r"\s*bytes\s+(\d+)-(\d+)/(\d+|\*)", str(value or ""))
+    return int(m.group(1)) if m else None
+
+
+def resume_plan(status, content_range, local_size):
+    """决定这次是续传还是重下。返回 (start, mode, restarted)。
+
+    · 本地没有片段            → 从 0 开始写
+    · 非 206（镜像/CDN 忽略 Range，返回 200 全文）→ 必须从 0 重下
+    · Content-Range 起点不符  → 本地片段不可信，重下
+    · 其余                    → 续传
+
+    旧实现只要本地有字节就 `ab` 追加，服务器不认 Range 时包体前段重复、后段错位。
+    """
+    local_size = int(local_size or 0)
+    if local_size <= 0:
+        return 0, "wb", False
+    if status != 206:
+        return 0, "wb", True
+    start = _content_range_start(content_range)
+    if start is None or start != local_size:
+        return 0, "wb", True
+    return local_size, "ab", False
+
+
+def _part_meta_path(dest):
+    return Path(str(dest) + ".meta")
+
+
+def _read_part_meta(path):
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_part_meta(path, data):
+    try:
+        textio.write_atomic(Path(path),
+                            json.dumps(data, ensure_ascii=False).encode("utf-8"))
+    except OSError:
+        pass
+
+
 def download_file(url, dest, progress_cb=None, cancel_cb=None,
                   chunk=1 << 16, timeout=30, resume=True):
-    """流式下载，支持断点续传与取消。返回目标路径。"""
+    """流式下载，支持断点续传与取消。返回目标路径。
+
+    续传前必须确认服务器真的按 Range 返回 `206` 且起点匹配 —— 镜像站忽略 Range
+    返回 200 全文时，旧实现会直接 "ab" 追加，包体前段重复、后段错位（坏包）。
+    旁挂的 `.meta` 记录 url / etag / 总长：没有可信元数据就不敢续。
+    """
     dest = Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
+    meta_path = _part_meta_path(dest)
+
     start = dest.stat().st_size if (resume and dest.exists()) else 0
+    meta = _read_part_meta(meta_path)
+    if start and meta.get("url") != url:
+        start = 0                      # 元数据缺失 / 换了下载源：不敢续
+
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     if start:
         req.add_header("Range", f"bytes={start}-")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
-        total = int(resp.headers.get("Content-Length") or 0) + start
-        mode = "ab" if start else "wb"
+        length = int(resp.headers.get("Content-Length") or 0)
+        start, mode, _restarted = resume_plan(
+            resp.status, resp.headers.get("Content-Range"), start)
+        total = length + start if resp.status == 206 else length
+        if progress_cb:
+            progress_cb(start, total)
+        _write_part_meta(meta_path, {
+            "url": url,
+            "etag": resp.headers.get("ETag", ""),
+            "total": total,
+            "start": start,
+        })
         done = start
         with open(dest, mode) as f:
             while True:
@@ -271,6 +340,10 @@ def download_file(url, dest, progress_cb=None, cancel_cb=None,
                 done += len(block)
                 if progress_cb:
                     progress_cb(done, total)
+    try:
+        meta_path.unlink()
+    except OSError:
+        pass
     return dest
 
 

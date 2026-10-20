@@ -10,6 +10,7 @@
 """
 import hashlib
 import http.server
+import json
 import sys
 import tempfile
 import threading
@@ -465,14 +466,55 @@ class ResumeTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def _write_meta(self, dest, url, total):
+        """续传必须带 .meta：没有可信元数据就不敢续（这是修复后的约定）。"""
+        dest.with_name(dest.name + ".meta").write_text(
+            json.dumps({"url": url, "etag": "", "total": total}), encoding="utf-8")
+
     def test_resumes_with_range_header(self):
         dest = self.dir / "part.bin"
         half = len(self.payload) // 2
         dest.write_bytes(self.payload[:half])            # 假装上次下了一半
+        self._write_meta(dest, self.srv.url, len(self.payload))
         ins.download_file(self.srv.url, dest, resume=True)
         self.assertEqual(dest.read_bytes(), self.payload, "续传后内容不对")
         self.assertTrue(any(h and h.startswith("bytes=") for h in self.srv.hits),
                         f"没发 Range 头，等于重下了：{self.srv.hits}")
+
+    def test_server_ignoring_range_restarts_full(self):
+        """镜像站忽略 Range 返回 200 全文 → 必须重下，不能 ab 追加成坏包。"""
+        srv = LocalServer(self.payload, allow_range=False)
+        self.addCleanup(srv.stop)
+        dest = self.dir / "part.bin"
+        half = len(self.payload) // 2
+        dest.write_bytes(self.payload[:half])
+        self._write_meta(dest, srv.url, len(self.payload))
+        ins.download_file(srv.url, dest, resume=True)
+        self.assertEqual(dest.read_bytes(), self.payload)
+
+    def test_missing_meta_restarts_from_zero(self):
+        dest = self.dir / "part.bin"
+        dest.write_bytes(b"garbage")
+        ins.download_file(self.srv.url, dest, resume=True)
+        self.assertEqual(dest.read_bytes(), self.payload)
+        self.assertEqual(self.srv.hits, [None], "没有 meta 时不应发 Range")
+
+    def test_meta_removed_on_success(self):
+        dest = self.dir / "part.bin"
+        dest.write_bytes(self.payload[:100])
+        self._write_meta(dest, self.srv.url, len(self.payload))
+        ins.download_file(self.srv.url, dest, resume=True)
+        self.assertEqual(dest.read_bytes(), self.payload)
+        self.assertFalse(dest.with_name(dest.name + ".meta").exists())
+
+    def test_resume_plan_pure(self):
+        self.assertEqual(ins.resume_plan(206, "bytes 100-199/200", 100),
+                         (100, "ab", False))
+        self.assertEqual(ins.resume_plan(200, None, 100), (0, "wb", True))
+        self.assertEqual(ins.resume_plan(206, "bytes 50-199/200", 100),
+                         (0, "wb", True))
+        self.assertEqual(ins.resume_plan(206, None, 100), (0, "wb", True))
+        self.assertEqual(ins.resume_plan(200, None, 0), (0, "wb", False))
 
     def test_resume_false_starts_over(self):
         dest = self.dir / "part.bin"
