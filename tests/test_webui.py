@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """webui 后端接口的端到端测试（进程内起服务，不弹窗口）。"""
+import http.client
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -9,6 +11,7 @@ import urllib.parse
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -73,6 +76,17 @@ class WebUITest(unittest.TestCase):
             headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=20) as r:
             return json.loads(r.read().decode("utf-8"))
+
+    def raw_post(self, path, body=b"{}", headers=None):
+        """发原始请求 —— urllib 会自动补头，测不出 Origin / Content-Type 的真实行为。"""
+        hdrs = {"Content-Type": "application/json"} if headers is None else headers
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        try:
+            conn.request("POST", path, body=body, headers=hdrs)
+            resp = conn.getresponse()
+            return resp.status, resp.read().decode("utf-8")
+        finally:
+            conn.close()
 
     def state(self, **kw):
         st = {"values": {}, "shaders": [], "memc": "", "custom": "", "disable": []}
@@ -353,6 +367,90 @@ class WebUITest(unittest.TestCase):
         self.assertFalse(self.post("/api/config/apply", {
             "target": "Z:/nope", "write_mode": "include", "state": self.state()})["ok"])
         self.assertFalse(self.post("/api/restore", {"path": str(self.target / "mpv.conf")})["ok"])
+
+
+    # ---------- 安全边界（T21） ----------
+
+    def test_origin_foreign_is_rejected(self):
+        status, _ = self.raw_post(
+            "/api/scan", json.dumps({"dir": str(self.target)}).encode("utf-8"),
+            {"Content-Type": "application/json", "Origin": "http://evil.example"})
+        self.assertEqual(status, 403)
+
+    def test_origin_localhost_is_allowed(self):
+        status, body = self.raw_post(
+            "/api/scan", json.dumps({"dir": str(self.target)}).encode("utf-8"),
+            {"Content-Type": "application/json",
+             "Origin": f"http://127.0.0.1:{self.port}"})
+        self.assertEqual(status, 200)
+        self.assertTrue(json.loads(body)["ok"])
+
+    def test_missing_origin_is_allowed_for_cli_clients(self):
+        status, _body = self.raw_post(
+            "/api/scan", json.dumps({"dir": str(self.target)}).encode("utf-8"))
+        self.assertEqual(status, 200)
+
+    def test_content_type_required(self):
+        status, _ = self.raw_post("/api/scan", b"{}", {"Content-Type": "text/plain"})
+        self.assertEqual(status, 415)
+
+    def test_content_length_too_large_is_rejected(self):
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        try:
+            conn.putrequest("POST", "/api/scan")
+            conn.putheader("Content-Type", "application/json")
+            conn.putheader("Content-Length", str(5 * 1024 * 1024))
+            conn.endheaders()
+            resp = conn.getresponse()
+            self.assertEqual(resp.status, 413)
+            resp.read()
+        finally:
+            conn.close()
+
+    def test_content_length_not_an_integer_is_rejected(self):
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        try:
+            conn.putrequest("POST", "/api/scan")
+            conn.putheader("Content-Type", "application/json")
+            conn.putheader("Content-Length", "abc")
+            conn.endheaders()
+            resp = conn.getresponse()
+            self.assertEqual(resp.status, 400)
+            resp.read()
+        finally:
+            conn.close()
+
+    # ---------- 空 target（T22） ----------
+
+    def test_basic_apply_with_empty_target_is_refused(self):
+        with mock.patch.object(server, "find_lazy_pc", return_value=None):
+            r = self.post("/api/basic/apply", {
+                "content": "动画", "prefer": "均衡", "write_mode": "include"})
+        self.assertFalse(r["ok"])
+
+    def test_empty_target_does_not_write_cwd(self):
+        old = os.getcwd()
+        with tempfile.TemporaryDirectory() as d:
+            os.chdir(d)
+            try:
+                with mock.patch.object(server, "find_lazy_pc", return_value=None):
+                    r = self.post("/api/basic/apply", {
+                        "content": "动画", "prefer": "均衡", "write_mode": "include"})
+                self.assertFalse(r["ok"])
+                self.assertFalse((Path(d) / "mpv-builder.conf").exists())
+                self.assertFalse((Path(d) / "mpv.conf").exists())
+            finally:
+                os.chdir(old)
+
+    def test_scan_with_empty_dir_is_refused(self):
+        r = self.post("/api/scan", {"dir": ""})
+        self.assertFalse(r["ok"])
+
+    def test_repo_root_as_target_is_refused(self):
+        r = self.post("/api/basic/apply", {
+            "target": str(ROOT), "content": "动画", "prefer": "均衡",
+            "write_mode": "include"})
+        self.assertFalse(r["ok"])
 
 
 if __name__ == "__main__":

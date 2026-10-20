@@ -193,12 +193,12 @@ def api_presets():
 
 def _basic_build(body):
     """按基础模式的选择算出参数与 shader 路径。"""
-    target = Path(str(body.get("target", "")).strip())
+    target = _resolve_target(body)
     content = body.get("content") or CONTENT_CHOICES[0]
     prefer = body.get("prefer") or PREFER_CHOICES[1]
     preset = get_basic_preset(content, prefer)
 
-    catalog = build_shader_catalog(target if target.is_dir() else find_lazy_pc())
+    catalog = build_shader_catalog(target if (target and target.is_dir()) else find_lazy_pc())
     names = [x["name"] for x in catalog]
     picked, missing = resolve_shader_slots(preset["shaders"], names)
 
@@ -216,6 +216,8 @@ def _basic_build(body):
 
 def api_basic_preview(body):
     target, preset, params, picked, missing, paths = _basic_build(body)
+    if not target:
+        return {"ok": False, "detail": _LAST_TARGET_ERROR or "先选择 mpv 配置目录"}
     mode = body.get("write_mode") or WRITE_MODE_INCLUDE
     if mode == WRITE_MODE_MERGE:
         main = target / "mpv.conf"
@@ -233,8 +235,9 @@ def api_basic_preview(body):
 
 def api_basic_apply(body):
     target, preset, params, picked, missing, _paths = _basic_build(body)
-    if not target.is_dir():
-        return {"ok": False, "detail": f"目标目录不存在：{target}"}
+    if not target or not Path(target).is_dir():
+        return {"ok": False,
+                "detail": _LAST_TARGET_ERROR or "还没选择 mpv 配置目录，已取消写入"}
     mode = body.get("write_mode") or WRITE_MODE_INCLUDE
     try:
         if mode == WRITE_MODE_MERGE:
@@ -257,7 +260,11 @@ def api_basic_apply(body):
 
 
 def api_scan(body):
-    root = Path(str(body.get("dir", "")).strip())
+    raw = str(body.get("dir", "") or "").strip()
+    if not raw:
+        # Path("") 在 Windows 上等于 "."，is_dir() 恒真 —— 以前会去扫进程当前目录
+        return {"ok": False, "detail": "还没选择要扫描的目录"}
+    root = Path(raw)
     if not root.is_dir():
         return {"ok": False, "detail": "目录不存在"}
     pc = root if root.name.lower() == "portable_config" else (
@@ -535,6 +542,8 @@ def _preview_config(body):
     state = body.get("state") or {}
     target = _resolve_target(body)
     mode = body.get("write_mode") or WRITE_MODE_INCLUDE
+    if mode == WRITE_MODE_MERGE and not target:
+        return {"ok": False, "detail": _LAST_TARGET_ERROR or "先选择 mpv 配置目录"}
     text = build_config_text(state, note=body.get("note", ""))
     issues, conflicts = full_check(state)
     if mode == WRITE_MODE_MERGE:
@@ -771,6 +780,8 @@ def api_report(body):
 def api_vpy_fuse(body):
     """VPY 融合：把选中的几个 vs 脚本合成一个 .vpy（默认只预览，不写盘）。"""
     target = _resolve_target(body)
+    if not target:
+        return {"ok": False, "detail": _LAST_TARGET_ERROR or "先选择 mpv 配置目录"}
     names = body.get("scripts") or []
     if not names:
         return {"ok": False, "detail": "没有选择脚本"}
@@ -806,6 +817,8 @@ def api_vpy_fuse(body):
 def api_vpy_list(params):
     """列出目标目录 vs/ 下的脚本，带上角色，给融合页多选用。"""
     target = _resolve_target({"target": params.get("target", "")})
+    if not target:
+        return {"ok": False, "detail": _LAST_TARGET_ERROR or "先选择 mpv 配置目录"}
     vs_dir = Path(target) / "vs"
     if not vs_dir.is_dir():
         return {"ok": False, "detail": f"没有 vs 目录：{vs_dir}"}
@@ -1279,6 +1292,9 @@ def api_analyze(body):
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "MPVConfigBuilder/" + VERSION
+    timeout = 30                              # 读超时：慢连接不再永久占线程
+    MAX_BODY = 4 * 1024 * 1024                # 请求体上限：本地 JSON 接口 4MB 足够
+    _ORIGIN_HOSTS = ("127.0.0.1", "localhost", "::1")
 
     def log_message(self, fmt, *args):        # 安静一点
         pass
@@ -1295,6 +1311,27 @@ class Handler(BaseHTTPRequestHandler):
 
     def _json(self, data, code=200):
         self._send(code, json.dumps(data, ensure_ascii=False))
+
+    def _origin_ok(self):
+        """跨源防护：空 Origin（curl / 测试）放行，有值必须是本机同源。
+
+        浏览器对 application/json 的跨站请求会先预检，但 text/plain 的"简单请求"
+        不会 —— 所以必须同时要求 Content-Type，两道一起才挡得住 CSRF。
+        """
+        origin = (self.headers.get("Origin") or "").strip()
+        if not origin:
+            return True
+        try:
+            u = urlparse(origin)
+        except ValueError:
+            return False
+        if u.scheme not in ("http", "https") or u.hostname not in self._ORIGIN_HOSTS:
+            return False
+        return u.port in (None, self.server.server_address[1])
+
+    def _reject(self, code, detail):
+        self.close_connection = True
+        return self._json({"ok": False, "detail": detail}, code)
 
     # ---- 以下三个方法：HTTP ↔ 传输无关层的适配器 ----
     #
@@ -1330,15 +1367,33 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(200, target.read_bytes(), ctype)
 
     def do_POST(self):
-        path = urlparse(self.path).path
-        length = int(self.headers.get("Content-Length") or 0)
+        if not self._origin_ok():
+            return self._reject(403, "拒绝跨源请求（Origin 不是本机同源）")
+        ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if ctype != "application/json":
+            return self._reject(415, "只接受 Content-Type: application/json")
+        raw_len = self.headers.get("Content-Length")
+        if raw_len is None:
+            if self.headers.get("Transfer-Encoding"):
+                return self._reject(411, "不接受分块传输，请给出 Content-Length")
+            length = 0
+        else:
+            try:
+                length = int(raw_len)
+            except (TypeError, ValueError):
+                return self._reject(400, "Content-Length 不是合法整数")
+            if length < 0:
+                return self._reject(400, "Content-Length 不能为负")
+            if length > self.MAX_BODY:
+                return self._reject(
+                    413, f"请求体超过 {self.MAX_BODY // (1 << 20)} MB 上限")
         raw = self.rfile.read(length) if length else b"{}"
         try:
             body = json.loads(raw.decode("utf-8") or "{}")
         except ValueError:
             body = None          # dispatch 会补成 {}，保持重构前的宽容行为
         return self._reply(api.dispatch(
-            api.Request(path=path, method="POST", body=body)))
+            api.Request(path=urlparse(self.path).path, method="POST", body=body)))
 
 
 def free_port():
