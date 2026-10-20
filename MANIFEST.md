@@ -41,14 +41,19 @@ GPL-3.0 具传染性，分发这份衍生数据即要求整个分发物按 GPL-3
 ## 三、运行时从官方地址获取（**不入库**，无本地哈希）
 
 来源清单的**唯一真相源是 `core/dlcenter.py`**，界面上显示的许可也取自那里。
-下表是 2026-10-09 从该文件提取的登记，改动清单时**以代码为准**：
+下表是 2026-10-20 复核过的登记（首次提取 2026-10-09），改动清单时**以代码为准**：
 
 | 条目 | 官方来源 | 许可 | 用途 |
 |---|---|---|---|
 | uosc | `https://github.com/tomasklaen/uosc/releases/latest/download/uosc.zip`（仓库 `https://github.com/tomasklaen/uosc`） | 见上游 | 现代化 OSC 界面；zip 解开为 `fonts/` + `scripts/uosc/` |
 | thumbfast | `https://raw.githubusercontent.com/po5/thumbfast/master/thumbfast.lua`（仓库 `https://github.com/po5/thumbfast`） | 见上游 | 进度条悬停缩略图预览；需 uosc 或 osc 配合，单独放无反应 |
 | mpv 官方 lua 脚本 | `https://raw.githubusercontent.com/mpv-player/mpv/master/TOOLS/lua/{autoload,autodeint,autocrop,pause-when-minimize,skip-logo}.lua` | mpv 项目许可 | 自动加载 / 自动反交错 / 自动裁剪 等 |
+| cycle-deinterlace-pullup | `https://raw.githubusercontent.com/mpv-player/mpv/master/TOOLS/lua/cycle-deinterlace-pullup.lua` | mpv 项目许可 | 循环切换反交错 / 还原逐行模式 |
 | LXGW WenKai Lite | `https://github.com/lxgw/LxgwWenKai-Lite` | SIL OFL 1.1 | 字幕字体（装到 `<配置目录>/fonts/`） |
+
+> **本表范围**：只登记 `core/dlcenter.py` 的脚本 / 字体 / 整包类条目。
+> `core/net.py` 里的 14 条 shader 直链属于「运行时从上游取、不随仓库分发」，
+> 不在本表登记（理由同下节）。
 
 **为什么没有 SHA256**：这些条目在用户点击时才从上游拉取，仓库不保存副本，
 因此不存在可登记的本地哈希。上游 rolling release（如 `.../releases/latest/download/`）
