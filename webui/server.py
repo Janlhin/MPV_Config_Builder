@@ -624,20 +624,25 @@ def api_raw_save(body):
     if not _inside(p, _allowed_write_roots([body.get("target")])):
         return {"ok": False,
                 "detail": "只允许写入目标配置目录里的文件（安全限制）。"}
+    report = {}
     try:
         tf = textio.read(p) if p.is_file() else None
         newline = tf.newline if tf is not None else "\n"
         lines = str(text).replace("\r\n", "\n").split("\n")
         if lines and lines[-1] == "":
             lines.pop()
-        backup = write_lines(p, lines, newline, template=tf)
+        backup = write_lines(p, lines, newline, template=tf, report=report)
     except OSError as e:
         return {"ok": False, "detail": f"写入失败：{e}"}
     detail = f"已保存 {p.name}"
     if backup:
         detail += f"（已备份 {backup.name}）"
     if tf is not None and tf.encoding != "utf-8":
-        detail += f"；按原编码 {tf.encoding_label} 写回"
+        if report.get("fallback"):
+            detail += (f"；原文编码 {tf.encoding_label} 表示不了新内容，"
+                       f"已按 UTF-8 写回")
+        else:
+            detail += f"；按原编码 {tf.encoding_label} 写回"
     return {"ok": True, "detail": detail, "path": str(p)}
 
 
@@ -1152,7 +1157,6 @@ def api_backups(params):
 
 def api_restore(body):
     """把某个备份覆盖回原文件（覆盖前先把当前版本也备份一次）。"""
-    import shutil
     path = str(body.get("path", "") or "").strip()
     p = Path(path)
     if not p.is_file():
@@ -1168,7 +1172,7 @@ def api_restore(body):
     dst = p.with_name(orig_name)
     try:
         keep = backup_file(dst)
-        shutil.copy2(p, dst)
+        textio.write_atomic(dst, p.read_bytes())
     except OSError as e:
         return {"ok": False, "detail": f"回滚失败：{e}"}
     detail = f"已用 {p.name} 覆盖 {orig_name}"

@@ -4,6 +4,7 @@ import os
 import re
 from pathlib import Path
 
+from . import textio
 from .paths import user_data_dir
 
 
@@ -54,8 +55,8 @@ def load_settings():
 
 def save_settings(data):
     try:
-        SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        SETTINGS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        textio.write_atomic(
+            SETTINGS_PATH, json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8"))
     except OSError:
         pass
 

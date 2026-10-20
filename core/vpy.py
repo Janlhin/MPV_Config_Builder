@@ -31,6 +31,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from . import textio
+
 MARKER = "由 MPV Config Builder 融合生成"
 PREFIX = "_mb_"
 
@@ -333,11 +335,11 @@ def write_fused(target_dir, result, overwrite=False):
         if not overwrite:
             backup = path.with_name(path.name + ".bak")
             try:
-                backup.write_text(old, encoding="utf-8")
+                textio.write_atomic(backup, old.encode("utf-8"))
             except OSError:
                 pass
     try:
-        path.write_text(result["text"], encoding="utf-8")
+        textio.write_atomic(path, result["text"].encode("utf-8"))
     except OSError as e:
         return {"ok": False, "detail": f"写入失败：{e}"}
     return {"ok": True, "path": str(path), "name": path.name,

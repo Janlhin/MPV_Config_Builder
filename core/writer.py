@@ -209,9 +209,9 @@ def write_include(target_dir, text, filename=INCLUDE_FILENAME):
     tf = textio.read(target)
     backup = backup_file(target)
     if tf is not None:
-        target.write_bytes(textio.encode(text, tf.encoding, tf.bom))
+        textio.write_atomic(target, textio.encode(text, tf.encoding, tf.bom))
     else:
-        target.write_text(text, encoding="utf-8")
+        textio.write_atomic(target, text.encode("utf-8"))
     return target, backup
 
 
@@ -227,9 +227,9 @@ def ensure_include_line(main_conf):
     new_text = (body + "\n\n" if body else "") + INCLUDE_LINE + "\n"
     main.parent.mkdir(parents=True, exist_ok=True)
     if tf is not None:
-        main.write_bytes(textio.encode(new_text, tf.encoding, tf.bom, tf.newline))
+        textio.write_atomic(main, textio.encode(new_text, tf.encoding, tf.bom, tf.newline))
     else:
-        main.write_text(new_text, encoding="utf-8")
+        textio.write_atomic(main, new_text.encode("utf-8"))
     return True, backup, "已在主配置末尾追加 include 行"
 
 
@@ -398,17 +398,23 @@ def tidy_conf_file(main_conf, dry_run=True):
     return res
 
 
-def write_lines(path, lines, newline="\n", backup=True, template=None, encoding="utf-8", bom=False):
+def write_lines(path, lines, newline="\n", backup=True, template=None, encoding="utf-8",
+                bom=False, report=None):
     """写回文件（默认先备份），返回备份路径。
 
     template 传一个 textio.TextFile 时，按它的原编码 / BOM / 换行写回 —— 这样 GBK 的配置
     改完还是 GBK，不会因为改一行就把整份文件变成 UTF-8。
+
+    report 传 dict 时带回 {"encoding": 实际编码, "fallback": 是否回退 UTF-8}。
     """
     p = Path(path)
     bak = backup_file(p) if (backup and p.is_file()) else None
-    p.parent.mkdir(parents=True, exist_ok=True)
     body = newline.join(lines) + newline
     if template is not None:
         encoding, bom = template.encoding, template.bom
-    p.write_bytes(textio.encode(body, encoding, bom))
+    data, used = textio.encode_report(body, encoding, bom)
+    if report is not None:
+        report["encoding"] = used
+        report["fallback"] = used != encoding
+    textio.write_atomic(p, data)
     return bak
