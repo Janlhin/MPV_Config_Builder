@@ -374,7 +374,7 @@ def install_archive(target, item, mirror_mode="自动（直连 → 镜像）",
                 b = textio.backup(dst)
                 if b:
                     backups.append(str(b))
-            shutil.move(str(src), str(dst))
+            _move_atomic(src, dst)
             installed.append({"rel": rel, "sha256": _file_sha(dst)})
 
         detail = (f"已安装 {item['name']}：{len(installed)} 个文件 → "
@@ -396,10 +396,36 @@ def install_archive(target, item, mirror_mode="自动（直连 → 镜像）",
 
 # ---------------------------------------------------------------- 安装清单
 
-def load_manifest():
+_LAST_MANIFEST_ERROR = ""
+
+
+def manifest_status():
+    """安装清单的状态：ok / missing / broken。
+
+    broken 时**原文件保留**（以前 load_manifest 把损坏当空清单，所有历史安装
+    记录无声消失，卸载入口全部失效）。
+    """
     p = manifest_path()
+    if not p.is_file():
+        return {"state": "missing", "detail": f"还没有安装清单：{p}"}
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
+        if not isinstance(data, dict) or not isinstance(data.get("items"), dict):
+            raise ValueError("items 不是对象")
+        return {"state": "ok", "detail": ""}
+    except (OSError, ValueError) as e:
+        return {"state": "broken", "detail": f"安装清单损坏（原文件已保留）：{e}"}
+
+
+def load_manifest():
+    global _LAST_MANIFEST_ERROR
+    status = manifest_status()
+    if status["state"] == "broken":
+        _LAST_MANIFEST_ERROR = status["detail"]
+        return {"version": 1, "items": {}}
+    _LAST_MANIFEST_ERROR = ""
+    try:
+        data = json.loads(manifest_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {"version": 1, "items": {}}
     if not isinstance(data.get("items"), dict):
@@ -408,12 +434,17 @@ def load_manifest():
 
 
 def save_manifest(data):
+    """原子写 + 回读校验；失败返回 False（调用方必须检查，不能装完不记账）。"""
     p = manifest_path()
     try:
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        textio.write_atomic(
+            p, json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8"))
+        back = json.loads(p.read_text(encoding="utf-8"))
+        before = set((data.get("items") or {}).keys())
+        if not isinstance(back.get("items"), dict) or set(back["items"]) != before:
+            return False
         return True
-    except OSError:
+    except (OSError, ValueError):
         return False
 
 
@@ -499,6 +530,9 @@ def list_items(target, kind=""):
             if rec and files:
                 entry["installed_at"] = rec.get("installed_at", "")
                 entry["verified"] = bool(rec.get("verified"))
+                if not rec.get("verified"):
+                    entry["verification"] = "unverified"
+                    entry["state_note"] = "未校验（上游没给 sha256）"
                 entry["file_count"] = len(files)
                 gone = [f["rel"] for f in files if not (base / f["rel"]).is_file()]
                 changed = [f["rel"] for f in files
@@ -535,6 +569,9 @@ def list_items(target, kind=""):
         if rec:
             entry["installed_at"] = rec.get("installed_at", "")
             entry["verified"] = bool(rec.get("verified"))
+            if not rec.get("verified"):
+                entry["verification"] = "unverified"
+                entry["state_note"] = "未校验（上游没给 sha256）"
             if not exists:
                 entry["state"] = "missing"
             else:
@@ -549,10 +586,46 @@ def list_items(target, kind=""):
             # 文件在、但清单里没有：可能是 mpv-lazy 自带的，也可能是用户自己放的
             entry["state"] = "present_untracked"
         out.append(entry)
+
+    status = manifest_status()
+    if status["state"] == "broken":
+        # 清单坏了就**不能假装一切正常**：全部标 broken，原文件保留等人工处理
+        for entry in out:
+            entry["state"] = "broken"
+            entry["state_note"] = status["detail"]
     return out
 
 
 # ---------------------------------------------------------------- 下载安装
+
+def _move_atomic(src, dst):
+    """同卷 os.replace；跨卷退化为「复制到同目录临时文件 → replace → 删源」。
+
+    shutil.move 在目标已存在时会退化成 copy2 + unlink，覆盖瞬间目标处于
+    "已截断、正在写"状态 —— 中途失败就是半截文件，且源已经被删。
+    """
+    src, dst = Path(src), Path(dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.replace(str(src), str(dst))
+        return
+    except OSError:
+        pass
+    tmp = dst.with_name(dst.name + ".mb-move")
+    try:
+        shutil.copy2(str(src), str(tmp))
+        os.replace(str(tmp), str(dst))
+    except Exception:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+    try:
+        src.unlink()
+    except OSError:
+        pass
+
 
 def install(target, item_id, mirror_mode="自动（直连 → 镜像）",
             overwrite=False, progress_cb=None, timeout=30):
@@ -577,8 +650,11 @@ def install(target, item_id, mirror_mode="自动（直连 → 镜像）",
                               overwrite=overwrite, progress_cb=progress_cb,
                               timeout=max(timeout, 60))
         if res.get("ok"):
-            record_install(item, res["dest"], actual_sha=res["sha256"],
-                           verified=res["verified"], files=res["files"])
+            if not record_install(item, res["dest"], actual_sha=res["sha256"],
+                                  verified=res["verified"], files=res["files"]):
+                res["warning"] = "manifest_write_failed"
+                res["detail"] = ((res.get("detail") or "") +
+                                 "；⚠ 安装清单没写进去（卸载入口会缺失）")
         return res
 
     dest = target / item["dest"]
@@ -623,7 +699,7 @@ def install(target, item_id, mirror_mode="自动（直连 → 镜像）",
         backup = None
         if existed:
             backup = textio.backup(dest)
-        shutil.move(str(tmp), str(dest))
+        _move_atomic(tmp, dest)
     except Exception as e:
         try:
             tmp.unlink()
@@ -631,15 +707,17 @@ def install(target, item_id, mirror_mode="自动（直连 → 镜像）",
             pass
         return {"ok": False, "detail": f"安装失败：{e}"}
 
-    record_install(item, dest, actual_sha=actual, verified=verified)
+    recorded = record_install(item, dest, actual_sha=actual, verified=verified)
     detail = f"已安装 {item['name']} → {item['dest']}"
     detail += f"（线路：{used}）"
     if not verified:
         detail += "；上游未提供 sha256，本次未做完整性校验"
     if backup:
         detail += f"；原文件已备份 {backup.name}"
+    if not recorded:
+        detail += "；⚠ 安装清单没写进去（卸载入口会缺失）"
     return {"ok": True, "detail": detail, "path": str(dest),
-            "sha256": actual, "verified": verified,
+            "sha256": actual, "verified": verified, "recorded": recorded,
             "backup": str(backup) if backup else ""}
 
 
