@@ -371,16 +371,74 @@ def api_db_options(params):
 
 # ------------------------------------------------- 进阶 / 完全体 / 地狱 模式
 
+_TRUSTED_TARGETS = set()          # 本进程校验并登记过的目标（resolve 后的 str）
+_LAST_TARGET_ERROR = ""
+
+
+def _looks_safe_target(p):
+    """一个目录能不能当「可写根」。返回 (ok, why)。
+
+    防的是请求体里塞 target="C:\\" / 仓库根 / 用户目录根，把白名单撑到全盘。
+    这不是权限系统，只把明显不该作为 mpv 配置目录的路径挡掉。
+    Program Files 下的 mpv-lazy 是**合法**目标，不拦。
+    """
+    p = Path(p).resolve()
+    if not p.is_dir():
+        return False, f"目标目录不存在：{p}"
+    if p.parent == p:                        # 盘符根 / 文件系统根
+        return False, "目标目录不能是盘符根"
+    low = [x.rstrip(":\\/").lower() for x in p.parts]
+    if len(low) >= 2 and low[0] == "c" and low[1] == "windows":
+        return False, "目标目录不能是 Windows 系统目录"
+    try:
+        root = ROOT.resolve()
+        if p == root or root in p.parents or p in root.parents:
+            return False, "目标目录不能是仓库目录或它的上级"
+    except OSError:
+        pass
+    try:
+        if p == Path.home().resolve():
+            return False, "目标目录不能是用户主目录本身"
+    except OSError:
+        pass
+    return True, ""
+
+
+def _trust_target(raw):
+    """校验并登记一个目标目录；成功返回 Path 并记忆，失败返回 None 并记原因。"""
+    global _LAST_TARGET_ERROR
+    raw = str(raw or "").strip()
+    if not raw:
+        _LAST_TARGET_ERROR = "还没选择 mpv 配置目录"
+        return None
+    p = Path(raw)
+    if p.name.lower() != "portable_config" and (p / "portable_config").is_dir():
+        p = p / "portable_config"
+    ok, why = _looks_safe_target(p)
+    if not ok:
+        _LAST_TARGET_ERROR = why
+        return None
+    p = p.resolve()
+    _TRUSTED_TARGETS.add(str(p))
+    _remember_target(p)
+    _LAST_TARGET_ERROR = ""
+    return p
+
+
 def _resolve_target(body):
-    """目标目录：优先 body.target，其次本机已装的 mpv；顺手记进设置里供下次探测。"""
+    """目标目录：优先 body.target，其次本机已装的 mpv；顺手记进设置里供下次探测。
+
+    任何进入白名单的目标都必须先过 _trust_target —— 不再把请求体里的字符串
+    直接当"可写根"（旧实现正是这样被 CSRF 撑开的）。
+    """
     raw = str(body.get("target", "") or "").strip()
-    target = Path(raw) if raw else find_lazy_pc()
-    if target and Path(target).name.lower() != "portable_config" \
-            and (Path(target) / "portable_config").is_dir():
-        target = Path(target) / "portable_config"
-    if target and Path(target).is_dir():
-        _remember_target(target)
-    return target
+    if raw:
+        return _trust_target(raw)
+    found = find_lazy_pc()
+    if found:
+        return _trust_target(found)
+    _LAST_TARGET_ERROR = "还没选择 mpv 配置目录"
+    return None
 
 
 def _remember_target(target):
@@ -572,26 +630,35 @@ def _inside(path, roots):
     return False
 
 
-def _allowed_write_roots(extra=()):
-    """允许写的目录白名单：目标配置目录 + 一键安装的默认位置。
-
-    这是本地小工具，但它监听 HTTP 且接口接受任意路径 —— 意味着浏览器里任何一个
-    页面都能通过 fetch 把任意文件写成一份备份的副本（CSRF）。收窄到"用户真的
-    在用的那几个目录"是不影响正常使用的最小代价。
-    """
+def _saved_targets():
+    """白名单根：安装目录 + 探测到的 mpv + 已保存 / 已登记的目标（全部服务端来源）。"""
     roots = []
-    for body in extra:
-        if body:
-            roots.append(body)
     try:
         from core.installer import default_install_dir
-        roots.append(default_install_dir())
+        roots.append(Path(default_install_dir()))
     except Exception:
         pass
-    t = _resolve_target({})
+    t = find_lazy_pc()
     if t:
-        roots.append(str(t))
+        roots.append(Path(t))
+    try:
+        from core.schema import load_settings
+        saved = (load_settings() or {}).get("target")
+        if saved:
+            roots.append(Path(saved))
+    except Exception:
+        pass
+    roots += [Path(x) for x in _TRUSTED_TARGETS]
     return roots
+
+
+def _allowed_write_roots(extra=None):
+    """允许写的目录白名单：**只由服务端状态计算**。
+
+    `extra` 参数保留仅为兼容旧调用，**内容被忽略**：旧实现直接把请求体里的
+    target 当白名单根，任意网页 POST target="C:\\" 就能写任意文件（CSRF）。
+    """
+    return _saved_targets()
 
 
 def api_raw_read(params):
@@ -600,7 +667,7 @@ def api_raw_read(params):
     p = Path(path) if path else None
     if not p or not p.is_file():
         return {"ok": False, "detail": f"找不到文件：{path}"}
-    if not _inside(p, _allowed_write_roots([params.get("target")])):
+    if not _inside(p, _allowed_write_roots()):
         return {"ok": False,
                 "detail": "只允许读写目标配置目录里的文件（安全限制）。"
                           "要编辑别处的文件，请先把目标目录指到那里。"}
@@ -621,7 +688,7 @@ def api_raw_save(body):
     if not path or text is None:
         return {"ok": False, "detail": "缺少 path 或 text"}
     p = Path(path)
-    if not _inside(p, _allowed_write_roots([body.get("target")])):
+    if not _inside(p, _allowed_write_roots()):
         return {"ok": False,
                 "detail": "只允许写入目标配置目录里的文件（安全限制）。"}
     report = {}
@@ -1161,7 +1228,7 @@ def api_restore(body):
     p = Path(path)
     if not p.is_file():
         return {"ok": False, "detail": f"找不到备份：{path}"}
-    if not _inside(p, _allowed_write_roots([body.get("target")])):
+    if not _inside(p, _allowed_write_roots()):
         return {"ok": False,
                 "detail": "只允许回滚目标配置目录里的备份（安全限制）。"}
     import re as _re

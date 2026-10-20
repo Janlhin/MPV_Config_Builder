@@ -31,6 +31,10 @@ keep-open=yes
 class WebUITest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # settings.json 必须隔离：否则 POST 会改写真实用户目录里的配置
+        from core import schema
+        cls._settings_tmp = tempfile.TemporaryDirectory()
+        schema.set_settings_path(Path(cls._settings_tmp.name) / "settings.json")
         cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
         cls.port = cls.httpd.server_address[1]
         cls.base = f"http://127.0.0.1:{cls.port}"
@@ -39,10 +43,15 @@ class WebUITest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.httpd.shutdown()
+        from core import schema
+        schema.set_settings_path(None)
+        cls._settings_tmp.cleanup()
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.target = Path(self.tmp.name)
+        server._TRUSTED_TARGETS.clear()
+        server._resolve_target({"target": str(self.target)})   # 走正规登记路径
         (self.target / "mpv.conf").write_text(SAMPLE, encoding="utf-8")
         (self.target / "shaders").mkdir()
         (self.target / "shaders" / "Anime4K_Restore_CNN_M.glsl").write_text("// x", encoding="utf-8")
@@ -147,6 +156,21 @@ class WebUITest(unittest.TestCase):
         self.assertTrue(s["ok"], s.get("detail"))
         self.assertEqual(p.read_text(encoding="utf-8"), "vo=gpu\n")
         self.assertTrue(list(self.target.glob("mpv.conf.bak-*")))
+
+    def test_body_target_cannot_extend_allowlist(self):
+        """请求体里的 target 不能把自己加成白名单根（CSRF 任意写）。"""
+        victim_dir = Path(tempfile.mkdtemp())
+        try:
+            victim = victim_dir / "victim.conf"
+            victim.write_text("original\n", encoding="utf-8")
+            r = self.post("/api/raw/save", {
+                "path": str(victim), "text": "pwned\n",
+                "target": str(victim_dir)})
+            self.assertFalse(r["ok"], "target 不应能扩大写入白名单")
+            self.assertEqual(victim.read_text(encoding="utf-8"), "original\n")
+        finally:
+            import shutil
+            shutil.rmtree(victim_dir, ignore_errors=True)
 
     def test_raw_api_refuses_outside_target(self):
         """安全限制：地狱模式只能动目标配置目录里的文件。"""
