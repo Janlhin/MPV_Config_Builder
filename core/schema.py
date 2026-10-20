@@ -44,21 +44,41 @@ FULL_TITLE = APP_TITLE
 TITLE = FULL_TITLE                      # 旧名字，保留兼容
 
 SETTINGS_PATH = user_data_dir() / "settings.json"
+_SETTINGS_PATH_OVERRIDE = None
+
+
+def settings_path():
+    """settings.json 的落点（可被测试覆盖；默认仍是 SETTINGS_PATH）。"""
+    return Path(_SETTINGS_PATH_OVERRIDE) if _SETTINGS_PATH_OVERRIDE else SETTINGS_PATH
+
+
+def set_settings_path(path):
+    """把 settings 指到别处（测试用）；None / "" 复位。
+
+    以前 SETTINGS_PATH 是模块级常量，测试里改 user_data_dir() 对它无效 ——
+    结果测试会把真实用户的 settings.json 改掉（"看起来隔离了其实没隔离"）。
+    """
+    global _SETTINGS_PATH_OVERRIDE
+    s = str(path).strip() if path is not None else ""
+    _SETTINGS_PATH_OVERRIDE = Path(s) if s else None
 
 
 def load_settings():
     try:
-        return json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        return json.loads(settings_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
 def save_settings(data):
+    """保存设置。返回是否成功 —— 调用方以前看不到失败，静默丢配置。"""
     try:
         textio.write_atomic(
-            SETTINGS_PATH, json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8"))
+            settings_path(),
+            json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8"))
+        return True
     except OSError:
-        pass
+        return False
 
 
 # 资源导航：外部网站链接（只打开浏览器，不下载任何文件）
