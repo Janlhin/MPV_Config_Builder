@@ -32,6 +32,7 @@ job id），所以逐条读不会卡住长任务；反过来并发会让响应�
 业务逻辑全在 `dispatch()` 后面（见 `webui/api.py`）。
 """
 import json
+import signal
 import sys
 
 # 两种运行方式都要认（脚本模式 / 包导入）—— 见 api.py 里那段踩过两次的注释
@@ -133,8 +134,28 @@ def handle_line(line):
     return {"id": rid, "ok": True, "data": res.payload}       # FR-4
 
 
+def _install_exit_signals():
+    """SIGTERM/SIGINT/SIGBREAK → 正常退出（SystemExit）。
+
+    ⚠ Windows 上 Electron 的 kill() 是 TerminateProcess，**不可捕获** ——
+    真正让后端优雅退出的是 stdin EOF（下面的 for line 读到 EOF 就 return 0）。
+    这个处理器只在 POSIX / 手动 Ctrl+C 时起作用，属于第二道。
+    """
+    def _bye(signum, frame):
+        raise SystemExit(0)
+    for name in ("SIGTERM", "SIGINT", "SIGBREAK"):
+        sig = getattr(signal, name, None)
+        if sig is None:
+            continue
+        try:
+            signal.signal(sig, _bye)
+        except (ValueError, OSError):        # 非主线程 / 不支持的平台
+            pass
+
+
 def serve(stdin=None, stdout=None, stderr=None):
     """JSONL 主循环。读到 EOF 就正常退出（FR-8）。"""
+    _install_exit_signals()
     stdin = stdin if stdin is not None else sys.stdin
     stdout = stdout if stdout is not None else sys.stdout
     stderr = stderr if stderr is not None else sys.stderr

@@ -234,6 +234,22 @@ class RealProcessTest(unittest.TestCase):
             env=env, timeout=timeout)
         return p, p.stdout.decode("utf-8", "replace"), p.stderr.decode("utf-8", "replace")
 
+    def test_eof_exits_within_two_seconds(self):
+        """Electron 关闭时只关 stdin：后端必须在 2 秒内自己退出（不是被杀）。"""
+        env = dict(os.environ)
+        env["PYTHONIOENCODING"] = "utf-8"
+        p = subprocess.Popen(
+            [sys.executable, "-X", "utf8", str(ROOT / "webui" / "server.py"), "--stdio"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            cwd=str(ROOT), env=env)
+        try:
+            p.stdin.close()
+            code = p.wait(timeout=2)
+            self.assertEqual(code, 0)
+        finally:
+            if p.poll() is None:
+                p.kill()
+
     def test_three_requests_then_eof(self):
         """AC-7：三条请求 → 三行响应、id 对应、退出码 0。"""
         p, out, err = self._run([
@@ -337,7 +353,9 @@ class SeparationTest(unittest.TestCase):
 
     def test_only_expected_dependencies(self):
         """顺便钉住它依赖面有多窄 —— 变宽了要有人知道。"""
-        allowed = {"api", "server", "json", "sys", "collections", "typing"}
+        # signal：T25 加的退出信号处理（POSIX/Ctrl+C 的第二道；Windows 靠 stdin EOF）
+        allowed = {"api", "server", "json", "sys", "signal",
+                   "collections", "typing"}
         extra = self._imports() - allowed
         self.assertEqual(extra, set(),
                          f"stdio.py 多出新依赖 {sorted(extra)}，确认是否必要")

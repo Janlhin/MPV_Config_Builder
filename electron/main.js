@@ -110,6 +110,7 @@ class Backend {
   }
 
   spawn() {
+    this.dead = null;                       // 重启时复位：否则 call() 一律返回旧错误
     const { cmd, args, kind } = resolveBackend();
     console.log(`[backend] 启动（${kind}）：${cmd} ${args.join(' ')}`);
     if (!fs.existsSync(cmd) && kind !== 'dev-source') {
@@ -194,17 +195,39 @@ class Backend {
     });
   }
 
-  /** 关掉后端。先礼后兵：关 stdin 让它自然退出，超时就杀。 */
-  kill() {
+  /** 立即杀掉后端（兜底：进程马上要退出，等不了了）。 */
+  killNow() {
     const p = this.proc;
     this.proc = null;
     if (!p) return;
-    try { p.stdin.end(); } catch (e) { /* 已经关了 */ }
-    const t = setTimeout(() => {
-      try { p.kill(); } catch (e) { /* 已经没了 */ }
-    }, 1500);
-    p.on('exit', () => clearTimeout(t));
     try { p.kill(); } catch (e) { /* 已经没了 */ }
+  }
+
+  /** 先礼后兵：关 stdin 让它自然退出，**等它真的退出**，超时才杀。
+
+   * 返回 Promise —— 调用方（before-quit）必须等它，否则 app.quit() 会先退，
+   * 1.5s 的定时器根本没机会触发，后端就变成孤儿进程（比立即杀更糟）。
+   */
+  shutdown(timeoutMs = 1500) {
+    const p = this.proc;
+    this.proc = null;
+    if (!p) return Promise.resolve();
+    return new Promise((resolve) => {
+      let done = false;
+      let timer = null;
+      const finish = (mustKill) => {
+        if (done) return;
+        done = true;
+        if (timer) clearTimeout(timer);
+        if (mustKill) {
+          try { p.kill(); } catch (e) { /* 已经没了 */ }
+        }
+        resolve();
+      };
+      timer = setTimeout(() => finish(true), timeoutMs);
+      p.once('exit', () => finish(false));
+      try { p.stdin.end(); } catch (e) { finish(false); }
+    });
   }
 }
 
@@ -363,7 +386,16 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 
-// 退出前杀掉后端 —— 否则会留下孤儿进程占着配置目录
-app.on('before-quit', () => backend.kill());
-app.on('will-quit', () => backend.kill());
-process.on('exit', () => backend.kill());
+// 退出前给后端 1.5s 优雅退出（stdin EOF 后它会自己收尾）——
+// 否则正在写 mpv.conf 的后端会被 TerminateProcess 打断，留下半截文件。
+// ⚠ 只删掉立即 kill 是不够的：必须先 preventDefault 等 Promise，
+//    否则 app.quit() 先退，定时器不再触发，后端就成孤儿进程。
+let quitting = false;
+app.on('before-quit', (e) => {
+  if (quitting) return;
+  quitting = true;
+  e.preventDefault();
+  backend.shutdown(1500).then(() => app.quit());
+});
+app.on('will-quit', () => backend.killNow());     // 兜底（通常已是 no-op）
+process.on('exit', () => backend.killNow());      // 异常路径最后一道
