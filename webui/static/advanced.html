@@ -225,11 +225,20 @@ const PANES = {
             <button class="btn small danger" onclick="delShader(${i})">✕</button>
           </div></div>`).join('')
       : `<div class="chain-empty">${I18N.t('adv.shaderEmpty')}</div>`;
+    const scanDirs = `
+    <details style="margin:0 0 10px"><summary>${I18N.t('adv.scanDirs')}</summary>
+      <div id="scanDirsBox" class="note" style="margin:6px 0">${I18N.t('dl.reading')}</div>
+      <div class="row" style="margin-top:6px">
+        <input type="text" id="scanDirInput" style="flex:1" placeholder="${I18N.t('adv.scanDirPlaceholder')}">
+        <button class="btn small" id="scanDirAddBtn">${I18N.t('adv.scanDirAdd')}</button>
+      </div>
+    </details>`;
     const opts = (APP.catalog.shaders || []).map(x =>
       `<option value="${esc(x.path)}">${esc(x.name)} · ${esc(x.path)}</option>`).join('')
       || `<option value="">${I18N.t('adv.shaderNoFiles')}</option>`;
     return `
     <div class="card">
+      ${scanDirs}
       <h2>${I18N.t('adv.shaderChainH2', { n: picked.length })}</h2>
       <div class="chain">${list}</div>
       <div class="picker">
@@ -340,12 +349,46 @@ const PANES = {
     </div>`
 };
 
+/* ---- 扫描源列表（第 7 项）：列出/添加/删除手动目录 ---- */
+async function loadScanDirs() {
+  const box = document.getElementById('scanDirsBox');
+  if (!box) return;
+  const r = await API.get('/api/scandirs' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
+  if (!r.ok) { box.textContent = '❌'; return; }
+  const row = (d, extra) => `<div style="display:flex;gap:8px;align-items:center;margin:2px 0">
+    <code style="min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(d)}</code>${extra}</div>`;
+  box.innerHTML =
+    r.standard.map(d => row(d, `<span class="muted">${I18N.t('adv.scanDirStandard')}</span>`)).join('')
+    + (r.extra || []).map(d => row(d,
+        `<button class="btn small danger" onclick="removeScanDir('${esc(d).replace(/'/g, "\'")}')">✕</button>`)).join('');
+}
+async function removeScanDir(dir) {
+  const r = await API.post('/api/scandirs/remove', { dir });
+  if (r.ok) { await loadScanDirs(); render(); }
+}
+async function build_shader_catalog_safe() {
+  const r = await API.get('/api/catalog' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
+  return (r && r.shaders) || APP.catalog.shaders || [];
+}
+
 const WIRE = {
   preset: () => { renderPresets(); renderCombos(); renderMyPresets(); },
 
   shader: () => {
     const add = document.getElementById('shaderAdd');
     if (add) add.onclick = () => addShader(document.getElementById('shaderPick').value);
+    loadScanDirs();
+    const sdb = document.getElementById('scanDirAddBtn');
+    if (sdb) sdb.onclick = async () => {
+      const dir = document.getElementById('scanDirInput').value.trim();
+      if (!dir) return;
+      const r = await API.post('/api/scandirs/add', { dir });
+      if (!r.ok) { toast('❌ ' + (r.detail || ''), 'err'); return; }
+      document.getElementById('scanDirInput').value = '';
+      loadScanDirs();
+      APP.catalog = { shaders: await build_shader_catalog_safe(), memc: APP.catalog.memc };
+      render();
+    };
     document.querySelectorAll('#panes [data-add]').forEach(b => {
       b.onclick = () => addShader(APP.catalog.shaders[+b.dataset.add].path);
     });
@@ -569,7 +612,7 @@ async function renderCombos() {
   if (!r.ok) { box.textContent = I18N.t('adv.comboLoadFailed') + (r.detail || ''); return; }
   box.innerHTML = r.combos.map((c, i) => `<button class="combo" data-i="${i}">
       <span class="ico">${c.icon}</span>
-      <span><b>${esc(c.name)}</b>
+      <span><b>${esc(c.name)}</b>${c.lazy_only ? ` <span class="warn-text">⚠ ${I18N.t('adv.comboLazy')}</span>` : ''}
         <small>${esc(c.note)}</small>
         ${(c.missing && c.missing.length)
           ? `<small class="warn-text">${I18N.t('adv.comboMissing', { what: esc(c.missing.join('、')) })}</small>` : ''}
