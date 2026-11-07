@@ -456,11 +456,21 @@ MPVCB.busy = function (on) {
 };
 
 /** 请求在飞的时候显示顶部进度条：39 个 API 方法全部经过 API.invoke，
-    所以在这里包一层，全站都有反馈，不用每个页面自己写 */
+    所以在这里包一层，全站都有反馈，不用每个页面自己写。
+    同时在这里**统一附上当前语言**（T14）：GET 走 query、POST 走 body.lang，
+    后端据此返回对应语言的文案；I18N 没加载时缺省，后端回中文。 */
 const _rawInvoke = API.invoke.bind(API);
 API.invoke = async function (method, url, body) {
   MPVCB.busy(true);
   try {
+    const lang = (typeof window.I18N === 'object' && window.I18N.lang) ? window.I18N.lang() : '';
+    if (lang && lang !== 'zh-CN') {
+      if (method === 'POST') {
+        body = Object.assign({}, body || {}, { lang: lang });
+      } else {
+        url = url + (url.indexOf('?') < 0 ? '?' : '&') + 'lang=' + encodeURIComponent(lang);
+      }
+    }
     return await _rawInvoke(method, url, body);
   } finally {
     MPVCB.busy(false);

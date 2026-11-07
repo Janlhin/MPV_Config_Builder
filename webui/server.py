@@ -36,7 +36,10 @@ STATIC = BASE / "webui" / "static" if is_frozen() else Path(__file__).resolve().
 from core.schema import (          # noqa: E402
     APP_TITLE, VERSION, PARAMS, native_items, build_shader_catalog, build_memc_catalog,
     find_lazy_pc, scan_lazy, NATIVE_OPTIONS, LAZY_CANDIDATE_DIRS, db_ui_item,
+    PARAMS_EN, CORE_GROUP_EN, NATIVE_EN, NATIVE_GROUP_EN,
 )
+from core.i18n import T            # noqa: E402
+from core.combos import COMBOS_EN  # noqa: E402
 from core.presets import (         # noqa: E402
     CONTENT_CHOICES, PREFER_CHOICES, get_basic_preset, resolve_shader_slots,
     WRITE_MODE_INCLUDE, WRITE_MODE_MERGE,
@@ -302,10 +305,15 @@ def api_options():
 
     core = []
     for cat, items in PARAMS.items():
+        en_pair = None
         for key, label, desc, values, q, load in items:
             tp = ui_type(key, values)
             info = value_info(key, tp, values)
-            core.append({"group": cat, "key": key, "label": label, "desc": desc,
+            en_pair = PARAMS_EN.get(key)
+            core.append({"group": T(cat, CORE_GROUP_EN.get(cat, cat)),
+                         "key": key,
+                         "label": T(label, en_pair[0]) if en_pair else label,
+                         "desc": T(desc, en_pair[1]) if en_pair else desc,
                          "values": values, "kind": "core", "type": tp,
                          "suggest": info["suggest"], "options": info["options"],
                          "open": info["open"]})
@@ -313,12 +321,16 @@ def api_options():
     for group, key, label, desc, values, typ in native_items():
         tp = ui_type(key, values) or typ
         info = value_info(key, tp, values)
-        native.append({"group": group, "key": key, "label": label, "desc": desc,
+        en_pair = NATIVE_EN.get(key)
+        native.append({"group": T(group, NATIVE_GROUP_EN.get(group, group)),
+                       "key": key,
+                       "label": T(label, en_pair[0]) if en_pair else label,
+                       "desc": T(desc, en_pair[1]) if en_pair else desc,
                        "values": values, "type": tp, "kind": "native",
                        "suggest": info["suggest"], "options": info["options"],
                        "open": info["open"]})
     return {"core": core, "native": native,
-            "groups": list(NATIVE_OPTIONS.keys()),
+            "groups": [T(g, NATIVE_GROUP_EN.get(g, g)) for g in NATIVE_OPTIONS.keys()],
             "db": db_status()}
 
 
@@ -844,13 +856,13 @@ def api_downloads(params):
     target = _resolve_target({"target": params.get("target", "")})
     if not target or not Path(target).is_dir():
         return {"ok": False, "detail": f"目标目录不存在：{target}",
-                "kinds": [{"id": k, "label": l, "dir": d} for k, l, d in dlcenter.KINDS],
+                "kinds": [{"id": k, "label": T(l, dlcenter.KINDS_EN.get(l, l)), "dir": d} for k, l, d in dlcenter.KINDS],
                 "items": []}
     items = dlcenter.list_items(target, params.get("kind", ""))
     return {
         "ok": True,
         "target": str(target),
-        "kinds": [{"id": k, "label": l, "dir": d} for k, l, d in dlcenter.KINDS],
+        "kinds": [{"id": k, "label": T(l, dlcenter.KINDS_EN.get(l, l)), "dir": d} for k, l, d in dlcenter.KINDS],
         "items": items,
         "manifest": str(dlcenter.manifest_path()),
         "counts": {
@@ -1201,9 +1213,13 @@ def api_combos(body):
     out = []
     for c in COMBOS:
         shaders, memc, missing = resolve_combo(c, catalog)
+        en = COMBOS_EN.get(c["id"])
         out.append({
-            "id": c["id"], "icon": c["icon"], "name": c["name"], "note": c["note"],
-            "need": c.get("need", ""), "params": c["params"],
+            "id": c["id"], "icon": c["icon"],
+            "name": T(c["name"], en[0]) if en else c["name"],
+            "note": T(c["note"], en[1]) if en else c["note"],
+            "need": T(c.get("need", ""), en[2]) if en and en[2] else c.get("need", ""),
+            "params": c["params"],
             "shaders": shaders, "memc": memc, "missing": missing,
         })
     return {"ok": True, "combos": out, "target": str(target) if target else ""}

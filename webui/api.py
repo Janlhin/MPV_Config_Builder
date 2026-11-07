@@ -41,6 +41,8 @@ stdio 直接接后端，不开端口）就只能重写。
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Union
 
+from core.i18n import set_lang as _set_lang
+
 
 @dataclass
 class Request:
@@ -180,6 +182,16 @@ def dispatch(req):
     这些分支的顺序和条件**逐条对应重构前的 `do_GET` / `do_POST`**，
     注释里标了"为什么要保持"。改动这里之前先看模块 docstring。
     """
+    # T14：语言上下文。前端（两种传输）每个请求都带 lang（GET 走 query、
+    # POST 走 body.lang）；没带 = 中文，同时把线程上可能残留的上一请求
+    # 语言清掉（ThreadingHTTPServer 会复用线程）。
+    _lang = None
+    if isinstance(req.query, dict):
+        _lang = req.query.get("lang")
+    if not _lang and isinstance(req.body, dict):
+        _lang = req.body.get("lang")
+    _set_lang(_lang)
+
     path = req.path or ""
     method = (req.method or "GET").upper()
 

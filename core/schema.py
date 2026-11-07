@@ -194,6 +194,64 @@ PARAMS = {
 # 这些参数的输入框允许手动输入自定义值（不限于下拉列表）
 EDITABLE_PARAMS = {"geometry"}
 
+# ============================================================
+# 精选层英文对照（T14）。key -> (label_en, desc_en)。
+# 缺 key 时回退中文——宁可显示中文也不要留空。
+# 为什么用平行表不改原元组：PARAMS 同时驱动构建器与评分，
+# 改元组形状会波及所有消费者；平行表只在 /api/options 服务点生效。
+# ============================================================
+from .i18n import T
+
+CORE_GROUP_EN = {
+    "视频输出": "Video output",
+    "缩放": "Scaling",
+    "补帧": "Interpolation",
+    "字幕": "Subtitles",
+    "字幕样式": "Subtitle style",
+    "音频": "Audio",
+    "窗口": "Window",
+    "性能 / 缓存": "Performance / cache",
+}
+
+PARAMS_EN = {
+    "vo": ("Video output", "Choose MPV's video output driver. gpu-next is the modern GPU render path."),
+    "gpu-api": ("GPU API", "Pick the graphics API. d3d11 is common on Windows; Vulkan works in some environments."),
+    "hwdec": ("Hardware decoding", "Let the GPU / dedicated video decoder handle H.264/HEVC/AV1 and friends."),
+    "video-sync": ("Video sync", "How the video clock syncs to audio/display. display-resample is common on high-refresh displays."),
+    "scale": ("Luma scaler", "Spatial scaling for the main image / luma plane. Affects sharpness, detail and GPU load."),
+    "cscale": ("Chroma scaler", "Scaling for the chroma planes. High-quality choices reduce color fringing."),
+    "dscale": ("Downscaler", "Algorithm used when the source resolution is above the target."),
+    "sigmoid-upscaling": ("Sigmoid upscaling", "Eases the overshoot look that sharp scalers produce around edges."),
+    "deband": ("Deband", "Reduces banding in gradients, at the cost of extra GPU work."),
+    "linear-downscaling": ("Linear downscaling", "Use linear filtering when shrinking the picture; on by default."),
+    "correct-downscaling": ("Correct downscaling", "Gamma/color-correct downscaling; on by default."),
+    "interpolation": ("Interpolation", "Computes in-between frames so 24/30 FPS content moves smoother on high-refresh displays. Not AI frame generation."),
+    "tscale": ("Temporal scaler", "Temporal resampling algorithm under interpolation; trade-offs between smoothness, ghosting and load."),
+    "hr-seek-framedrop": ("Seek framedrop", "Use no with interpolation to avoid timeline drift after seeking."),
+    "sub-auto": ("Auto-load subtitles", "How subtitle files are loaded automatically."),
+    "sub-font-size": ("Subtitle font size", "Default size for non-ASS subtitles; adjust to your viewing distance."),
+    "sub-ass-override": ("ASS override", "Whether to override the original ASS/SSA styling. no is the most faithful to the author's design."),
+    "sub-font": ("Subtitle font", "Font name for subtitles. Installing a font is not enough - name it in mpv.conf. Applies to plain text directly; ASS ignores it by default (see sub-ass-override)."),
+    "sub-color": ("Subtitle color", "Text color. Write 6-digit #RRGGBB (opaque), or 8-digit #AARRGGBB - alpha comes FIRST in 8-digit form: FF opaque, 00 transparent (opposite of CSS). When in doubt, use 6 digits."),
+    "sub-border-size": ("Border size", "Outline width around the text, 0 = none. A black outline makes white text far more readable on dark scenes."),
+    "sub-border-color": ("Border color", "Outline color, same syntax as sub-color (alpha first in 8-digit form). Usually black."),
+    "sub-shadow-offset": ("Shadow offset", "Shadow offset relative to the text. 0 = no shadow (a cleaner look)."),
+    "sub-shadow-color": ("Shadow color", "Shadow color, same syntax as sub-color. Set sub-shadow-offset to 0 for no shadow."),
+    "sub-back-color": ("Subtitle box", "Background plate behind subtitles. Semi-transparent black: #80000000 (the first two digits 80 = about 50% opacity); no box: #00000000."),
+    "sub-pos": ("Subtitle position", "Percentage from the bottom of the picture. 100 = very bottom; 90 lifts it up a bit (for hardsubs or burned-in info)."),
+    "audio-exclusive": ("Exclusive mode", "Exclusive audio device output. Actual effect depends on OS, device and MPV build."),
+    "audio-file-auto": ("Auto-load audio", "External audio track auto-load policy."),
+    "volume": ("Default volume", "Volume at MPV startup."),
+    "geometry": ("Window geometry", "Window position/size when mpv opens. 50%:50% = centered; +0+0 = top-left; -0-0 = bottom-right; custom values like 1280x720+100+100 also work."),
+    "autofit": ("Initial window size", "Initial window size, in pixels or percentages."),
+    "autofit-larger": ("Max window size", "Largest allowed window size (pixels or screen %), to keep the window from opening huge."),
+    "autofit-smaller": ("Min window size", "Smallest allowed window size, so the window cannot shrink too far."),
+    "keepaspect-window": ("Lock window aspect", "Lock the window ratio to the video ratio. no = free resize."),
+    "hidpi-window-scale": ("HiDPI window scale", "Scale the window size by system DPI. Set no if the window feels huge on a 4K screen."),
+    "cache": ("File cache", "Enable the file cache; mostly useful for network / slow storage."),
+    "demuxer-max-bytes": ("Demuxer cache max", "Demuxer buffer limit. Not 'bigger is better' - mainly for specific network / high-bitrate cases."),
+}
+
 SHADERS = {
     "KrigBilateral / CfL": ("高级色度还原（覆盖 cscale），配合超分/锐化使用，减少彩边。", 6, 3),
     "FSRCNNX x2_8": ("通用 CNN 2x 超分，8 通道，速度较快。", 7, 5),
@@ -276,6 +334,57 @@ MEMC_PRESETS = {
     "NR_BM3D_NV": ("BM3D 降噪（RTX）。", "~~/vs/NR_BM3D_NV.vpy"),
     "NR_CCD_STD": ("CCD 降噪。", "~~/vs/NR_CCD_STD.vpy"),
     "ETC_DEINT_EX": ("反交错（用于隔行源）。", "~~/vs/ETC_DEINT_EX.vpy"),
+}
+
+# ---- Shader / MEMC 目录描述英文对照（T14）。name -> desc_en；缺 name 回退中文 ----
+SHADERS_EN = {
+    "KrigBilateral / CfL": "Advanced chroma restoration (overrides cscale); pair with upscaling/sharpening to reduce color fringing.",
+    "FSRCNNX x2_8": "General CNN 2x upscaler, 8 channels, relatively fast.",
+    "FSRCNNX x2_16": "General CNN 2x upscaler, 16 channels, sharper and slower (mpv-lazy default Ctrl+3).",
+    "FSRCNNX LineArt_x2_8": "2x upscaler tuned for anime line art.",
+    "RAVU r2": "RAVU lightweight, fast upscaling tier.",
+    "RAVU r3 zoom-ar": "RAVU mid tier; with ar/zoom it can scale all the way to the target resolution.",
+    "RAVU r4": "RAVU high-quality tier.",
+    "Adaptive_sharpen": "Final adaptive sharpening step (lite_RT is cheaper); recommended at the end of the chain (mpv-lazy default Ctrl+0).",
+    "AMD_CAS": "AMD contrast-adaptive sharpening, a light finishing pass.",
+    "Anime4K Clamp_Highlights": "Clamps highlights against overshoot; use first or last in an Anime4K chain.",
+    "Anime4K Restore_CNN_M": "Restores line art, removes ringing / compression artifacts.",
+    "Anime4K Upscale_CNN_x2_M": "Anime4K first convolutional upscale pass.",
+    "Anime4K Upscale_GAN_x2_S": "Anime4K second GAN upscale pass; the S tier saves performance.",
+    "Anime4K Denoise_CNN_M": "Anime4K denoise / band smoothing.",
+    "Anime4K Deblur_DoG": "Anime4K deblur / edge sharpening.",
+    "Anime4K AutoDownscalePre_x2": "Adaptive pre-downscale inserted between upscale passes; do not use alone.",
+    "SSimSuperRes_RT": "Upscaling boost on top of mpv's built-in scale; do not mix with external upscalers.",
+    "SSimDownscaler_RT": "Downscaling boost on top of mpv's built-in dscale.",
+    "Anime4K Restore_CNN_L": "Anime4K line-art restore, L tier; bundled with mpv-lazy (Ctrl+5).",
+    "Anime4K Upscale_GAN_x2_M": "Anime4K GAN upscale, M tier; bundled with mpv-lazy (Ctrl+6).",
+    "QCOM SGEDS": "QCOM main-scale sharpening RT, appended by mpv-lazy by default (Ctrl+9).",
+    "Ani4Kv2 ArtCNN": "Ani4Kv2 ArtCNN (LUMA stage), anime upscaling, heavy load (Ctrl+1).",
+    "AniSD ArtCNN": "AniSD ArtCNN, upscaler dedicated to SD anime, very heavy load (Ctrl+2).",
+    "NNEDI3 nns64": "NNEDI3 nns64 interpolation upscaler, general purpose (Ctrl+4).",
+    "k7 Anime ESRGAN": "k7 Anime ESRGAN upscaler, anime-oriented, heavy load (Ctrl+7).",
+    "k7 Anime DT ESRGAN": "k7 Anime DT ESRGAN, more detail and even heavier load (Ctrl+8).",
+}
+
+MEMC_EN = {
+    "MVT_LQ": "MVTools low tier; good value, mid-range GPUs can try it (mpv-lazy default !).",
+    "MVT_MQ": "MVTools mid tier; balanced quality/performance.",
+    "SVP_LQ": "SVP low tier; commercial-grade motion compensation.",
+    "SVP_HQ": "SVP high tier; smoother.",
+    "SVP_PRO": "SVP PRO tier.",
+    "DRBA_DML": "DRBA DirectMEMC (works without NVIDIA; mpv-lazy default SHARP key).",
+    "DRBA_NV": "DRBA NVIDIA MEMC (mpv-lazy default %).",
+    "RIFE_STD": "RIFE standard edition.",
+    "RIFE_DML": "RIFE DirectML (mpv-lazy default @).",
+    "RIFE_NV": "RIFE NVIDIA, among the strongest MEMC today (RTX 2060+ recommended; mpv-lazy default $).",
+    "MIX_UAI_DML": "UAI AI upscaling (DX12), hotkey ^.",
+    "MIX_UAI_NV_TRT": "UAI AI upscaling (RTX TensorRT), hotkey &.",
+    "MIX_UAI_MIGX": "UAI AI upscaling (MIGX).",
+    "MIX_UVR_MAD": "UVR vocal/accompaniment separation.",
+    "SR_ARTCNN_NV": "ArtCNN upscaling (RTX).",
+    "NR_BM3D_NV": "BM3D denoising (RTX).",
+    "NR_CCD_STD": "CCD denoising.",
+    "ETC_DEINT_EX": "Deinterlacing (for interlaced sources).",
 }
 
 # 最锐利基础参数（供快捷组合复用）
@@ -629,7 +738,8 @@ def build_shader_catalog(pc):
             if not (Path(pc) / rel).is_file():
                 continue
             used.add(rel)
-        catalog.append({"name": name, "desc": meta[0], "q": meta[1], "load": meta[2], "path": path})
+        catalog.append({"name": name, "desc": T(meta[0], SHADERS_EN.get(name, meta[0])),
+                        "q": meta[1], "load": meta[2], "path": path})
     if pc is not None:
         for p in scan_lazy(pc)[0]:
             rel = p.relative_to(Path(pc)).as_posix()
@@ -637,7 +747,7 @@ def build_shader_catalog(pc):
                 continue
             catalog.append({
                 "name": p.stem,
-                "desc": f"自动发现（mpv-lazy 实际文件）：{rel}",
+                "desc": T("自动发现（mpv-lazy 实际文件）：", "Auto-discovered (actual mpv-lazy file): ") + rel,
                 "q": 4, "load": 4, "path": "~~/" + rel,
             })
     catalog.sort(key=lambda x: (SHADER_GROUP_ORDER.get(shader_group(x["name"]), 9),
@@ -655,13 +765,14 @@ def build_memc_catalog(pc):
             if not (Path(pc) / rel).is_file():
                 continue
             used.add(rel)
-        catalog.append({"name": name, "desc": desc, "path": path})
+        catalog.append({"name": name, "path": path,
+                        "desc": T(desc, MEMC_EN.get(name, desc))})
     if pc is not None:
         for p in scan_lazy(pc)[1]:
             rel = p.relative_to(Path(pc)).as_posix()
             if rel.lower() in used:
                 continue
-            catalog.append({"name": p.stem, "desc": f"自动发现（mpv-lazy 实际文件）：{rel}", "path": "~~/" + rel})
+            catalog.append({"name": p.stem, "desc": T("自动发现（mpv-lazy 实际文件）：", "Auto-discovered (actual mpv-lazy file): ") + rel, "path": "~~/" + rel})
     catalog.sort(key=lambda x: (MEMC_GROUP_ORDER.get(memc_group(x["name"]), 9),
                                 MEMC_PRIORITY.get(x["name"], 500), x["name"]))
     return catalog
@@ -883,6 +994,101 @@ NATIVE_TYPES = {}
 for _group, _items in NATIVE_OPTIONS.items():
     for _k, _label, _typ, _values, _desc in _items:
         NATIVE_TYPES[_k] = (_typ, _values)
+
+# 原生层英文对照（T14）。key -> (label_en, desc_en)；组名 -> en。缺 key 回退中文。
+NATIVE_GROUP_EN = {
+    "画质细节": "Picture detail",
+    "色彩 / HDR": "Color / HDR",
+    "字幕明细": "Subtitles",
+    "音频明细": "Audio",
+    "行为 / 界面": "Behavior / UI",
+    "截图 / 其它": "Screenshots / misc",
+}
+
+NATIVE_EN = {
+    "dither-depth": ("Dither depth", "8 for 8-bit panels, 10 for 10-bit; auto is not always right."),
+    "dither": ("Dither mode", "error-diffusion looks the best but costs the most performance."),
+    "temporal-dither": ("Temporal dither", "Varies the dither pattern per frame; may flicker on LCDs."),
+    "temporal-dither-period": ("Temporal dither period", "Change the dither pattern every N frames."),
+    "scale-antiring": ("Upscale anti-ringing", "Higher suppresses ringing but can introduce other artifacts."),
+    "cscale-antiring": ("Chroma anti-ringing", "Anti-ringing strength for the chroma planes."),
+    "dscale-antiring": ("Downscale anti-ringing", "Anti-ringing strength for downscaling."),
+    "scaler-resizes-only": ("Only on resize", "no = apply the scaler even without resizing; can fix half-pixel offsets of some shaders."),
+    "deband-iterations": ("Deband passes", "Higher is stronger and slower; above 4 it is mostly useless."),
+    "deband-threshold": ("Deband threshold", "Higher is stronger but loses more detail."),
+    "deband-range": ("Deband range", "Larger radius is stronger and more expensive."),
+    "deband-grain": ("Deband grain", "Add back some noise to mask leftover banding."),
+    "interpolation-preserve": ("Keep interpolation", "Whether to keep the previous interpolated frame when render settings change; no reacts faster."),
+    "video-sync-max-video-change": ("Max sync speed change", "A/V speed change limit (%) under display-resample."),
+    "tscale-clamp": ("Temporal clamp", "1.0 fully removes negative weights, reducing temporal ringing."),
+    "tscale-antiring": ("Temporal anti-ringing", "Strength of ringing suppression during interpolation."),
+    "icc-profile-auto": ("Auto ICC", "Enable if you have a display calibration file; do not combine with the target-* series."),
+    "icc-profile": ("ICC file", "Manual path to a .icc/.icm profile (empty = off)."),
+    "icc-intent": ("ICC intent", "0 perceptual / 1 relative colorimetric / 2 saturation / 3 absolute."),
+    "target-prim": ("Target primaries", "Set to your wide-gamut display to avoid oversaturation; leave it alone if Windows ACM is on."),
+    "target-trc": ("Target TRC (gamma)", "For non-OLED non-HDR use gamma2.2 to avoid a dim picture."),
+    "target-gamut": ("Limit output gamut", "Clamp the output gamut to what the display can actually show."),
+    "target-peak": ("Target peak", "Measured nits for HDR screens; keep 203 for SDR."),
+    "target-contrast": ("Target contrast", "OLED can use inf or 1000000."),
+    "target-colorspace-hint": ("Colorspace hint", "HDR passthrough related; on Windows you still switch HDR manually."),
+    "tone-mapping": ("Tone mapping", "Under gpu-next, spline / bt.2446a / hable are common."),
+    "hdr-compute-peak": ("Dynamic peak detection", "Measures the peak per scene; more accurate but brightness may jump."),
+    "gamut-mapping-mode": ("Gamut mapping mode", "clip or perceptual are the common choices."),
+    "inverse-tone-mapping": ("Inverse tone mapping", "Only effective on HDR devices; use with care."),
+    "hdr-contrast-recovery": ("HDR contrast recovery", "Boosts contrast after tone mapping; too high looks oversharpened."),
+    "slang": ("Preferred subtitles", "Comma-separated language priority list."),
+    "sub-file-paths": ("Subtitle paths", "Semicolon-separated search dirs; use ; on Windows, not :."),
+    "sub-codepage": ("Subtitle codepage", "Old Chinese subtitles are often gb18030."),
+    "sub-use-margins": ("Subtitles in margins", "no = keep subtitles inside the video as much as possible."),
+    "sub-ass-force-margins": ("ASS forced margins", "May break positioning in some ASS scripts."),
+    "sub-scale-with-window": ("Scale with window", "Only affects plain-text subtitles."),
+    "subs-fallback": ("Subtitle fallback", "Fallback when no language matches."),
+    "blend-subtitles": ("Blend subtitles", "yes makes subtitles affected by shaders / scaling."),
+    "secondary-sub-ass-override": ("Secondary sub override", "Whether secondary subtitles follow the sub-* styles."),
+    "sub-hdr-peak": ("HDR subtitle peak", "Reference white for subtitles/OSD under HDR output."),
+    "sub-margin-x": ("Subtitle margin X", "Measured in scaled pixels."),
+    "audio-device": ("Audio device", "For a fixed device use wasapi/{GUID}."),
+    "audio-channels": ("Channel layout", "auto-safe when the system layout is uncertain."),
+    "volume-max": ("Volume max", "Volume ceiling; 130 is about twice the loudness of 100."),
+    "audio-pitch-correction": ("Pitch correction", "Keep the pitch while changing playback speed."),
+    "replaygain": ("ReplayGain", "Adjust volume from file metadata."),
+    "gapless-audio": ("Gapless audio", "yes may reduce quality; weak is recommended."),
+    "audio-delay": ("Audio delay", "Fine-tune A/V sync (seconds)."),
+    "alang": ("Preferred audio", "Comma-separated language priority list."),
+    "audio-file-paths": ("External audio paths", "Semicolon-separated."),
+    "ao": ("Audio output", "wasapi is preferred on Windows."),
+    "keep-open": ("Keep window open", "always = pause at the end and do not play the next file."),
+    "idle": ("Idle", "yes = stay open after playback ends."),
+    "save-position-on-quit": ("Save position on quit", "Resume the same file next time."),
+    "watch-later-options": ("Watch-later list", "Comma-separated; limits which state gets saved."),
+    "osc": ("Built-in OSC", "Turn off when using a third-party UI (uosc)."),
+    "osd-bar": ("OSD bar", "Whether to show the bottom seek bar."),
+    "osd-font-size": ("OSD font size", "Global OSD text size."),
+    "osd-duration": ("OSD duration", "Milliseconds."),
+    "osd-on-seek": ("Seek feedback", "What to show while seeking."),
+    "osd-playing-msg": ("Playback message", "Supports mpv property expansion."),
+    "fullscreen": ("Start fullscreen", "Open in fullscreen."),
+    "ontop": ("Always on top", "Keep the window above all others."),
+    "border": ("Window border", "no = borderless window."),
+    "title-bar": ("Title bar", "Keep a title bar when the window is borderless."),
+    "input-default-bindings": ("Default keybindings", "no = disable mpv's default keys."),
+    "input-conf": ("Keybindings file", "Path to input.conf."),
+    "load-scripts": ("Load scripts", "Whether to auto-load the scripts directory."),
+    "screenshot-format": ("Screenshot format", "Use png for careful comparisons."),
+    "screenshot-directory": ("Screenshot directory", "Empty = current directory."),
+    "screenshot-template": ("Screenshot template", "Supports property expansion."),
+    "screenshot-jpeg-quality": ("JPEG quality", "0-100."),
+    "screenshot-png-compression": ("PNG compression", "Higher is slower; 7 is the default."),
+    "screenshot-webp-lossless": ("WebP lossless", "yes = lossless but larger files."),
+    "screenshot-high-bit-depth": ("High bit depth", "Preserve 10-bit information when possible."),
+    "screenshot-tag-colorspace": ("Tag colorspace", "Write colorspace metadata into the file."),
+    "screenshot-jxl-distance": ("JXL distance", "0 is visually lossless."),
+    "ytdl-format": ("Network video format", "The yt-dlp -f argument."),
+    "cache-secs": ("Cache seconds", "Network stream cache duration."),
+    "demuxer-readahead-secs": ("Readahead seconds", "Readahead duration for local/network streams."),
+    "demuxer-max-back-bytes": ("Backward cache", "How much buffer allows seeking backwards."),
+    "network-timeout": ("Network timeout", "Seconds."),
+}
 
 # 需要手动输入的类别（下拉框改成可编辑）
 NATIVE_EDITABLE_TYPES = {"int", "float", "str", "color", "list"}
