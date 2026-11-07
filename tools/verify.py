@@ -1888,7 +1888,12 @@ def cmd_motion():
       };
     })()
     """
+    # ⚠ CI 机器没有 mpv 配置目录，target 输入框是空的——doApply 会在调
+    # basicApply 之前早退（"请先填目标配置目录"），ack 永远不会挂上。
+    # 所以点击前先填一个目标（basicApply 已换桩，不会真写）。
     ACK_TEST = ("(() => { const b = document.getElementById('applyBtn'); if (!b) return false;"
+                " const t = document.getElementById('target');"
+                " if (t && !t.value) t.value = 'C:/mpv-config-demo';"
                 " b.click(); return true; })()")
     ACK_STATE = """
     (() => {
