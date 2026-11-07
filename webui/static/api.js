@@ -458,11 +458,18 @@ MPVCB.busy = function (on) {
 /** 请求在飞的时候显示顶部进度条：39 个 API 方法全部经过 API.invoke，
     所以在这里包一层，全站都有反馈，不用每个页面自己写。
     同时在这里**统一附上当前语言**（T14）：GET 走 query、POST 走 body.lang，
-    后端据此返回对应语言的文案；I18N 没加载时缺省，后端回中文。 */
+    后端据此返回对应语言的文案；I18N 没加载时缺省，后端回中文。
+    静态模式（Q-006 裁决 A，第 12 项）：探测不到后端时 API.invoke 直接失败，
+    页面各自降级；静态数据走 API.staticData（相对路径取仓库里的 JSON），
+    **故意用 fetch** —— 上面「不许直接 fetch」的规矩针对的是 Electron stdio
+    通道下的后端调用；静态模式按定义没有后端，fetch 仓库静态文件是唯一路径。 */
 const _rawInvoke = API.invoke.bind(API);
 API.invoke = async function (method, url, body) {
   MPVCB.busy(true);
   try {
+    if (MPVCB.STATIC) {
+      return { ok: false, detail: I18N.t('static.mode'), static: true };
+    }
     const lang = (typeof window.I18N === 'object' && window.I18N.lang) ? window.I18N.lang() : '';
     if (lang && lang !== 'zh-CN') {
       if (method === 'POST') {
@@ -475,6 +482,66 @@ API.invoke = async function (method, url, body) {
   } finally {
     MPVCB.busy(false);
   }
+};
+
+/* ---------- 静态模式（Q-006 裁决 A：github.io 映射） ----------
+
+   部署形态 = 仓库根直接上 GitHub Pages：页面在 /webui/static/，
+   数据 JSON 在 /data/（**不复制**，仓库里只有一份），文档 md 在仓库根。
+   页面加载后探测一次 /api/status：
+   · 通了 → 一切照旧（本地服务 / Electron）
+   · 不通（Pages / file://）→ MPVCB.STATIC = true，API.invoke 统一返回
+     「静态模式」响应，页面用它降级；需要数据的页面走 API.staticData。
+
+   staticData 按候选路径依次试（仓库根部署 → 静态目录部署），命中即缓存。 */
+
+MPVCB.STATIC = false;
+const _staticCache = {};
+API.probeStatic = async function () {
+  try {
+    const r = await _rawInvoke('GET', '/api/status');
+    if (r && r.ok !== false) return false;          // 后端在，不是静态模式
+  } catch (e) { /* 探测失败 = 没后端 */ }
+  MPVCB.STATIC = true;
+  return true;
+};
+API.staticData = async function (name) {
+  if (_staticCache[name]) return _staticCache[name];
+  const candidates = ['../data/' + name, 'data/' + name];
+  for (const rel of candidates) {
+    try {
+      const resp = await fetch(rel);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      _staticCache[name] = data;
+      return data;
+    } catch (e) { /* 试下一个候选路径 */ }
+  }
+  return null;
+};
+/* 加载即分类：GitHub Pages 等静态托管（https + 非本机）不可能有本机后端，
+   直接判静态；本机形态（localhost / file / Electron）再异步探测一次兜底。
+   api.js 在页面内联脚本之前执行，所以页面 boot() 发起的第一个调用就已带上
+   正确的分类，不会闪一次错误横幅。 */
+(function () {
+  const h = location.hostname;
+  if (location.protocol === 'https:' && h && !/^(localhost|127\.)/.test(h)) {
+    MPVCB.STATIC = true;
+    return;
+  }
+  API.probeStatic().then((isStatic) => { MPVCB.STATIC = isStatic; });
+})();
+
+API.staticText = async function (name) {
+  const candidates = ['../' + name, name];
+  for (const rel of candidates) {
+    try {
+      const resp = await fetch(encodeURI(rel));
+      if (!resp.ok) continue;
+      return await resp.text();
+    } catch (e) { /* 试下一个候选路径 */ }
+  }
+  return null;
 };
 
 function showOffline() {

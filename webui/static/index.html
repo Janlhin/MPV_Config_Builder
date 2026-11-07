@@ -6,6 +6,9 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="index">
+  <div class="note warn-text" id="staticBanner" style="display:none;margin:12px 16px">
+    ⚠ <span data-i18n="static.banner"></span>
+  </div>
 
 <div class="topbar">
   <div class="brand">🎬 MPV Config Builder <small id="ver"></small></div>
@@ -159,6 +162,13 @@ async function boot() {
     if (last.lazy_pc) { el.textContent = shortPath(last.lazy_pc); el.title = last.lazy_pc; }
     else el.textContent = I18N.t('topbar.notFound');
   }
+  // 静态模式（Q-006 A）：没有本机后端，明确告诉用户怎么获得完整功能
+  function paintStatic() {
+    if (!MPVCB.STATIC || failed) return;
+    const el = document.getElementById('staticBanner');
+    if (el) el.style.display = '';
+  }
+  document.addEventListener('i18n:change', paintStatic);
   document.addEventListener('i18n:change', paintTarget);
 
   try {
@@ -167,6 +177,7 @@ async function boot() {
     last = r;
     document.getElementById('ver').textContent = 'v' + r.version;
     paintTarget();
+    paintStatic();
   } catch (e) {
     failed = true;
     paintTarget();
