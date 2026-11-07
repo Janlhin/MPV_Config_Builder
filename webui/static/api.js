@@ -363,7 +363,8 @@ function initStatusbar() {
     '<span class="sb-target" title=""></span>' +
     '<span class="sb-spacer"></span>' +
     '<span class="sb-changes"></span>' +
-    '<span class="sb-backend"><i class="sb-dot"></i><span class="sb-text"></span></span>';
+    '<span class="sb-backend"><i class="sb-dot"></i><span class="sb-text"></span></span>' +
+    '<button class="sb-keys" type="button" title=""></button>';
   document.body.appendChild(bar);
   document.body.classList.add('has-statusbar');
   SB.bar = bar;
@@ -393,6 +394,11 @@ function paintStatusbar() {
     s.textContent = SB.alive === false ? SBT('status.backendOff', '后端没响应')
       : SB.alive === true ? SBT('status.backendOn', '后端在线')
       : SBT('status.backendUnknown', '后端状态未知');
+  }
+  const kb = SB.bar.querySelector('.sb-keys');
+  if (kb) {
+    kb.textContent = '? ' + SBT('hk.statusHint', '快捷键');
+    kb.title = SBT('hk.statusHintTitle', '看有哪些键盘快捷键');
   }
 }
 
@@ -591,6 +597,175 @@ function initContextMenu() {
   });
 }
 
+/* ---------- 键盘快捷键层（界面打磨·第一切片，R-28） ----------
+
+   起因（待做.md §一）：「基本全靠鼠标，改一个选项要点半天」。
+   放在 api.js 的理由与顶栏 / 状态栏 / 右键菜单完全相同：9 页共用一处定义，
+   零 HTML 改动。方案、集合与边界见 DECISIONS.md 2026-11-08（R-28），要点：
+
+   · Ctrl+S = 本页主操作；? = 帮助面板；Esc = 关面板；
+     ↓/↑ = 选项行之间移动焦点（锚点 = 行内勾选框）；Enter = 展开该行说明；
+     Space 勾选是浏览器原生行为，不实现。
+   · 危险动作不绑全局键：hell 的覆盖写入、downloads 的开始安装**不在表里** ——
+     全局键的本质是降低触发成本，而那两页的设计恰恰是给危险动作加摩擦。
+   · 打字优先：焦点在文本输入控件里时 ?/↓↑/Enter 一律不拦；
+     Ctrl+S 例外（「保存」语义在输入框里同样成立）。
+   · 映射表是单一来源，HTML 改 id 会让它静默失效 —— 由静态测试
+     （id 必须真实存在）+ verify.py hotkeys（按键后按钮真的被点了）双层守护。 */
+
+const HOTKEY_PRIMARY = {
+  basic: '#applyBtn',
+  advanced: '#applyTop',
+  expert: '#applyTop',
+  analyze: '#analyzeFile',
+  keys: '#saveBtn'
+  // hell（#save 直接覆盖写入）/ downloads（#lzGo 开始安装）按 R-28 故意缺席；
+  // index / guide 没有主操作。缺席页面的 Ctrl+S 不拦浏览器默认。
+};
+
+const HK = { el: null };
+
+function hotkeyVisible(el) {
+  return !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length));
+}
+
+/** 焦点是否在「打字」的控件里。勾选框 / 按钮不算 —— 方向键导航要能用它们当锚点 */
+function hotkeyIsTextInput(t) {
+  if (!t || !t.tagName) return false;
+  if (t.isContentEditable) return true;
+  const tag = t.tagName.toLowerCase();
+  if (tag === 'textarea') return true;
+  if (tag !== 'input') return false;
+  const type = (t.getAttribute('type') || 'text').toLowerCase();
+  return type !== 'checkbox' && type !== 'radio' && type !== 'button';
+}
+
+/** 本页主操作按钮；没有映射 / 被禁用 / 不可见时返回 null（按键就不做任何事） */
+function hotkeyPrimaryBtn() {
+  const sel = HOTKEY_PRIMARY[PAGE_()];
+  if (!sel) return null;
+  const b = document.querySelector(sel);
+  if (!b || b.disabled || !hotkeyVisible(b)) return null;
+  return b;
+}
+
+/** 可见的选项行勾选框（方向键的锚点）。expert 的空视图没有 .opt 行，自然不生效 */
+function hotkeyRowBoxes() {
+  return Array.prototype.filter.call(
+    document.querySelectorAll('.opt input[data-role="check"]'), hotkeyVisible);
+}
+
+function hotkeyFocusRow(dir) {
+  const boxes = hotkeyRowBoxes();
+  if (!boxes.length) return false;
+  const cur = document.activeElement;
+  const row = (cur && cur.closest) ? cur.closest('.opt') : null;
+  const i = row ? boxes.findIndex(function (b) { return b.closest('.opt') === row; }) : -1;
+  // 没有任何行被聚焦时，↓ 从第一行开始；↑ 无处可去就不动
+  let next = i < 0 ? (dir > 0 ? 0 : -1) : i + dir;
+  if (next < 0 || next >= boxes.length) return false;
+  boxes[next].focus();
+  boxes[next].closest('.opt').scrollIntoView({ block: 'nearest' });
+  return true;
+}
+
+/* ---- 帮助面板：只列本页真实生效的条目（不吹不存在的能力） ---- */
+
+function hkEntries() {
+  const list = [];
+  if (HOTKEY_PRIMARY[PAGE_()]) {
+    list.push(['Ctrl + S', SBT('hk.primary', '触发本页主操作（生成配置 / 保存）')]);
+  }
+  if (document.querySelector('.opt input[data-role="check"]')) {
+    list.push(['\u2193 / \u2191', SBT('hk.nav', '在选项之间移动')]);
+    list.push(['Space', SBT('hk.toggle', '勾选 / 取消勾选')]);
+    list.push(['Enter', SBT('hk.info', '看这一行的完整说明')]);
+  }
+  list.push(['?', SBT('hk.help', '打开本面板')]);
+  list.push(['Esc', SBT('hk.esc', '关闭面板')]);
+  return list;
+}
+
+function paintHotkeyHelp() {
+  if (!HK.el) return;
+  HK.el.querySelector('.hk-title').textContent = SBT('hk.title', '键盘快捷键');
+  HK.el.querySelector('.hk-close').textContent = SBT('hk.close', '关闭');
+  HK.el.querySelector('.hk-list').innerHTML = hkEntries().map(function (it) {
+    return '<div class="hk-row"><kbd>' + escTxt(it[0]) + '</kbd>'
+      + '<span>' + escTxt(it[1]) + '</span></div>';
+  }).join('');
+}
+
+function toggleHotkeyHelp(force) {
+  const want = (force === undefined) ? !HK.el : !!force;
+  if (want && !HK.el) {
+    const p = document.createElement('div');
+    p.className = 'hotkey-help';
+    p.innerHTML = '<div class="hk-card" role="dialog" aria-label="">'
+      + '<div class="hk-head"><span class="hk-title"></span>'
+      + '<button class="btn small hk-close" type="button"></button></div>'
+      + '<div class="hk-list"></div></div>';
+    document.body.appendChild(p);
+    HK.el = p;
+    p.querySelector('.hk-close').onclick = function () { toggleHotkeyHelp(false); };
+    p.addEventListener('click', function (e) { if (e.target === p) toggleHotkeyHelp(false); });
+    paintHotkeyHelp();
+    // 面板是 JS 渲染的，切语言后 DOM 属性刷不到，得手动重画（同状态栏）
+    document.addEventListener('i18n:change', paintHotkeyHelp);
+  } else if (!want && HK.el) {
+    HK.el.remove();
+    HK.el = null;
+    document.removeEventListener('i18n:change', paintHotkeyHelp);
+  }
+}
+
+function onHotkeyKey(e) {
+  if (e.ctrlKey || e.metaKey) {
+    if ((e.key === 's' || e.key === 'S') && !e.altKey && !e.shiftKey) {
+      // 打字时也放行：保存语义在输入框里同样成立（R-28 决策 5）。
+      // 没有映射的页面不拦 —— 浏览器默认行为保持原样。
+      const b = hotkeyPrimaryBtn();
+      if (b) { e.preventDefault(); b.click(); }
+    }
+    return;
+  }
+  if (e.altKey) return;
+  if (e.key === '?') {
+    if (hotkeyIsTextInput(e.target)) return;   // 搜索框里打 ? 必须还是打字
+    e.preventDefault();
+    toggleHotkeyHelp();
+    return;
+  }
+  if (e.key === 'Escape') {
+    if (HK.el) { e.preventDefault(); toggleHotkeyHelp(false); }
+    return;                                    // 右键菜单的 Esc 有自己的处理，不掺和
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (hotkeyIsTextInput(e.target)) return;
+    if ((e.target.tagName || '').toLowerCase() === 'select') return;  // 下拉自己的方向键
+    if (!hotkeyRowBoxes().length) return;      // 没有选项行的页面放行原生滚动
+    e.preventDefault();
+    hotkeyFocusRow(e.key === 'ArrowDown' ? 1 : -1);
+    return;
+  }
+  if (e.key === 'Enter') {
+    if (hotkeyIsTextInput(e.target)) return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'button' || tag === 'a' || tag === 'select') return;  // 它们自己响应 Enter
+    const row = (e.target.closest) ? e.target.closest('.opt') : null;
+    const info = row ? row.querySelector('[data-role="info"]') : null;
+    if (!info) return;
+    e.preventDefault();
+    info.click();
+  }
+}
+
+function initHotkeys() {
+  document.addEventListener('keydown', onHotkeyKey);
+  const kb = document.querySelector('.sb-keys');
+  if (kb) kb.onclick = function () { toggleHotkeyHelp(); };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initTopbarNav();
   initTheme();
@@ -598,4 +773,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initStatusbar();
   initBackendWatch();
   initContextMenu();
+  initHotkeys();
 });
+
+

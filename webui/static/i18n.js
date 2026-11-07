@@ -79,6 +79,19 @@
       'ctx.reset': '恢复默认（取消勾选）',
       'ctx.info': '完整说明',
 
+      // 键盘快捷键层（api.js，R-28）。帮助面板是 JS 渲染的，
+      // 走 SBT() 取词 + i18n:change 重画，与 status.* 同一模式
+      'hk.title': '键盘快捷键',
+      'hk.close': '关闭',
+      'hk.primary': '触发本页主操作（生成配置 / 保存）',
+      'hk.nav': '在选项之间移动',
+      'hk.toggle': '勾选 / 取消勾选',
+      'hk.info': '看这一行的完整说明',
+      'hk.help': '打开本面板',
+      'hk.esc': '关闭面板',
+      'hk.statusHint': '快捷键',
+      'hk.statusHintTitle': '看有哪些键盘快捷键',
+
       'app.title': 'MPV Config Builder · 选择模式',
 
       'topbar.downloadLazy': '📥 下载 mpv-lazy',
@@ -540,6 +553,17 @@
       'ctx.copyValue': 'Copy current value',
       'ctx.reset': 'Restore default (untick)',
       'ctx.info': 'Full description',
+
+      'hk.title': 'Keyboard shortcuts',
+      'hk.close': 'Close',
+      'hk.primary': 'Run the primary action of this page (generate / save)',
+      'hk.nav': 'Move between options',
+      'hk.toggle': 'Tick / untick',
+      'hk.info': 'Open the full description for this row',
+      'hk.help': 'Open this panel',
+      'hk.esc': 'Close the panel',
+      'hk.statusHint': 'Shortcuts',
+      'hk.statusHintTitle': 'See the available keyboard shortcuts',
 
       'app.title': 'MPV Config Builder · Choose a mode',
 
