@@ -214,8 +214,7 @@ h2 { font-size: 15px; margin: 0 0 10px; }
 .opt-head .key { font-family: Consolas, monospace; font-size: 11.5px; color: var(--muted); }
 .opt-head .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .hint { color: var(--muted); font-size: 12.5px; margin: 6px 0 0 26px; }
-.expand { margin: 8px 0 0 26px; padding: 10px 12px; background: var(--panel-2); border-radius: 10px; font-size: 12.5px; color: var(--muted); }
-.expand b { color: var(--text); }
+.expand-body b { color: var(--text); }
 .icon-btn {
   width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
   background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; line-height: 1;
@@ -435,8 +434,18 @@ textarea.raw {
 .opt-head .right [data-role="value"] { min-width: 150px; }
 .opt:not(.on) .opt-head label { color: var(--muted); font-weight: 500; }
 .opt:not(.on) .hint { opacity: .75; }
-.opt .expand { display: none; }
-.opt .expand.open { display: block; }
+/* 行内展开（R-27）：display 硬跳改为 grid-rows 过渡 —— 高度轨道动画，
+   不用 JS 量高度；视觉样式全部挪到 .expand-body，收起时整块归零不露边。
+   ⚠ 三个坑（2026-11-08 实测，探针抓的解析轨道值）：
+   1. 多个子元素会各占一行轨道，state.js 的行模板里必须包裁剪层；
+   2. 裁剪层（轨道项）**不能带 margin/padding** —— 0fr 只把内容的
+      min-content 清零，padding/margin 照旧计入贡献，收起时永远剩
+      18px（残差正好等于 padding 值）。缩进用容器水平 padding；
+   3. 视觉样式（.expand-body 的 padding/背景）必须住在裁剪层**里面**。 */
+.opt .expand { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .14s ease; padding-left: 26px; }
+.opt .expand.open { grid-template-rows: 1fr; }
+.opt .expand > * { overflow: hidden; min-height: 0; }
+.expand-body { padding: 8px 12px 10px; background: var(--panel-2); border-radius: 10px; font-size: 12.5px; color: var(--muted); }
 .opt .opt-head label { cursor: pointer; }
 
 /* 侧边栏可滚动 + 小节计数 */
@@ -650,6 +659,38 @@ body.has-statusbar { padding-bottom: 28px; }
 .expandable.is-open { grid-template-rows: 1fr; }
 .expandable > * { overflow: hidden; min-height: 0; }
 
+/* ---------- 动效（R-27 已裁决全加） ----------
+   硬约束：只动 transform/opacity（grid-rows 除外，它是轨道插值不逐帧量高）；
+   时长 120–220ms；缓动全站统一 ease；不阻塞点击；全部在文末
+   prefers-reduced-motion 块里归零。 */
+
+/* 切换模式页淡入：从首页点进任何一页时的整体入场 */
+body { animation: page-in .12s ease-out; }
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* 侧栏切分区：内容区淡入。只挂在 .side-item 点击路径上（flashPanes()），
+   不放进 render() —— render() 在每次选项变化后都会跑，放进去会闪 */
+.pane-in { animation: pane-in .1s ease-out; }
+@keyframes pane-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* 保存/应用成功的按钮回执：写文件是唯一的危险操作，成功后按钮自己
+   短暂亮绿打勾（600ms 自淡出）。✓ 是 absolute 覆盖层，不挤动布局 */
+.btn { position: relative; }
+.btn.ack-ok::after {
+  content: '✓';
+  position: absolute; inset: -1px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ok); color: #fff; font-size: 13px;
+  border-radius: inherit; pointer-events: none;
+  animation: ack-ok .6s ease forwards;
+}
+@keyframes ack-ok {
+  0% { opacity: 0; transform: scale(.94); }
+  15% { opacity: 1; transform: none; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* 右键菜单：跟状态栏同一套 token，不另起一套色 */
 .ctx-menu {
   position: fixed; z-index: 100; min-width: 190px;
@@ -673,6 +714,8 @@ body.has-statusbar { padding-bottom: 28px; }
 /* ⚠ 无障碍：全站动效必须在这里归零。
    不管加不加装饰性动效，这条都得补（待做.md §二把它列为无障碍缺口）。 */
 @media (prefers-reduced-motion: reduce) {
-  .statusbar, .offline-banner, .ctx-menu, .hotkey-help { animation: none; transform: none; }
-  .busy-bar, .statusbar .sb-dot, .expandable { transition: none; }
+  body, .statusbar, .offline-banner, .ctx-menu, .hotkey-help, .pane-in { animation: none; transform: none; }
+  .busy-bar, .statusbar .sb-dot, .expandable, .opt .expand { transition: none; }
+  /* 回执在 reduced-motion 下保留 600ms 静态亮绿（无动画也是一种反馈） */
+  .btn.ack-ok::after { animation: none; opacity: 1; transform: none; }
 }

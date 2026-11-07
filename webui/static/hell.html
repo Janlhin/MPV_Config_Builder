@@ -122,6 +122,7 @@ async function save() {
   const text = document.getElementById('rawBox').value;
   const r = await API.rawSave(curPath, text);
   toast((r.ok ? '✅ ' : '❌ ') + r.detail, r.ok ? 'ok' : 'err');
+  if (r.ok) MPVCB.ack(document.getElementById('save'));
 }
 
 function toExpert() {

@@ -46,7 +46,7 @@
           <pre class="conf" id="preview">（正在加载…）</pre>
           <div id="diffBox" style="display:none"></div>
           <div class="actions">
-            <button class="btn primary" onclick="applyConfig()" data-primary data-primary-icon="✅">✅ 生成配置</button>
+            <button class="btn primary" onclick="applyConfig(this)" data-primary data-primary-icon="✅">✅ 生成配置</button>
             <button class="btn" onclick="copyConf()">📋 复制</button>
             <button class="btn" onclick="saveAs()">💾 另存为</button>
             <button class="btn" id="diffToggle" style="display:none">🔀 逐行对比</button>
@@ -157,6 +157,7 @@ function renderSidebar() {
     // （以前只有 #combo= 会被读，分区锚点点了地址栏不变，链接发出去还是首页）
     try { history.replaceState(null, '', '#' + encodeURIComponent(cur)); } catch (_e) {}
     render();
+    flashPanes();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 }
@@ -719,6 +720,10 @@ async function boot() {
   if (dt) dt.onclick = toggleDiff;     // R-14：逐行对比
   const lt = document.getElementById('loadTop');
   if (lt) lt.onclick = () => { cur = 'output'; render(); loadExisting(); };
+  // 2026-11-08 动效轮发现并修复：applyTop 从未绑定点击——顶栏「生成配置」点了没反应，
+  // 而快捷键映射表（api.js HOTKEY_PRIMARY）正指向它。与其共用的预览卡按钮同一动作。
+  const at = document.getElementById('applyTop');
+  if (at) at.onclick = () => applyConfig(at);
   document.getElementById('writeSeg').onclick = e => {
     const b = e.target.closest('button');
     if (b) setWriteMode(b.dataset.v);

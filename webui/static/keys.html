@@ -277,7 +277,7 @@ async function save() {
   if (!KEY.main) { toast(I18N.t('keys.noFileToSave'), 'err'); return; }
   const r = await API.post('/api/keys/save', { path: KEY.main, rows: KEY.rows });
   toast((r.ok ? '✅ ' : '❌ ') + r.detail, r.ok ? 'ok' : 'err');
-  if (r.ok) { KEY.dirty = false; await load(); }
+  if (r.ok) { KEY.dirty = false; MPVCB.ack(document.getElementById('saveBtn')); await load(); }
 }
 
 /* ---------------- 内置默认键位（参考） ---------------- */
