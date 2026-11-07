@@ -415,7 +415,7 @@ function countValues() {
     + (APP.shaders.length ? APP.shaders.length : 0);
 }
 
-async function applyConfig() {
+async function applyConfig(btn) {
   if (!APP.target) { toast(I18N.t('st.applyNoTarget'), 'err'); return; }
   // R-26：edit 语义下必须先读取现有配置 —— 否则你以为在读文件、其实在凭空生成，
   // 而且 merge 会把生成结果写进那个"没读过"的文件。
@@ -428,7 +428,20 @@ async function applyConfig() {
   }
   const r = await API.post('/api/config/apply', payload());
   toast((r.ok ? '✅ ' : '❌ ') + r.detail, r.ok ? 'ok' : 'err');
-  if (r.ok) doPreview();
+  if (r.ok) {
+    if (window.MPVCB && MPVCB.ack) MPVCB.ack(btn);
+    doPreview();
+  }
+}
+
+/** 侧栏切分区后的内容淡入（R-27）。只许在 .side-item 点击路径上调用，
+    不许放进 render() —— render() 在每次选项变化后都会跑，放进去会闪 */
+function flashPanes() {
+  const host = document.getElementById('panes');
+  if (!host) return;
+  host.classList.remove('pane-in');
+  void host.offsetWidth;               // 强制回流，保证连续点击也能重启动画
+  host.classList.add('pane-in');
 }
 
 async function analyze(text) {
@@ -569,8 +582,8 @@ function optRow(item, index) {
       </div>
     </div>
     <div class="hint" data-role="hint">${hint}</div>
-    <div class="expand" data-role="expand">${list}${more}${freeHint}${item.range
-      ? `<div class="note" style="margin-top:4px">${I18N.t('st.rangeLabel')}<code>${esc(item.range)}</code></div>` : ''}</div>
+    <div class="expand" data-role="expand"><div><div class="expand-body">${list}${more}${freeHint}${item.range
+      ? `<div class="note" style="margin-top:4px">${I18N.t('st.rangeLabel')}<code>${esc(item.range)}</code></div>` : ''}</div></div></div>
   </div>`;
 }
 

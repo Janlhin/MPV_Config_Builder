@@ -194,6 +194,19 @@ function shortPath(p, head, tail) {
   return p.slice(0, head) + '…' + p.slice(p.length - tail);
 }
 
+/** 保存/应用成功的按钮回执（R-27）：绿色 ✓ 覆盖层 600ms 自淡出。
+    覆盖层是 absolute 的，只动 opacity/transform，不挤动布局、不阻塞点击。
+    ⚠ 此处 MPVCB 尚未在状态栏段初始化，必须走 window 挂载 */
+window.MPVCB = window.MPVCB || {};
+MPVCB.ack = function (btn) {
+  if (!btn || !btn.classList) return;
+  btn.classList.remove('ack-ok');
+  void btn.offsetWidth;                // 强制回流：连续保存也能重启动画
+  btn.classList.add('ack-ok');
+  clearTimeout(btn._ackT);
+  btn._ackT = setTimeout(function () { btn.classList.remove('ack-ok'); }, 620);
+};
+
 function pickValue(containerId) {
   const el = document.querySelector(`#${containerId} .pick.on`);
   return el ? el.dataset.value : '';

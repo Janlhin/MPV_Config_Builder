@@ -224,7 +224,7 @@ async function doApply() {
   btn.disabled = true;
   const r = await API.basicApply(st);
   btn.disabled = false;
-  if (r.ok) { toast('✅ ' + r.detail, 'ok'); refresh(); }
+  if (r.ok) { toast('✅ ' + r.detail, 'ok'); MPVCB.ack(btn); refresh(); }
   else { toast('❌ ' + r.detail, 'err'); }
 }
 

@@ -46,7 +46,7 @@
           <pre class="conf" id="preview">（正在加载…）</pre>
           <div id="diffBox" style="display:none"></div>
           <div class="actions">
-            <button class="btn primary" onclick="applyConfig()" data-primary data-primary-icon="✅">✅ 生成配置</button>
+            <button class="btn primary" onclick="applyConfig(this)" data-primary data-primary-icon="✅">✅ 生成配置</button>
             <button class="btn" onclick="copyConf()">📋 复制</button>
             <button class="btn" onclick="saveAs()">💾 另存为</button>
             <button class="btn" id="diffToggle" style="display:none">🔀 逐行对比</button>
@@ -151,6 +151,7 @@ function renderSidebar() {
     if (!el) return;
     cur = el.dataset.sec;
     render();
+    flashPanes();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 }
@@ -543,6 +544,10 @@ async function boot() {
     const r = await loadExistingConfig(APP.source || '');
     if (r.ok) render();
   };
+  // 2026-11-08 动效轮发现并修复：applyTop 从未绑定点击——顶栏「生成配置」点了没反应，
+  // 而快捷键映射表（api.js HOTKEY_PRIMARY）正指向它。与其共用的预览卡按钮同一动作。
+  const at = document.getElementById('applyTop');
+  if (at) at.onclick = () => applyConfig(at);
   const sl = document.getElementById('srcLoad');
   if (sl) sl.onclick = async () => {
     const r = await loadExistingConfig(document.getElementById('srcSelect').value);
