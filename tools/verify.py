@@ -20,6 +20,7 @@ check_electron_packaged / check_pack / compare_conflicts），每个都重复一
     i18n       i18n 键集合 / 占位符（静态）+ 真浏览器切换与刷新保持（动态）
     status     实机验证 9 页共用的状态栏、离线横幅与右键菜单
     ctxmenu    实机验证右键菜单（复制选项名 / 当前值 / 恢复默认 / 完整说明）
+    hotkeys    实机验证键盘快捷键层（Ctrl+S 主操作 / ? 帮助面板 / 选项行导航）
     topnav     实机验证 9 个页面的顶栏常驻入口
     stdio      实机验证 9 个页面跑在 stdio 通道上
     presets    实机验证「我自己的预设」存读
@@ -404,6 +405,30 @@ def cmd_all():
               tail[-1] if tail else "(没有输出)")
 
 
+    def check_hotkeys(r):
+        """键盘快捷键层在真浏览器里对吗（界面打磨·快捷键切片，R-28）。
+
+        判六件事：? 开面板 / Esc 关 / 面板只列本页生效的条目 /
+        Ctrl+S 触发主操作并拦浏览器默认 / 打字不被劫持 / 选项行方向键导航。
+        写配置的接口在检查内部已换成桩（不会真写 mpv.conf）。
+        **没有 Edge/Chrome 就跳过，不算失败** —— 同顶栏 / i18n / 状态栏 / 右键菜单。
+        """
+        if importlib.util.find_spec("uidriver") is None and not (Path(__file__).parent / "uidriver.py").is_file():
+            r.add("键盘快捷键实机检查", True, "跳过（找不到 tools/uidriver.py）")
+            return
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from uidriver import find_browser                            # noqa: PLC0415
+        if not find_browser():
+            r.add("键盘快捷键实机检查", True, "跳过（本机没有 Edge/Chrome）")
+            return
+        p = subprocess.run([sys.executable, "-X", "utf8",
+                            str(Path(__file__).parent / "verify.py"), "hotkeys"],
+                           capture_output=True, cwd=str(ROOT))
+        tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        r.add("键盘快捷键实机检查", p.returncode == 0,
+              tail[-1] if tail else "(没有输出)")
+
+
     def check_electron_pack(r):
         """Electron 那套（如果本机备齐了工具链）能不能跑通。
 
@@ -455,6 +480,7 @@ def cmd_all():
         check_i18n(r)
         check_status(r)
         check_ctxmenu(r)
+        check_hotkeys(r)
         check_electron_pack(r)
 
         print("-" * 58)
@@ -540,7 +566,7 @@ def cmd_docs():
         # ⚠⚠ 白名单有个**天生的盲区**：写错的数字要是不在名单里，就永远匹配不上，
         # 也就永远查不出来（实测：把 424 手滑成 420，这个模式一个字都不匹配，
         # 检查照样报"一致 ✓"）。所以底下还有一条「按上下文兜底」的规则。
-        (r"(?<![\d])(181|199|220|222|228|236|259|287|327|352|358|360|392|424|444|476|497|509|547|548|575|595|606|615|645|648|649|650|654|701) 项",
+        (r"(?<![\d])(181|199|220|222|228|236|259|287|327|352|358|360|392|424|444|476|497|509|547|548|575|595|606|615|645|648|649|650|654|701|705) 项",
          tests, "测试数"),
         # 兜底：**三位数**的 `N 项` 出现在「测试」附近时，必须等于实测总数。
         #
@@ -1413,6 +1439,246 @@ def cmd_ctxmenu():
             f = cdp.js("(() => !!document.querySelector('.ctx-menu'))()")
             print("\n—— 非选项区域 ——")
             c("右键别处不弹我们的菜单（保留浏览器默认）", f is False)
+            print()
+            return c.done()
+        finally:
+            stop(browser)
+            if srv:
+                srv.terminate()
+                try:
+                    srv.wait(timeout=10)
+                except Exception:
+                    srv.kill()
+    raise SystemExit(main())
+
+
+# ==========================================================================
+# hotkeys（键盘快捷键层）
+# ==========================================================================
+
+def cmd_hotkeys():
+    """键盘快捷键层的实机验证（R-28）：按了真的有反应吗？打字会被劫持吗？
+
+    为什么要真机跑：快捷键层是纯 JS 的 document keydown 监听，HTML 里一个字都
+    看不到；「? 在搜索框里必须还是打字」「没有映射的页面不拦浏览器默认」
+    这类边界行为，静态检查一个都判不了。
+
+    ⚠⚠ 检查会真的触发主操作按钮 —— 所以写配置的接口必须先换成桩
+    （API.basicApply / API.keysSave 返回 ok=false 的 Promise）。
+    本机有 mpv-lazy 时 basic 页 boot() 会自动把 target 填上，
+    不打桩的话一次 Ctrl+S 就真写了一份 mpv.conf。这是实机检查自己的坑，
+    与 status 检查 stub API.status 是同一个手法。
+
+    判六件事：
+      1. ? 开帮助面板、Esc 关（index）
+      2. 面板只列本页真实生效的条目（index 2 条 / 注入选项行后的 advanced 6 条）
+         —— 帮助面板不许吹不存在的能力
+      3. Ctrl+S 触发主操作且拦截浏览器默认（basic）
+      4. 没有映射的页面（index）Ctrl+S 不拦浏览器默认
+      5. 焦点在搜索框里时 ? 不劫持，但 Ctrl+S 照常保存（keys）
+      6. 选项行 ↓/↑ 移动焦点、Enter 展开该行说明（advanced，注入合成行测委托）
+
+    用法（会自己起一个临时后端，端口自动挑）：
+        python tools/verify.py hotkeys
+    """
+    import json
+    import socket
+    import subprocess
+    import sys
+    import time
+    import urllib.request
+    from pathlib import Path
+
+    ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "tools"))
+
+    from uidriver import Checker, connect, launch, stop, wait_page   # noqa: PLC0415
+
+    c = Checker()
+
+    # window 层的气泡监听在 document 的监听之后跑，读到的 defaultPrevented
+    # 就是快捷键层处理完之后的最终值 —— 这是「拦没拦浏览器默认」的判据
+    WATCH = ("(() => { window.__hkPrev = null;"
+             " window.addEventListener('keydown', e => { window.__hkPrev = e.defaultPrevented; });"
+             " return true; })()")
+    QMARK = ("(() => { document.dispatchEvent(new KeyboardEvent('keydown',"
+             " {key:'?', bubbles:true, cancelable:true})); return true; })()")
+    ESC = ("(() => { document.dispatchEvent(new KeyboardEvent('keydown',"
+           " {key:'Escape', bubbles:true, cancelable:true})); return true; })()")
+    CTRL_S = ("(() => { document.dispatchEvent(new KeyboardEvent('keydown',"
+              " {key:'s', ctrlKey:true, bubbles:true, cancelable:true})); return true; })()")
+    PROBE_HELP = """
+    (() => {
+      const p = document.querySelector('.hotkey-help');
+      return {
+        open: !!p,
+        rows: p ? p.querySelectorAll('.hk-row').length : 0,
+        title: p && p.querySelector('.hk-title') ? p.querySelector('.hk-title').textContent : ''
+      };
+    })()
+    """
+    SPY_BTN = ("(sel => { const b = document.querySelector(sel); if (!b) return false;"
+               " window.__prim = 0;"
+               " b.addEventListener('click', () => { window.__prim++; }); return true; })({sel})")
+    STUB_WRITES = ("(() => { API.basicApply = () => Promise.resolve({ok:false, detail:'stub'});"
+                   " API.keysSave = () => Promise.resolve({ok:false, detail:'stub'});"
+                   " return true; })()")
+    # 注入两行合成的 .opt（同 ctxmenu 的判据：测的是 api.js 里的委托逻辑，
+    # 不依赖页面真数据）。第二行 info 按钮挂计数器。
+    SEED_ROWS = (
+        "(function(){"
+        " document.getElementById('panes').innerHTML ="
+        "  '<div class=\"opt on\" data-key=\"--test-a\"><div class=\"opt-head\">'"
+        "  + '<input type=\"checkbox\" data-role=\"check\" checked>'"
+        "  + '<label data-role=\"label\">测试 A</label>'"
+        "  + '<div class=\"right\"><button class=\"icon-btn\" data-role=\"info\">i</button></div></div></div>'"
+        "  + '<div class=\"opt\" data-key=\"--test-b\"><div class=\"opt-head\">'"
+        "  + '<input type=\"checkbox\" data-role=\"check\">'"
+        "  + '<label data-role=\"label\">测试 B</label>'"
+        "  + '<div class=\"right\"><button class=\"icon-btn\" data-role=\"info\">i</button></div></div></div>';"
+        " window.__infoA = 0;"
+        " document.querySelectorAll('.opt')[0].querySelector('[data-role=info]')"
+        "   .addEventListener('click', function(){ window.__infoA++; });"
+        " return true; })()"
+    )
+    FOCUS_ROW = ("(i => { const b = document.querySelectorAll('.opt input[data-role=check]')[i];"
+                 " if (!b) return false; b.focus(); return true; })({i})")
+    ARROW = ("(k => { document.activeElement.dispatchEvent(new KeyboardEvent('keydown',"
+             " {key:k, bubbles:true, cancelable:true}));"
+             " return document.activeElement.closest('.opt')"
+             "   ? document.activeElement.closest('.opt').dataset.key : ''; })({k})")
+    ENTER = ("(() => { document.activeElement.dispatchEvent(new KeyboardEvent('keydown',"
+             " {key:'Enter', bubbles:true, cancelable:true})); return true; })()")
+
+    def free_port():
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        p = s.getsockname()[1]
+        s.close()
+        return p
+
+    def start_server(port):
+        proc = subprocess.Popen(
+            [sys.executable, "-X", "utf8", str(ROOT / "webui" / "server.py"),
+             "--port", str(port), "--no-window"],
+            cwd=str(ROOT), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1) as f:
+                    json.load(f)
+                return proc
+            except Exception:
+                if proc.poll() is not None:
+                    sys.exit("后端启动失败（进程已退出）")
+                time.sleep(0.4)
+        proc.kill()
+        sys.exit("后端 30 秒内没起来")
+
+    def main():
+        port, cdp_port = free_port(), free_port()
+        srv = browser = None
+        try:
+            srv = start_server(port)
+            print(f"后端已起：http://127.0.0.1:{port}\n")
+            browser = launch(cdp_port)
+            cdp = connect(cdp_port)
+            base = f"http://127.0.0.1:{port}/"
+
+            # ---- index：面板开关 / 无映射页不拦 / 状态栏入口 ----
+            wait_page(cdp, base + "index.html", wait_s=2.5)
+            cdp.js(WATCH)
+            time.sleep(0.8)
+            a = cdp.js(PROBE_HELP)
+            print("—— 帮助面板（index） ——")
+            c("初始状态没有面板", a.get("open") is False)
+            cdp.js(QMARK)
+            time.sleep(0.3)
+            a = cdp.js(PROBE_HELP)
+            c("按 ? 弹出了帮助面板", a.get("open") is True, f"probe={a}")
+            c("index 没有主操作与选项行，面板只列 2 条", a.get("rows") == 2,
+              f"rows={a.get('rows')}")
+            cdp.js(ESC)
+            time.sleep(0.3)
+            c("Esc 关掉了面板", cdp.js(PROBE_HELP).get("open") is False)
+
+            cdp.js(CTRL_S)
+            time.sleep(0.3)
+            print("\n—— Ctrl+S（无映射页） ——")
+            c("index 没有映射，Ctrl+S 不拦浏览器默认",
+              cdp.js("(() => window.__hkPrev)()") is False,
+              f"defaultPrevented={cdp.js('(() => window.__hkPrev)()')}")
+
+            cdp.js("(() => { const k = document.querySelector('.sb-keys');"
+                   " if (!k) return false; k.click(); return true; })()")
+            time.sleep(0.3)
+            print("\n—— 状态栏入口 ——")
+            c("状态栏的「? 快捷键」按钮能开面板", cdp.js(PROBE_HELP).get("open") is True)
+            cdp.js(ESC)
+
+            # ---- basic：Ctrl+S 触发主操作（写接口已打桩） ----
+            wait_page(cdp, base + "basic.html", wait_s=2.5)
+            cdp.js(WATCH)
+            cdp.js(STUB_WRITES)
+            has = cdp.js(SPY_BTN.replace("{sel}", "'#applyBtn'"))
+            time.sleep(0.8)
+            print("\n—— Ctrl+S（basic） ——")
+            c("basic 的主操作按钮存在", has is True)
+            cdp.js(CTRL_S)
+            time.sleep(0.4)
+            prim = cdp.js("(() => window.__prim)()")
+            c("Ctrl+S 触发了「生成配置」按钮", prim == 1, f"__prim={prim}")
+            c("浏览器默认保存行为被拦下",
+              cdp.js("(() => window.__hkPrev)()") is True)
+            cdp.js(QMARK)
+            time.sleep(0.3)
+            b = cdp.js(PROBE_HELP)
+            c("basic 的面板列出主操作（3 条）", b.get("rows") == 3, f"rows={b.get('rows')}")
+
+            # ---- keys：打字优先 ----
+            wait_page(cdp, base + "keys.html", wait_s=2.5)
+            cdp.js(WATCH)
+            cdp.js(STUB_WRITES)
+            has = cdp.js(SPY_BTN.replace("{sel}", "'#saveBtn'"))
+            time.sleep(0.8)
+            print("\n—— 搜索框里打字（keys） ——")
+            c("keys 的保存按钮存在", has is True)
+            inq = ("(() => { const q = document.querySelector('#q'); if (!q) return false;"
+                   " q.focus(); q.dispatchEvent(new KeyboardEvent('keydown',"
+                   " {key:'?', bubbles:true, cancelable:true})); return true; })()")
+            c("搜索框存在", cdp.js(inq) is True)
+            time.sleep(0.3)
+            c("搜索框里按 ? 还是打字（面板没被劫持弹出）",
+              cdp.js(PROBE_HELP).get("open") is False)
+            ins = ("(() => { const q = document.querySelector('#q'); q.focus();"
+                   " q.dispatchEvent(new KeyboardEvent('keydown',"
+                   " {key:'s', ctrlKey:true, bubbles:true, cancelable:true})); return true; })()")
+            cdp.js(ins)
+            time.sleep(0.4)
+            prim = cdp.js("(() => window.__prim)()")
+            print("\n—— 输入框里的 Ctrl+S（keys） ——")
+            c("输入框里 Ctrl+S 照常触发保存", prim == 1, f"__prim={prim}")
+
+            # ---- advanced：选项行导航（合成行测委托） ----
+            wait_page(cdp, base + "advanced.html", wait_s=2.5)
+            cdp.js(SEED_ROWS)
+            time.sleep(0.3)
+            cdp.js(FOCUS_ROW.replace("{i}", "0"))
+            print("\n—— 选项行导航（advanced） ——")
+            k1 = cdp.js(ARROW.replace("{k}", "'ArrowDown'"))
+            c("↓ 把焦点移到第二行", k1 == "--test-b", f"焦点在 {k1!r}")
+            k2 = cdp.js(ARROW.replace("{k}", "'ArrowUp'"))
+            c("↑ 把焦点移回第一行", k2 == "--test-a", f"焦点在 {k2!r}")
+            cdp.js(ENTER)
+            time.sleep(0.3)
+            info = cdp.js("(() => window.__infoA)()")
+            c("Enter 展开的是当前行的完整说明", info == 1, f"__infoA={info}")
+            cdp.js(QMARK)
+            time.sleep(0.3)
+            d = cdp.js(PROBE_HELP)
+            c("有选项行 + 有主操作的页面列 6 条", d.get("rows") == 6,
+              f"rows={d.get('rows')}")
             print()
             return c.done()
         finally:
@@ -3475,6 +3741,7 @@ COMMANDS = {
     "i18n": cmd_i18n,
     "status": cmd_status,
     "ctxmenu": cmd_ctxmenu,
+    "hotkeys": cmd_hotkeys,
     "stdio": cmd_stdio,
     "presets": cmd_presets,
     "ui": cmd_ui,
