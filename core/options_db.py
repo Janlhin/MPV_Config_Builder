@@ -90,6 +90,23 @@ def _resolve_rst_path(rst_path=None):
     return RST_PATH
 
 
+def _resolve_en_rst_path(en_rst_path=None):
+    """定位**官方英文**手册 options.rst（第 5 项：选项英文说明）。
+
+    与中文源对称：中文来自 mpv_doc-CN 的翻译，英文取 mpv 官方仓库原文——
+    比翻译准，也比翻译省事（待做.md §四.7 的原话）。缺省找
+    ``~/mpv_doc-en/options.rst``（官方 DOCS/man/options.rst 的单文件副本）；
+    找不到返回 None——**没有英文源就照常出库，只是没有 en_desc**，不报错。
+    """
+    if en_rst_path:
+        return Path(en_rst_path)
+    env = os.environ.get("DSH_MPV_OPTIONS_EN_RST")
+    if env:
+        return Path(env)
+    p = Path.home() / "mpv_doc-en" / "options.rst"
+    return p if p.is_file() else None
+
+
 def _uniq(seq):
     """保序去重。"""
     seen = set()
@@ -486,21 +503,30 @@ def _parse_rst_text(text):
 # --------------------------------------------------------------------------
 # 3) 合并
 # --------------------------------------------------------------------------
-def build_db(raw_txt_path=None, rst_path=None):
+def build_db(raw_txt_path=None, rst_path=None, en_rst_path=None):
     """解析两个来源并合并，返回数据库字典。
 
     :param raw_txt_path: ``mpv --list-options`` 输出路径，缺省用仓库内的文件
     :param rst_path: 中文手册 options.rst 路径，缺省用默认中文文档路径
+    :param en_rst_path: **官方英文**手册 options.rst 路径（第 5 项），
+        缺省找 ``~/mpv_doc-en/options.rst``；找不到就没有 en_desc，不报错
     :returns: ``{"meta": {...}, "groups": [...], "options": {...}}``
     """
     raw_file = _resolve_raw_path(raw_txt_path)
     rst_file = _resolve_rst_path(rst_path)
+    en_file = _resolve_en_rst_path(en_rst_path)
 
     raw_options, _subs = _parse_raw_text(raw_file.read_text(encoding="utf-8-sig"))
     rst_map, rst_groups = _parse_rst_text(rst_file.read_text(encoding="utf-8-sig"))
+    # 第 5 项：官方英文原文用**同一个解析器**——mpv_doc-CN 就是按它的结构翻的，
+    # 实测 723/726 命中（3 条是官方已更名的别名，回退中文）
+    en_map = {}
+    if en_file is not None:
+        en_map, _en_groups = _parse_rst_text(en_file.read_text(encoding="utf-8-sig"))
 
     options = {}
     with_zh = 0
+    with_en = 0
     used = set()
     for key in raw_options["order"]:
         src = raw_options["options"][key]
@@ -509,6 +535,9 @@ def build_db(raw_txt_path=None, rst_path=None):
         group = zhs.get("group") or "其它"
         if zh_desc:
             with_zh += 1
+        en_desc = (en_map.get(key, {}).get("zh_desc") or "") if en_map else ""
+        if en_desc:
+            with_en += 1
         used.add(group)
         options[key] = {
             "key": key,
@@ -521,6 +550,7 @@ def build_db(raw_txt_path=None, rst_path=None):
             "group": group,
             "zh_sig": zhs.get("zh_sig", "") or "",
             "zh_desc": zh_desc,
+            "en_desc": en_desc,
             # 便于排查的原始信息（raw 行的类型描述 + 方括号标记）
             "raw_sig": src.get("raw_sig", ""),
             "flags": list(src.get("flags", [])),
@@ -537,9 +567,12 @@ def build_db(raw_txt_path=None, rst_path=None):
     meta = {
         "source_mpv": "_mpv_options_raw.txt（mpv --list-options 输出）",
         "source_zh": "mpv_doc-CN official_man/options.rst",
-        "license_note": "中文说明来自 mpv_doc-CN，GPL-3.0；本文件是其衍生数据",
+        "source_en": ("mpv 官方 DOCS/man/options.rst（~/mpv_doc-en/）" if en_map else ""),
+        "license_note": "中文说明来自 mpv_doc-CN，GPL-3.0；本文件是其衍生数据。"
+                        "英文说明来自 mpv 官方手册（GPL-2.0+/LGPL-2.1+）",
         "count": len(options),
         "with_zh": with_zh,
+        "with_en": with_en,
     }
     return {"meta": meta, "groups": groups, "options": options}
 
@@ -594,6 +627,7 @@ def load_db():
         # with_zh 是**过滤前**统计的，滤完就过期了 —— 继续用它会让界面宣称
         # 「726 条中文说明」而实际滤完只剩 714 条。count 已经同步了，它没同步。
         meta["with_zh"] = sum(1 for v in options.values() if v.get("zh_desc"))
+        meta["with_en"] = sum(1 for v in options.values() if v.get("en_desc"))
     return {
         "meta": meta,
         "groups": list(data.get("groups") or []),

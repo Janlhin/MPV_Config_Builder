@@ -200,7 +200,7 @@ EDITABLE_PARAMS = {"geometry"}
 # 为什么用平行表不改原元组：PARAMS 同时驱动构建器与评分，
 # 改元组形状会波及所有消费者；平行表只在 /api/options 服务点生效。
 # ============================================================
-from .i18n import T
+from .i18n import T, get_lang
 
 CORE_GROUP_EN = {
     "视频输出": "Video output",
@@ -557,20 +557,43 @@ def find_lazy_pc():
 
 
 def scan_lazy(pc):
-    """扫描 mpv-lazy 的 portable_config，返回 (shader 文件列表, vpy 文件列表)。"""
+    """扫描配置目录，返回 (shader 文件列表, vpy 文件列表)。
+
+    扫描源是一个**列表**（第 7 项，待做.md §四.5 拍板「改成列表，不做全盘扫」）：
+    标准两个目录（``shaders/``、``vs/``）+ settings.json 里 ``scan_dirs`` 记的
+    手动添加目录。手动目录里两种扩展名都认（.glsl→shaders、.vpy→vpy）；
+    同一文件不会因为重复添加目录而出现两次。
+    """
     shaders, vpy = [], []
     if pc is None:
         return shaders, vpy
     pc = Path(pc)
-    shader_root = pc / "shaders"
-    vs_root = pc / "vs"
-    if shader_root.is_dir():
-        for p in sorted(shader_root.rglob("*")):
-            if p.is_file() and p.suffix.lower() in SHADER_EXTS:
+    roots = [pc / "shaders", pc / "vs"]
+    seen_roots = {str(roots[0]).lower(), str(roots[1]).lower()}
+    for extra in (load_settings() or {}).get("scan_dirs") or []:
+        try:
+            ep = Path(str(extra))
+        except Exception:                 # noqa: BLE001
+            continue
+        if str(ep).lower() in seen_roots:
+            continue
+        seen_roots.add(str(ep).lower())
+        roots.append(ep)
+    seen_files = set()
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for p in sorted(root.rglob("*")):
+            if not p.is_file():
+                continue
+            rp = str(p).lower()
+            if rp in seen_files:
+                continue
+            seen_files.add(rp)
+            ext = p.suffix.lower()
+            if ext in SHADER_EXTS:
                 shaders.append(p)
-    if vs_root.is_dir():
-        for p in sorted(vs_root.rglob("*")):
-            if p.is_file() and p.suffix.lower() in VS_EXTS:
+            elif ext in VS_EXTS:
                 vpy.append(p)
     return shaders, vpy
 
@@ -872,6 +895,14 @@ COMMON_OPTIONS = {
 }
 
 SHADER_OPTION_KEYS = {"shader", "glsl-shaders", "user-shaders", "glsl-shader-option", "glsl-shader-reload"}
+
+# mpv-lazy 实际自带的 shader（SHADERS 里「以下为 mpv-lazy 实际自带」注释段）。
+# 第 6 项：组合引用到这些名字时标 lazy_only —— 原版 mpv 用户选了会是空的。
+LAZY_BUNDLED_SHADERS = {
+    "Anime4K Restore_CNN_L", "Anime4K Upscale_GAN_x2_M", "QCOM SGEDS",
+    "Ani4Kv2 ArtCNN", "AniSD ArtCNN", "NNEDI3 nns64",
+    "k7 Anime ESRGAN", "k7 Anime DT ESRGAN",
+}
 
 def get_param_meta(key):
     for items in PARAMS.values():
@@ -1209,11 +1240,19 @@ def db_ui_item(entry):
     """把数据库条目转成界面直接能渲染的结构。"""
     key = entry.get("key", "")
     label, desc = key, (entry.get("zh_desc") or "").strip()
+    en_pair = NATIVE_EN.get(key)                      # 精选层英文对照（T14）
+    en_desc_db = (entry.get("en_desc") or "").strip()  # 数据库里的官方英文原文（第 5 项）
     for group, items in NATIVE_OPTIONS.items():      # 精选层给过中文名与建议值，优先用
         for k, lb, _typ, _vals, ds in items:
             if k == key:
                 label, desc = lb, ds or desc
                 break
+    # 英文请求：优先精选层英文对照，其次数据库官方原文；都没有回退中文
+    if get_lang() == "en":
+        if en_pair:
+            label, desc = en_pair[0], (en_pair[1] or en_desc_db or desc)
+        elif en_desc_db:
+            desc = en_desc_db
     typ = db_option_type(entry)
     values = list(entry.get("choices") or [])
     if typ == "bool":
