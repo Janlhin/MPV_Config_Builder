@@ -251,13 +251,16 @@ class TestJsonRoundTrip(unittest.TestCase):
         # 界面宣称一个它拿不出来的数字。所以这两个键都跳过逐项比对，
         # 改成下面按「滤完的集合」重新算一遍。
         for k, v in META.items():
-            if k in ("count", "with_zh"):
+            if k in ("count", "with_zh", "with_en"):
                 continue
             self.assertEqual(loaded["meta"].get(k), v, k)
         self.assertEqual(loaded["meta"]["count"], len(loaded["options"]))
         self.assertEqual(loaded["meta"]["with_zh"],
                          sum(1 for v in loaded["options"].values() if v.get("zh_desc")),
                          "with_zh 必须跟滤完的集合一致，否则界面会说谎")
+        self.assertEqual(loaded["meta"].get("with_en"),
+                         sum(1 for v in loaded["options"].values() if v.get("en_desc")),
+                         "with_en 必须跟滤完的集合一致")
         self.assertEqual(loaded["groups"], GROUPS)
         self.assertEqual(loaded["options"]["hwdec"], OPTIONS["hwdec"])
 
