@@ -9,6 +9,9 @@
 
 > 面向的是 **mpv-lazy**（[mpv_PlayKit](https://github.com/hooke007/mpv_PlayKit)）用户 ——
 > 已经有懒人包了，缺的是「我想改点东西，但不知道改哪个」。
+>
+> **原版 mpv 也能用** —— 指向任意配置目录即可。mpv-lazy 用户体验最完整：
+> 组合依赖的 shader 包懒人包里都带（依赖项会在界面里标出）。
 
 ---
 
@@ -116,7 +119,7 @@ runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Electron 检查要
 ```
 core/          与界面无关的逻辑（26 个模块）
 webui/         网页界面
-  server.py      本地服务 + JSON API（39 个接口，只用标准库）
+  server.py      本地服务 + JSON API（42 个接口，只用标准库）
                加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Electron 用）
   api.py         与传输无关的分发层（HTTP 与 stdio 共用）
   stdio.py       stdio 传输：stdout 只走协议，日志一律 stderr

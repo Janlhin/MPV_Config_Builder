@@ -11,6 +11,10 @@ automatic backup before every write and a one-line undo path.
 > Built for **mpv-lazy** ([mpv_PlayKit](https://github.com/hooke007/mpv_PlayKit))
 > users — people who already have the bundle and just want "I want to change
 > something, but I don't know which knob".
+>
+> Works with **vanilla mpv** too — point it at any config directory. mpv-lazy
+> users get the most out of it: the shader packs its combos reference are
+> pre-bundled there (combos that need them are flagged in the UI).
 
 ---
 
@@ -115,7 +119,7 @@ Packaging steps: [docs/打包与发布.md](docs/打包与发布.md) (Chinese).
 ```
 core/          UI-agnostic logic (26 modules)
 webui/         web UI
-  server.py      local server + JSON API (39 endpoints, stdlib only)
+  server.py      local server + JSON API (42 endpoints, stdlib only)
   api.py         transport-agnostic dispatch (shared by HTTP and stdio)
   stdio.py       stdio transport: protocol on stdout, logs on stderr
   static/        9 pages
