@@ -247,6 +247,15 @@ function createWindow() {
     show: false,
     autoHideMenuBar: false,
     icon: path.join(__dirname, 'assets', 'icon.ico'),
+    // 自绘标题栏（R-29）：系统条藏掉、页面顶栏顶上去，窗口三键交给系统 overlay
+    // 绘制（贴靠 / Snap / Alt+F4 等原生行为全部保留）。配色由渲染进程按主题
+    // 经 mpvcb:overlay 切换，初始值 = 浅色（页面默认主题）。
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#eaeef7',
+      symbolColor: '#1a1f2b',
+      height: 48
+    },
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       // 前端代码是我们自己的，但**仍然不关隔离**：
@@ -342,9 +351,30 @@ ipcMain.handle('mpvcb:invoke', async (_event, req) => {
   });
 });
 
+// 自绘标题栏（R-29）：渲染进程按主题切 overlay 配色。
+// ⚠ 桥面只收**枚举**（'light' | 'dark'），色值表在主进程 ——
+// 渲染进程传不了任意颜色字符串，UI 注入面不开口子。
+const OVERLAY_THEMES = {
+  light: { color: '#eaeef7', symbolColor: '#1a1f2b' },
+  dark: { color: '#141821', symbolColor: '#e8ebf2' }
+};
+const OVERLAY_HEIGHT = 48;
+
+ipcMain.handle('mpvcb:overlay', (_event, theme) => {
+  const t = OVERLAY_THEMES[theme];
+  if (!t) return { ok: false, error: '未知主题：' + String(theme) };
+  try {
+    if (win && typeof win.setTitleBarOverlay === 'function') {
+      win.setTitleBarOverlay(Object.assign({ height: OVERLAY_HEIGHT }, t));
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+});
+
 /** 让前端能问一句「我在 Electron 里吗、后端活着吗」——状态栏/报错提示用 */
-ipcMain.handle('mpvcb:info', async () => ({
-  electron: true,
+ipcMain.handle('mpvcb:info', async () => ({  electron: true,
   version: app.getVersion(),
   backendAlive: !backend.dead,
   backendError: backend.dead,
