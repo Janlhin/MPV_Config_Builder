@@ -59,9 +59,23 @@ function currentDoc() {
   return q || 'guide';
 }
 
+const DOC_FILES = { guide: '入门指南.md', shaders: 'MPV_Shader搭配说明书.md',
+  thanks: '致谢与许可.md', roadmap: '产品规划与路线图.md' };
+
 async function load(doc) {
   const box = document.getElementById('doc');
   box.innerHTML = '<p class="note">正在读取…</p>';
+  // 静态模式（Q-006 A）：没有后端渲染 md，退回取仓库里的原文纯文本展示。
+  // 完整渲染（标题/表格/代码块）在本机后端形态可用。
+  if (MPVCB.STATIC) {
+    const text = await API.staticText(DOC_FILES[doc] || DOC_FILES.guide);
+    document.getElementById('docTitle').textContent = DOC_LABELS[doc] || doc;
+    box.innerHTML = text
+      ? '<p class="note">' + I18N.t('static.docNote') + '</p><pre class="doc">'
+        + esc(text) + '</pre>'
+      : '<p class="note danger">❌ ' + I18N.t('static.docMissing') + '</p>';
+    return;
+  }
   // ⚠ 走 API.guide，不要直接 fetch —— 直连在 Electron 的 stdio 通道下不通
   const r = await API.guide(doc)
     .catch(() => ({ ok: false, detail: '读取失败' }));

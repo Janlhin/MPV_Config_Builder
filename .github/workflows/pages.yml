@@ -1,0 +1,34 @@
+name: Pages（静态站点）
+
+# 第 12 项（Q-006 裁决 A）：仓库根直接上 GitHub Pages。
+# 页面在 /webui/static/，数据 JSON 在 /data/（仓库里只有一份，不复制），
+# 根级 index.html 负责跳到 webui/static/index.html。
+# 静态模式下页面自动降级：选项库只读浏览 + 文档原文，写配置需本机后端（见 README）。
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      - id: deployment
+        uses: actions/deploy-pages@v4

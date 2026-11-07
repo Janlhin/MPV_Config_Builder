@@ -384,7 +384,39 @@ async function loadDb(reset) {
   if (reset) { DB.offset = 0; DB.items = []; }
   const stat = document.getElementById('dbStat');
   if (stat) stat.textContent = '正在读取选项库…';
-  // ⚠ 走 API.dbOptions，不要直接 fetch —— 直连在 Electron 的 stdio 通道下不通
+
+  // 静态模式（Q-006 裁决 A）：没有后端，直接取仓库里的选项库 JSON，
+  // 在浏览器里做过滤/分组/分页。降级点：suggest / options（候选值合并）
+  // 需要本机后端的精选层数据，静态视图里不展示。
+  if (MPVCB.STATIC) {
+    const db = await API.staticData('mpv_options_zh.json');
+    DB.loading = false;
+    if (!db || !db.options) {
+      if (stat) stat.textContent = '';
+      return;
+    }
+    const en = I18N.lang && I18N.lang() === 'en';
+    let all = Object.values(db.options).map(x => ({
+      group: x.group || '其它', key: x.key, label: x.key,
+      desc: (en ? (x.en_desc || x.zh_desc) : x.zh_desc) || '',
+      values: [], kind: 'db', type: x.type || 'str',
+      default: x.default || '', range: x.range || '',
+      deprecated: !!x.deprecated, suggest: [], options: [], open: false,
+    }));
+    if (DB.q) {
+      const q = DB.q.toLowerCase();
+      all = all.filter(x => (x.key + ' ' + x.desc + ' ' + x.label).toLowerCase().includes(q));
+    }
+    if (DB.group && DB.group !== 'all') all = all.filter(x => x.group === DB.group);
+    APP.dbGroups = db.groups || [];
+    DB.total = all.length;
+    DB.items = all.slice(0, DB.limit);
+    DB.offset = DB.items.length;
+    if (reset) renderChips();
+    renderStaticDb(all, stat);
+    return;
+  }
+
   const r = await API.dbOptions({
     q: DB.q, group: DB.group, offset: DB.offset, limit: DB.limit
   }).catch(() => ({ ok: false }));
@@ -416,6 +448,30 @@ async function loadDb(reset) {
     const box = host.querySelector(`[data-mount="${CSS.escape(g)}"]`);
     if (box) mountOptions(box, groups[g]);
   });
+
+/** 静态模式的全量浏览渲染（Q-006 A）：数据已在本地，一次性渲染全部命中项；
+    分组卡片复用同一套 mountOptions，stat 行注明静态降级。 */
+function renderStaticDb(all, stat) {
+  const host = document.getElementById('listHost');
+  if (!host) return;
+  renderChips();
+  const groups = {};
+  all.forEach(x => (groups[x.group] = groups[x.group] || []).push(x));
+  host.innerHTML = Object.keys(groups).map(g =>
+    `<div class="card"><h2>${DB_GROUP_ICONS[g] || '⚙️'} ${esc(g)}
+      <span class="muted" style="font-weight:400;font-size:12px"> · ${groups[g].length} 项</span></h2>
+      <div data-mount="${esc(g)}"></div></div>`).join('')
+    || '<div class="card"><p class="note">没有匹配的选项。</p></div>';
+  Object.keys(groups).forEach(g => {
+    const box = host.querySelector(`[data-mount="${CSS.escape(g)}"]`);
+    if (box) mountOptions(box, groups[g]);
+  });
+  if (stat) {
+    stat.innerHTML = `<b>${all.length}</b> 项 · 静态模式（只读）：写配置 / 建议值 / 候选值合并需本机运行后端`;
+  }
+  const more = document.getElementById('moreBox');
+  if (more) more.style.display = 'none';
+}
 
   const meta = r.meta || {};
   if (stat) {
