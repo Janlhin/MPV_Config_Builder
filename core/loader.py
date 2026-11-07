@@ -19,6 +19,8 @@
 from pathlib import Path
 import re as _re
 
+from .i18n import T
+
 from . import textio
 from .schema import (
     NATIVE_TYPES, PARAMS, db_known_keys, split_mpv_list, value_truncated_by_hash,
@@ -411,8 +413,10 @@ def load_config_file(path, deep=True):
             f"这些值其实被截断了。写成 键=\"#值\" 才对。")
     if data["is_profile_file"]:
         data["warnings"].append(
-            "这是一份 profile 集合（只有 [小节]，没有全局选项）。"
-            "小节里的设置只在条件满足时生效，不能当全局配置写入。")
+            T("这是一份 profile 集合（只有 [小节]，没有全局选项）。"
+              "小节里的设置只在条件满足时生效，不能当全局配置写入。",
+              "This file is a collection of profiles (only [sections], no global options). "
+              "Settings inside a section only apply when its condition matches; they cannot be written as global config."))
     return data
 
 

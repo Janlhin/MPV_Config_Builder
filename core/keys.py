@@ -20,7 +20,17 @@ import re
 from pathlib import Path
 
 from . import loader, textio
+from .i18n import T, get_lang
 from .paths import data_dir
+
+# 内置键位表分组名的英文对照（T14）。全库只有这 5 个去重值；缺键回退中文。
+LABEL_EN = {
+    "mpv 内置": "mpv built-in",
+    "输入区": "Input area",
+    "显示/隐藏": "Show/hide",
+    "编码模式": "Encoding mode",
+    "内置脚本 window-controls": "Built-in script window-controls",
+}
 
 # 打包后 data/ 在解包目录里，不能用 __file__ 推（见 core/paths.py）
 DATA = data_dir()
@@ -35,12 +45,21 @@ SEPARATOR_RE = re.compile(r"^[-=_*~#\s]*$")
 
 
 def load_defaults():
-    """内置默认绑定（读不到就返回空列表，界面照常能用）。"""
+    """内置默认绑定（读不到就返回空列表，界面照常能用）。
+
+    label 是数据文件里的分组名（全库只有 5 个去重值），T14 按
+    请求语言在**输出点**翻译——数据文件本身保持中文原文，不改生成脚本。
+    """
     try:
         data = json.loads(BINDINGS_DB.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
-    return data.get("bindings") or []
+    rows = data.get("bindings") or []
+    if get_lang() == "en":
+        for r in rows:
+            if isinstance(r, dict) and r.get("label") in LABEL_EN:
+                r["label"] = LABEL_EN[r["label"]]
+    return rows
 
 
 def load_commands():
@@ -200,7 +219,7 @@ def resolve_input_files(target):
         values = eff.get("values") or {}
         conf = str(values.get("input-conf", "")).strip()
         if conf:
-            source = "mpv.conf 里的 input-conf"
+            source = T("mpv.conf 里的 input-conf", "input-conf set in mpv.conf")
             for part in loader.split_mpv_list(conf):
                 active.append(_resolve_conf_path(part, base))
     except Exception:
@@ -208,7 +227,7 @@ def resolve_input_files(target):
     default = base / "input.conf"
     if default.is_file():
         active.append(default)
-        source = source or "默认的 input.conf"
+        source = source or T("默认的 input.conf", "The default input.conf")
     for p in sorted(base.glob("input*.conf")):
         available.append(p)
     for p in active:

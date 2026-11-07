@@ -14,6 +14,8 @@ _BASE = {
     "cache": "yes",
 }
 
+from .i18n import T, get_lang
+
 # 省电流畅：几乎不做后处理，优先省电与稳定
 _LOW = {
     **_BASE,
@@ -104,6 +106,16 @@ BASIC_PRESETS = {
 CONTENT_CHOICES = ["动画", "真人影视"]
 PREFER_CHOICES = ["省电流畅", "均衡", "最高画质"]
 
+# 预设说明英文对照（T14）。键与 BASIC_PRESETS 同形；缺键回退中文。
+PRESET_EN = {
+    ("动画", "省电流畅"): "Anime · battery-friendly: smooth playback with almost no post-processing; good for iGPUs / laptops.",
+    ("动画", "均衡"): "Anime · balanced: light restoration + mid-tier scaling, controlled load.",
+    ("动画", "最高画质"): "Anime · max quality: sharp scaling + Anime4K chain + 60Hz MEMC; needs a mid/high-end GPU.",
+    ("真人影视", "省电流畅"): "Live action · battery-friendly: smooth playback with almost no post-processing.",
+    ("真人影视", "均衡"): "Live action · balanced: light upscaling, a compromise between detail and load.",
+    ("真人影视", "最高画质"): "Live action · max quality: sharp scaling + FSRCNNX + adaptive sharpening.",
+}
+
 WRITE_MODE_INCLUDE = "include"
 WRITE_MODE_MERGE = "merge"
 INCLUDE_FILENAME = "mpv-builder.conf"
@@ -114,6 +126,9 @@ def get_basic_preset(content, prefer):
     preset = BASIC_PRESETS.get((content, prefer))
     if preset is None:
         preset = BASIC_PRESETS[("真人影视", "均衡")]
+    if get_lang() == "en":
+        preset = dict(preset)
+        preset["note"] = T(preset["note"], PRESET_EN.get((content, prefer), preset["note"]))
     return preset
 
 

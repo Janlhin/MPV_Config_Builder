@@ -10,6 +10,20 @@
 """
 
 from .presets import BASIC_PRESETS
+from .i18n import T
+
+# 组合的英文对照（T14）。id -> (name_en, note_en, need_en)；缺 id 回退中文。
+COMBOS_EN = {
+    "sharp_base": ("Sharpest base", "Parameters only, no shaders: sharp scaling + display sync; runs on almost any machine.", ""),
+    "sharp_anime": ("Anime sharp chain", "Anime4K restore -> upscale -> clamp highlights -> adaptive sharpening; tuned for anime line art.", ""),
+    "sharp_real": ("Live-action sharp chain", "FSRCNNX general upscaling + chroma restoration + finishing sharpen; for live action / documentaries.", ""),
+    "sharp_light": ("Light upscaling", "RAVU + CAS; runs on almost any GPU; use when the laptop is plugged in.", ""),
+    "smooth_builtin": ("Built-in MEMC", "mpv's own temporal interpolation, no GPU cost; the smooth 24fps -> refresh-rate feel.", ""),
+    "smooth_rife": ("RIFE MEMC", "The strongest AI MEMC tier today; needs an RTX GPU and the RIFE scripts bundled with mpv-lazy.", "NVIDIA RTX GPU (without one, use RIFE_DML or the MVT tier)"),
+    "smooth_mvt": ("MVT MEMC", "MVTools motion compensation; good compatibility, lower load than RIFE.", ""),
+    "hdr_pass": ("HDR / wide gamut", "Configures color mapping per your display; skip it if unsure - the picture may get dimmer.", "HDR display + HDR enabled in the OS; on SDR keep only tone-mapping"),
+    "clean_deband": ("Deband / clean", "Suppresses banding and compression artifacts in gradients; most visible on dark anime scenes.", ""),
+}
 
 COMBOS = [
     {

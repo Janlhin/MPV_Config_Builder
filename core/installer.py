@@ -14,6 +14,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+from .i18n import T, get_lang
+
 from .net import build_url_candidates, http_fetch
 from . import textio
 
@@ -133,15 +135,20 @@ def split_volumes_ok(vols, first_path=None):
         return True, [], ""
     if vols[0] != 1:
         return False, [v for v in range(1, max(vols) + 1) if v not in vols], \
-            f"分卷编号不是从 001 开始（最小是 {vols[0]:03d}）"
+            T(f"分卷编号不是从 001 开始（最小是 {vols[0]:03d}）",
+              f"Volume numbering does not start at 001 (smallest is {vols[0]:03d})")
     want = list(range(1, max(vols) + 1))
     missing = [v for v in want if v not in vols]
     if missing:
-        return False, missing, f"缺第 {'、'.join(f'{v:03d}' for v in missing)} 卷"
+        return False, missing, T(
+            f"缺第 {'、'.join(f'{v:03d}' for v in missing)} 卷",
+            f"Missing volume(s) {', '.join(f'{v:03d}' for v in missing)}")
     if len(vols) == 1 and first_path is not None:
         split = sevenzip_is_split(first_path)
         if split is True:
-            return False, [2], "文件头表明这是分卷的第一卷，但只找到这一卷"
+            return False, [2], T(
+                "文件头表明这是分卷的第一卷，但只找到这一卷",
+                "The file header says this is the first volume of a split, but only this one was found")
     return True, [], ""
 
 
@@ -156,8 +163,10 @@ def classify_assets(assets):
     installers = [a for a in assets
                   if a["name"].lower().endswith(".exe") and a.get("url")]
     if installers:
-        notes.append(f"这个 release 还提供安装器（{installers[0]['name']}）—— "
-                     "本项目只做「绿包 + 配置」，不碰安装器，要不要用你自己定。")
+        notes.append(T(f"这个 release 还提供安装器（{installers[0]['name']}）—— "
+                     "本项目只做「绿包 + 配置」，不碰安装器，要不要用你自己定。",
+                     f"This release also ships an installer ({installers[0]['name']}) - "
+                     "this project only does the portable package + config and never touches installers; that choice is yours."))
 
     # 归组：**分卷**按基名归（`a.7z.001` + `a.7z.002` 是一组），
     # **单文件**按完整扩展名归（`x.zip` 与 `x.7z` 是两个独立的包，不是一组）。
@@ -219,33 +228,47 @@ def recommend_asset(assets, want_vapoursynth=True):
     """
     usable, notes = classify_assets(assets)
     if not usable:
-        return None, "这个 release 里没有可直接下载的 zip/7z 包", [], notes
+        return None, T("这个 release 里没有可直接下载的 zip/7z 包", "No directly downloadable zip/7z package in this release"), [], notes
     ok = [u for u in usable if u["complete"] and not u["risky_split"]]
     if not ok:
         # 只有"可能缺卷"的分卷包，或干脆没有完整的
         risky = [u for u in usable if u["complete"]]
         if risky:
             pick = risky[0]
-            return pick, (f"只能用 {pick['name']} —— ⚠ 它看上去是分卷的第一卷，"
-                          "但 release 里只有这一卷，下完可能解不开"), usable, notes
+            return pick, T(f"只能用 {pick['name']} —— ⚠ 它看上去是分卷的第一卷，"
+                           "但 release 里只有这一卷，下完可能解不开",
+                           f"Only {pick['name']} is usable - it looks like the first volume of a split, "
+                           "but the release ships only this one; the download may not extract"), usable, notes
         first = usable[0]
-        return None, (f"包是分卷的，但缺了第 {first['missing_volumes']} 卷，"
-                      "没法完整解压"), usable, notes
+        return None, T(f"包是分卷的，但缺了第 {first['missing_volumes']} 卷，"
+                       "没法完整解压",
+                       f"The package is split but volume(s) {first['missing_volumes']} are missing; "
+                       "it cannot be extracted completely"), usable, notes
     if want_vapoursynth:
         full = [u for u in ok if u["has_vapoursynth"] and not u["compact"]]
         if full:
             pick = full[0]
-            return pick, (f"选了带 VapourSynth 的完整包（{pick['name']}，"
-                          f"{pick['size'] / (1 << 20):.0f} MB"
-                          + (f"，{pick['volumes']} 个分卷" if pick["split"] else "")
-                          + "）—— 补帧与多脚本融合都要它"), usable, notes
+            _vol = (T(f"，{pick['volumes']} 个分卷", f", {pick['volumes']} volumes")
+                    if pick["split"] else "")
+            return pick, T(f"选了带 VapourSynth 的完整包（{pick['name']}，"
+                           f"{pick['size'] / (1 << 20):.0f} MB"
+                           + _vol
+                           + "）—— 补帧与多脚本融合都要它",
+                           f"Picked the VapourSynth-complete package ({pick['name']}, "
+                           f"{pick['size'] / (1 << 20):.0f} MB"
+                           + _vol
+                           + ") - MEMC and multi-script fusion depend on it"), usable, notes
         compact = [u for u in ok if u["compact"]]
         if compact:
-            return compact[0], ("⚠ 这个 release 里**只有不带 VapourSynth 的精简包**"
-                                f"（{compact[0]['name']}）—— 装上能放片，"
-                                "但补帧 / 多脚本融合用不了"), usable, notes
+            return compact[0], T("⚠ 这个 release 里**只有不带 VapourSynth 的精简包**"
+                                 f"（{compact[0]['name']}）—— 装上能放片，"
+                                 "但补帧 / 多脚本融合用不了",
+                                 "⚠ This release ships ONLY the compact package without VapourSynth "
+                                 f"({compact[0]['name']}) - playback works, "
+                                 "but MEMC / multi-script fusion do not"), usable, notes
     pick = ok[0]
-    return pick, f"选了 {pick['name']}（{pick['size'] / (1 << 20):.0f} MB）", usable, notes
+    return pick, T(f"选了 {pick['name']}（{pick['size'] / (1 << 20):.0f} MB）",
+                   f"Picked {pick['name']} ({pick['size'] / (1 << 20):.0f} MB)"), usable, notes
 
 
 def _content_range_start(value):
@@ -520,13 +543,17 @@ def can_install(target_dir, asset, need_extra=0):
     info = {"need": total_need, "free": free,
             "pack": int((asset or {}).get("size") or 0)}
     if total_need <= 0:
-        return True, "包大小未知，跳过空间检查", info
+        return True, T("包大小未知，跳过空间检查", "Package size unknown; skipping the space check"), info
     if free is None:
-        return True, "拿不到剩余空间，跳过检查（要自己留意盘够不够）", info
+        return True, T("拿不到剩余空间，跳过检查（要自己留意盘够不够）",
+                       "Free space unavailable; skipping the check (watch the disk yourself)"), info
     if free < total_need:
-        return False, (f"空间不够：这个包 {info['pack'] // (1 << 20)} MB，"
+        return False, (T(f"空间不够：这个包 {info['pack'] // (1 << 20)} MB，"
                        f"解压后按 2 倍算需要 {total_need // (1 << 20)} MB，"
-                       f"目标盘只剩 {free // (1 << 20)} MB"), info
+                       f"目标盘只剩 {free // (1 << 20)} MB",
+                       f"Not enough space: the package is {info['pack'] // (1 << 20)} MB; "
+                       f"extracted it needs about twice that ({total_need // (1 << 20)} MB), "
+                       f"but the target drive only has {free // (1 << 20)} MB free")), info
     return True, "", info
 
 
