@@ -112,7 +112,7 @@ runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Electron 检查要
 ## 目录结构
 
 ```
-core/          与界面无关的逻辑（25 个模块）
+core/          与界面无关的逻辑（26 个模块）
 webui/         网页界面
   server.py      本地服务 + JSON API（39 个接口，只用标准库）
                加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Electron 用）
