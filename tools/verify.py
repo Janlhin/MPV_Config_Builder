@@ -468,10 +468,11 @@ def cmd_all():
         tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
         err = p.stderr.decode("utf-8", "replace").strip().splitlines()
         detail = tail[-1] if tail else "(没有输出)"
-        if p.returncode != 0 and err:
-            # 子进程崩了（traceback 在 stderr，stdout 只剩最后的成功行）——
-            # 不带出来就永远只能看到"挂在哪一行"，看不到"为什么"
-            detail += " ‖ stderr: " + " / ".join(err[-4:])
+        if p.returncode != 0:
+            # 一行不够定位：带出最后 8 行 stdout + stderr 尾部
+            detail = " ‖ ".join(tail[-8:]) or "(没有输出)"
+            if err:
+                detail += " ‖ stderr: " + " / ".join(err[-4:])
         r.add("界面动效实机检查", p.returncode == 0, detail)
 
 
