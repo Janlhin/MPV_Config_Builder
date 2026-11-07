@@ -1957,6 +1957,13 @@ def cmd_motion():
             # ---- index：页面入场 + reduced-motion 模拟 ----
             wait_page(cdp, base + "index.html", wait_s=2.5)
             time.sleep(0.8)
+            # ⚠ CI runner 的 Windows 系统级 prefers-reduced-motion 就是 reduce
+            #（2026-11-08 实测：所有动画断言在"非模拟段"天然全灭，而 reduce
+            # 段全过——环境本身就是 reduce）。所以非模拟断言前先把模拟态
+            # **显式固定为 no-preference**，让它们跑在确定的环境里。
+            cdp.call("Emulation.setEmulatedMedia",
+                     features=[{"name": "prefers-reduced-motion", "value": "no-preference"}])
+            time.sleep(0.3)
             print("—— 页面入场动画 ——")
             c("body 挂着 page-in 入场动画", cdp.js(BODY_ANIM) == "page-in",
               f"animationName={cdp.js(BODY_ANIM)!r}")
