@@ -3254,6 +3254,33 @@ def cmd_electron():
             ck("nodeIntegration 关闭：页面拿不到 window.process",
                got.get("leakedProcess") == "undefined", str(got.get("leakedProcess")))
 
+            # ---- 3.5 自绘标题栏（R-29）----
+            tb = cdp.js("""(() => {
+              const bar = document.querySelector('.topbar');
+              const btn = bar ? bar.querySelector('button, a') : null;
+              const ar = (el) => el ? getComputedStyle(el).WebkitAppRegion : '';
+              return { cls: document.documentElement.classList.contains('in-electron'),
+                       hasWin: typeof window.__MPVCB_WINDOW__ === 'object',
+                       bar: bar ? ar(bar) : '',
+                       btn: btn ? ar(btn) : '' };
+            })()""")
+            ck("自绘标题栏：in-electron 类已挂（桥已接入）",
+               tb.get("cls") is True and tb.get("hasWin") is True, json.dumps(tb, ensure_ascii=False))
+            ck("顶栏是拖拽区（app-region: drag）", tb.get("bar") == "drag",
+               f"topbar app-region={tb.get('bar')!r}")
+            ck("顶栏按钮不拖拽（可正常点击）", tb.get("btn") == "no-drag",
+               f"button app-region={tb.get('btn')!r}")
+            ov = cdp.js("""(async () => {
+              const w = window.__MPVCB_WINDOW__;
+              const good = await w.setOverlayTheme('dark');
+              const bad = await w.setOverlayTheme('not-a-theme');
+              await w.setOverlayTheme('light');
+              return { ok: good && good.ok, rejected: bad && bad.ok === false };
+            })()""")
+            ck("overlay 主题桥：合法枚举接受、非法值拒绝",
+               ov.get("ok") is True and ov.get("rejected") is True,
+               json.dumps(ov, ensure_ascii=False))
+
             # ---- 4. 直接打一发 IPC，确认协议形状对 ----
             call = cdp.js("""(async () => {
               const r = await window.__MPVCB_INVOKE__({path: 'status', method: 'GET', query: {}});

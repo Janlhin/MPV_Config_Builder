@@ -218,6 +218,8 @@ function initThemeBtn() {
       const r = document.documentElement;
       r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark';
       try { localStorage.setItem('mpvcb-theme', r.dataset.theme); } catch (e) {}
+      // 通知自绘标题栏（R-29）同步 overlay 配色；浏览器里没有监听者，无副作用
+      document.dispatchEvent(new CustomEvent('mpvcb:theme'));
     };
   });
 }
@@ -313,6 +315,28 @@ function initTheme() {
     if (t) document.documentElement.dataset.theme = t;
   } catch (e) {}
   initThemeBtn();
+}
+
+/* ---------- 自绘标题栏（R-29） ----------
+
+   Electron 下系统标题条被藏掉（titleBarStyle: 'hidden'），页面顶栏顶上去成为
+   拖拽区，窗口三键由系统 overlay 绘制。这里做三件事：
+   1. 给 <html> 挂 in-electron 类 —— 拖拽区 CSS 只在这个作用域生效，
+      浏览器直开（HTTP）完全不受影响；
+   2. 把当前主题推给主进程换 overlay 配色（浅色页面配浅色 overlay）；
+   3. 监听主题切换，实时跟随。
+   桥（__MPVCB_WINDOW__）只收 'light' | 'dark' 枚举，色值表在主进程。 */
+
+function initTitlebarBridge() {
+  const w = window.__MPVCB_WINDOW__;
+  if (!w || typeof w.setOverlayTheme !== 'function') return;
+  document.documentElement.classList.add('in-electron');
+  const push = () => {
+    const t = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    try { w.setOverlayTheme(t).catch(() => {}); } catch (e) {}
+  };
+  push();
+  document.addEventListener('mpvcb:theme', push);
 }
 
 function promptTarget() {
@@ -782,6 +806,7 @@ function initHotkeys() {
 document.addEventListener('DOMContentLoaded', () => {
   initTopbarNav();
   initTheme();
+  initTitlebarBridge();
   initLangToggle();
   initStatusbar();
   initBackendWatch();

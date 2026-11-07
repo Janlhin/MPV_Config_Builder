@@ -467,3 +467,25 @@
   收益小争议大；(C) 每页 HTML 各写一份按键处理 —— 9 处复制，正是本项目要消灭的形态。
 * **代价（诚实登记）**：帮助面板与状态栏提示是 JS 注入的新增用户可见文案，
   全部走 `I18N.t()`（`hk.*` 键、两张语言表同步加），沿用状态栏 `SBT()` 的兜底模式。
+
+## 2026-11-08 自绘标题栏：hidden + 系统 overlay，不自制窗口按钮（R-29）
+
+* **决策**：`BrowserWindow` 改 `titleBarStyle: 'hidden'` + `titleBarOverlay`（Windows 原生
+  最小化/最大化/关闭三键由系统绘制在顶栏右上），顶栏即拖拽区。渲染进程通过 preload
+  新增的窄桥 `__MPVCB_WINDOW__.setOverlayTheme('light' | 'dark')` 按主题切换 overlay 配色。
+* **被否决的替代方案**：(A) `frame: false` + 自绘三键 —— 关闭/最大化逻辑自担、与系统
+  贴靠/半屏手势冲突、未签名应用的窗口按钮自绘只会更像"套壳套一半"，否决；
+  (B) 维持系统标题栏不动 —— 用户点名的"套壳感"来源之一，等于不做事；
+  (C) 渲染进程直传任意颜色字符串 —— 桥面收进任意色值等于把 UI 注入面开了一个口，
+  否决。**色值表在主进程，渲染进程只能传枚举**，preload 桥面不新增任何自由度。
+* **理由**：overlay 是 Electron 在 Windows 上的官方形态——原生按钮行为（贴靠、
+  Snap、双击最大化、Alt+F4）全部免费保留，我们只做"把系统条藏掉、让页面顶栏顶上去"；
+  拖拽区用 `-webkit-app-region`，只在 `html.in-electron` 作用域内生效，
+  浏览器形态（HTTP 直开）完全不受影响。
+* **影响面**：`electron/main.js`（窗口选项 + `mpvcb:overlay` handle）、`electron/preload.js`
+  （第二个导出，头注同步改写）、`webui/static/api.js`（in-electron 类 + 主题推送）、
+  `webui/static/style.css`（拖拽区与右上 overlay 预留位）。9 页零 HTML 改动。
+* **代价（诚实登记）**：overlay 高度 48px 与顶栏视觉对齐依赖 Windows 缩放设置，
+  125%/4K 下按钮与顶栏的基线可能差 1–2px——属系统绘制层，页面无法修正；
+  `verify.py electron` 新增 4 条断言（in-electron 类、拖拽区、按钮 no-drag、
+  枚举校验一收一拒）守护回归。
