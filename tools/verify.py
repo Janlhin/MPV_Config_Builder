@@ -434,7 +434,7 @@ def cmd_all():
         if not find_browser():
             r.add("键盘快捷键实机检查", True, "跳过（本机没有 Edge/Chrome）")
             return
-        p = subprocess.run([sys.executable, "-X", "utf8",
+        p = subprocess.run([sys.executable, "-X", "utf8", "-u",
                             str(Path(__file__).parent / "verify.py"), "hotkeys"],
                            capture_output=True, cwd=str(ROOT))
         tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
@@ -462,7 +462,7 @@ def cmd_all():
         if not find_browser():
             r.add("界面动效实机检查", True, "跳过（本机没有 Edge/Chrome）")
             return
-        p = subprocess.run([sys.executable, "-X", "utf8",
+        p = subprocess.run([sys.executable, "-X", "utf8", "-u",
                             str(Path(__file__).parent / "verify.py"), "motion"],
                            capture_output=True, cwd=str(ROOT))
         tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
@@ -928,14 +928,17 @@ def cmd_topnav():
             print()
             return c.done()
         finally:
-            stop(browser)
+            try:
+                stop(browser)
+            except Exception:
+                pass
             if srv:
                 srv.terminate()
                 try:
                     srv.wait(timeout=10)
                 except Exception:
                     srv.kill()
-    raise SystemExit(main())
+    sys.exit(main())
 
 # ==========================================================================
 # i18n（语言切换机制）
@@ -1066,6 +1069,20 @@ def cmd_i18n():
         port, cdp_port = free_port(), free_port()
         srv = browser = None
         try:
+            return _run(port, cdp_port)
+        except BaseException:
+            # CI 上 subprocess 的 stdout 是块缓冲——崩在这里时上面的进度全靠
+            # 退出时 flush；但 traceback 只进 stderr，包装器旧版看不到。
+            # 现在：栈直接打到 stdout + 无缓冲运行，双保险。
+            import traceback
+            traceback.print_exc()
+            sys.stdout.flush()
+            print("❌ motion 子进程异常退出（栈见上）")
+            return 1
+
+    def _run(port, cdp_port):
+        srv = browser = None
+        try:
             srv = start_server(port)
             print(f"后端已起：http://127.0.0.1:{port}\n")
             browser = launch(cdp_port)
@@ -1155,14 +1172,17 @@ def cmd_i18n():
             print()
             return c.done()
         finally:
-            stop(browser)
+            try:
+                stop(browser)
+            except Exception:
+                pass
             if srv:
                 srv.terminate()
                 try:
                     srv.wait(timeout=10)
                 except Exception:
                     srv.kill()
-    raise SystemExit(main())
+    sys.exit(main())
 
 
 # ==========================================================================
@@ -1253,6 +1273,20 @@ def cmd_status():
         port, cdp_port = free_port(), free_port()
         srv = browser = None
         try:
+            return _run(port, cdp_port)
+        except BaseException:
+            # CI 上 subprocess 的 stdout 是块缓冲——崩在这里时上面的进度全靠
+            # 退出时 flush；但 traceback 只进 stderr，包装器旧版看不到。
+            # 现在：栈直接打到 stdout + 无缓冲运行，双保险。
+            import traceback
+            traceback.print_exc()
+            sys.stdout.flush()
+            print("❌ motion 子进程异常退出（栈见上）")
+            return 1
+
+    def _run(port, cdp_port):
+        srv = browser = None
+        try:
             srv = start_server(port)
             print(f"后端已起：http://127.0.0.1:{port}\n")
             browser = launch(cdp_port)
@@ -1309,14 +1343,17 @@ def cmd_status():
             print()
             return c.done()
         finally:
-            stop(browser)
+            try:
+                stop(browser)
+            except Exception:
+                pass
             if srv:
                 srv.terminate()
                 try:
                     srv.wait(timeout=10)
                 except Exception:
                     srv.kill()
-    raise SystemExit(main())
+    sys.exit(main())
 
 
 # ==========================================================================
@@ -1411,6 +1448,20 @@ def cmd_ctxmenu():
         port, cdp_port = free_port(), free_port()
         srv = browser = None
         try:
+            return _run(port, cdp_port)
+        except BaseException:
+            # CI 上 subprocess 的 stdout 是块缓冲——崩在这里时上面的进度全靠
+            # 退出时 flush；但 traceback 只进 stderr，包装器旧版看不到。
+            # 现在：栈直接打到 stdout + 无缓冲运行，双保险。
+            import traceback
+            traceback.print_exc()
+            sys.stdout.flush()
+            print("❌ motion 子进程异常退出（栈见上）")
+            return 1
+
+    def _run(port, cdp_port):
+        srv = browser = None
+        try:
             srv = start_server(port)
             print(f"后端已起：http://127.0.0.1:{port}\n")
             browser = launch(cdp_port)
@@ -1493,14 +1544,17 @@ def cmd_ctxmenu():
             print()
             return c.done()
         finally:
-            stop(browser)
+            try:
+                stop(browser)
+            except Exception:
+                pass
             if srv:
                 srv.terminate()
                 try:
                     srv.wait(timeout=10)
                 except Exception:
                     srv.kill()
-    raise SystemExit(main())
+    sys.exit(main())
 
 
 # ==========================================================================
@@ -1631,6 +1685,20 @@ def cmd_hotkeys():
         port, cdp_port = free_port(), free_port()
         srv = browser = None
         try:
+            return _run(port, cdp_port)
+        except BaseException:
+            # CI 上 subprocess 的 stdout 是块缓冲——崩在这里时上面的进度全靠
+            # 退出时 flush；但 traceback 只进 stderr，包装器旧版看不到。
+            # 现在：栈直接打到 stdout + 无缓冲运行，双保险。
+            import traceback
+            traceback.print_exc()
+            sys.stdout.flush()
+            print("❌ motion 子进程异常退出（栈见上）")
+            return 1
+
+    def _run(port, cdp_port):
+        srv = browser = None
+        try:
             srv = start_server(port)
             print(f"后端已起：http://127.0.0.1:{port}\n")
             browser = launch(cdp_port)
@@ -1733,14 +1801,17 @@ def cmd_hotkeys():
             print()
             return c.done()
         finally:
-            stop(browser)
+            try:
+                stop(browser)
+            except Exception:
+                pass
             if srv:
                 srv.terminate()
                 try:
                     srv.wait(timeout=10)
                 except Exception:
                     srv.kill()
-    raise SystemExit(main())
+    sys.exit(main())
 
 
 # ==========================================================================
@@ -1862,6 +1933,20 @@ def cmd_motion():
         port, cdp_port = free_port(), free_port()
         srv = browser = None
         try:
+            return _run(port, cdp_port)
+        except BaseException:
+            # CI 上 subprocess 的 stdout 是块缓冲——崩在这里时上面的进度全靠
+            # 退出时 flush；但 traceback 只进 stderr，包装器旧版看不到。
+            # 现在：栈直接打到 stdout + 无缓冲运行，双保险。
+            import traceback
+            traceback.print_exc()
+            sys.stdout.flush()
+            print("❌ motion 子进程异常退出（栈见上）")
+            return 1
+
+    def _run(port, cdp_port):
+        srv = browser = None
+        try:
             srv = start_server(port)
             print(f"后端已起：http://127.0.0.1:{port}\n")
             browser = launch(cdp_port)
@@ -1941,14 +2026,17 @@ def cmd_motion():
             print()
             return c.done()
         finally:
-            stop(browser)
+            try:
+                stop(browser)
+            except Exception:
+                pass
             if srv:
                 srv.terminate()
                 try:
                     srv.wait(timeout=10)
                 except Exception:
                     srv.kill()
-    raise SystemExit(main())
+    sys.exit(main())
 
 
 # ==========================================================================
