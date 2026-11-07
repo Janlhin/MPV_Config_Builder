@@ -557,6 +557,19 @@ async function boot() {
   if (pl) pl.onclick = () => loadProfile(document.getElementById('profileSel').value);
   doPreview();
 }
+
+// T14 + i18n：切语言后重取选项元数据并重绘（advanced 页同款）。
+// 此前 expert 没有这个监听——state.js 渲染的行与后端元数据在切换后停在旧语言，
+// 只有词典兜底扫得到的静态节点会变。APP.values 是用户自己的选择，不经过这条路径。
+document.addEventListener('i18n:change', async () => {
+  APP.options = { core: [], native: [], groups: [] };
+  await loadOptions();
+  buildSections();
+  render();
+  renderModeBar();
+  doPreview();
+  updateSubPreview();
+});
 boot();
 </script>
 </body>

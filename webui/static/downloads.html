@@ -411,7 +411,9 @@ async function boot() {
 // 缓存的响应重绘，不重新发请求；列表走 load() 重取（本地接口，顺带刷新状态）。
 document.addEventListener('i18n:change', () => {
   load();
-  if (DL.plan) renderPlan(DL.plan);
+  // T14：安装计划的 reason/notes/space_detail 来自后端，按新语言重取一份
+  //（懒人包计划是只读计算，无副作用；没算过计划就不发请求）
+  if (DL.plan) lazyPlan();
   if (DL.links) renderLinks(DL.links);
 });
 boot();

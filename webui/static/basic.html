@@ -133,6 +133,8 @@ function renderModeHint() {
 // i18n.js 的 setLang 会派 i18n:change，就是给这类动态文案用的。
 // 只重写提示语，不整调 setMode —— 那会顺带清掉「已读取」状态（READ_DONE）。
 document.addEventListener('i18n:change', renderModeHint);
+// T14：预览文本（include 抬头 / 预设 note）来自后端，切语言后按当前选择重取
+document.addEventListener('i18n:change', () => { refresh(); });
 
 function setMode(m) {
   MODE = m === 'edit' ? 'edit' : 'create';
