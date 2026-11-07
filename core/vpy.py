@@ -32,6 +32,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import textio
+from .i18n import T
 
 MARKER = "由 MPV Config Builder 融合生成"
 PREFIX = "_mb_"
@@ -49,17 +50,30 @@ NOT_FUSABLE = {
     "MIX_UVR": "人声/伴奏分离，属于音频处理，不能拼进视频链",
 }
 
+# 角色与原因的英文对照（T14）。缺键回退中文。
+ROLE_EN = {
+    "deint": "Deinterlace",
+    "denoise": "Denoise",
+    "superres": "Upscale",
+    "memc": "MEMC",
+    "other": "Other",
+    "unfusable": "Audio processing",
+}
+NOT_FUSABLE_EN = {
+    "MIX_UVR": "Vocal/accompaniment separation is audio processing; it cannot be fused into the video chain",
+}
+
 
 def script_role(path):
     """按文件名判断脚本干什么用，返回 (role_id, 中文名, 顺序)。"""
     name = Path(path).stem.upper()
     for prefix, why in NOT_FUSABLE.items():
         if name.startswith(prefix):
-            return "unfusable", "音频处理", 99
+            return "unfusable", T("音频处理", ROLE_EN["unfusable"]), 99
     for rid, label, order, hints in ROLES:
         if any(h in name for h in hints):
-            return rid, label, order
-    return "other", "其它", 4
+            return rid, T(label, ROLE_EN.get(rid, label)), order
+    return "other", T("其它", ROLE_EN["other"]), 4
 
 
 def unfusable_reason(path):
@@ -67,7 +81,7 @@ def unfusable_reason(path):
     name = Path(path).stem.upper()
     for prefix, why in NOT_FUSABLE.items():
         if name.startswith(prefix):
-            return why
+            return T(why, NOT_FUSABLE_EN.get(prefix, why))
     return ""
 
 

@@ -27,6 +27,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import textio
+from .i18n import T
 from .installer import download_file, verify_sha256
 from .net import build_url_candidates
 
@@ -196,6 +197,70 @@ def by_id(item_id):
         if item["id"] == item_id:
             return item
     return None
+
+
+# ---------------------------------------------------------------- 英文对照（T14）
+#
+# id -> {字段: en}。只登记**给用户看**的字段（name/author/license/note/needs/
+# note_extra）；url/dest/sha256 等无语言概念的字段不进表。缺 id 或缺字段一律
+# 回退中文——宁可显示中文也不要留空。安装/校验逻辑读的是 CATALOG 原文，
+# 翻译只发生在 list_items 的输出副本上，互不干扰。
+CATALOG_EN = {
+    "autoload": {
+        "author": "mpv official (TOOLS/lua)",
+        "license": "mpv project license (LGPL-2.1+ / see project)",
+        "note": "Automatically adds other videos/audio in the same folder to the playlist. The most useful one for binge-watching.",
+    },
+    "autodeint": {
+        "author": "mpv official (TOOLS/lua)",
+        "license": "mpv project license",
+        "note": "Auto-enables deinterlacing on interlaced sources, keeping combing artifacts off old footage.",
+    },
+    "pause-when-minimize": {
+        "author": "mpv official (TOOLS/lua)",
+        "license": "mpv project license",
+        "note": "Pauses automatically when the window is minimized, so backgrounding it wastes no performance.",
+    },
+    "cycle-deinterlace-pullup": {
+        "author": "mpv official (TOOLS/lua)",
+        "license": "mpv project license",
+        "note": "Bound to a hotkey; cycles deinterlace / film mode.",
+    },
+    "autocrop": {
+        "author": "mpv official (TOOLS/lua)",
+        "license": "mpv project license",
+        "note": "Crops the black bars baked into the source (hotkey-triggered by default).",
+    },
+    "skip-logo": {
+        "author": "mpv official (TOOLS/lua)",
+        "license": "mpv project license",
+        "note": "Skips silent / solid-color intros (set the detection length yourself).",
+    },
+    "thumbfast": {
+        "author": "po5",
+        "license": "MIT",
+        "note": "Thumbnail preview on seek-bar hover. Needs uosc (or osc); alone it does nothing.",
+        "needs": "uosc or the built-in osc",
+    },
+    "uosc": {
+        "author": "tomasklaen",
+        "license": "MIT (see ziggy's repo for its license)",
+        "note": "The most popular mpv UI right now (top bar + bottom controls + menu). "
+                "About 11 MB of the 18 MB package is Linux/macOS binaries; only the Windows one gets installed.",
+        "note_extra": "Writes a whole fonts/ + scripts/uosc/ tree; uninstall verifies each file before deleting.",
+    },
+    "lxgw-wenkai-lite": {
+        "name": "LXGW WenKai Lite",
+        "author": "lxgw",
+        "license": "SIL OFL 1.1",
+        "note": "A Chinese body-text font, the usual fix for missing glyphs (tofu boxes). After installing, set sub-font in mpv.conf to actually use it.",
+    },
+}
+
+KINDS_EN = {
+    "mpv 脚本": "mpv scripts",
+    "字幕字体": "Subtitle fonts",
+}
 
 
 def catalog_for(kind=""):
@@ -512,6 +577,12 @@ def list_items(target, kind=""):
         rec = installed.get(item["id"])
         dest = (Path(target) / item["dest"]) if target else None
         entry = dict(item)
+        # T14：给用户看的字段按请求语言翻译（只动输出副本，CATALOG 原文不动）
+        en = CATALOG_EN.get(item["id"]) or {}
+        if en:
+            for f, v in en.items():
+                if f in entry and entry[f]:
+                    entry[f] = T(entry[f], v)
         entry["dest_rel"] = item["dest"]
         entry["dest"] = str(dest) if dest else ""
         entry["installed"] = False
@@ -532,7 +603,7 @@ def list_items(target, kind=""):
                 entry["verified"] = bool(rec.get("verified"))
                 if not rec.get("verified"):
                     entry["verification"] = "unverified"
-                    entry["state_note"] = "未校验（上游没给 sha256）"
+                    entry["state_note"] = T("未校验（上游没给 sha256）", "Unverified (upstream provides no sha256)")
                 entry["file_count"] = len(files)
                 gone = [f["rel"] for f in files if not (base / f["rel"]).is_file()]
                 changed = [f["rel"] for f in files
@@ -561,7 +632,7 @@ def list_items(target, kind=""):
                         break
                 if hit:
                     entry["state"] = "present_untracked"
-                    entry["version_note"] = "目录已存在（可能是自带的），没有安装记录"
+                    entry["version_note"] = T("目录已存在（可能是自带的），没有安装记录", "Directory already exists (possibly bundled); no install record")
             out.append(entry)
             continue
 
@@ -571,7 +642,7 @@ def list_items(target, kind=""):
             entry["verified"] = bool(rec.get("verified"))
             if not rec.get("verified"):
                 entry["verification"] = "unverified"
-                entry["state_note"] = "未校验（上游没给 sha256）"
+                entry["state_note"] = T("未校验（上游没给 sha256）", "Unverified (upstream provides no sha256)")
             if not exists:
                 entry["state"] = "missing"
             else:
