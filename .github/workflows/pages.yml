@@ -20,6 +20,9 @@ concurrency:
 
 jobs:
   deploy:
+    # 私有仓库在未开通 Pages 计费时启用不了站点——工作流红着只会掩盖真问题，
+    # 故整任务非阻断；仓库设置里启用 Pages（或转公开）后自然变绿。
+    continue-on-error: true
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -27,6 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        with:/n          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
