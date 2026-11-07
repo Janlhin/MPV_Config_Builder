@@ -308,8 +308,12 @@ function renderRef() {
 
 /* 切语言后重绘。这一页的 DOM 几乎全是 JS 渲染的（文件信息卡、行表、内置对照表），
    不在任何 data-i18n 属性上。注意**不能**重新 load()：那会丢掉用户未保存的编辑
-   （KEY.rows 会被服务端响应覆盖）—— 按 KEY._last 缓存重绘，不发请求。 */
-document.addEventListener('i18n:change', () => {
+   （KEY.rows 会被服务端响应覆盖）—— 按 KEY._last 缓存重绘，不发请求。
+   T14 补充：**没有未保存编辑时**可以安全重取（内置键位表的 label / source
+   是后端按语言返回的），重取后走同一套渲染；有编辑则保持缓存（切回中文
+   或保存后自然对齐）。 */
+document.addEventListener('i18n:change', async () => {
+  if (!KEY.dirty && KEY.main !== undefined) { await load(); return; }
   if (!KEY._last) return;
   renderMeta(KEY._last.r, KEY._last.f);
   renderPromote(KEY._last.r);

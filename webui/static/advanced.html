@@ -740,7 +740,12 @@ async function boot() {
    i18n:change 给这类动态文案用（downloads 轮记下的坑，这里更依赖它）。
    注意 render() 会按当前语言重渲染 PANES / mountOptions —— 那些模板里的中文
    已全部换成 I18N.t()，所以重绘出来就是当前语言，不存在「切完还是中文」。 */
-document.addEventListener('i18n:change', () => {
+document.addEventListener('i18n:change', async () => {
+  // T14：选项元数据（label/desc/group）来自后端，按新语言重取再重绘。
+  // APP.values 是用户自己的选择，不经过这条路径，不会丢。
+  APP.options = { core: [], native: [], groups: [] };
+  await loadOptions();
+  buildSections();
   render();                    // 侧栏 + 当前分区 + secTitle/secSub
   renderModeBar();             // 模式条 hint 与主按钮文案（state.js）
   doPreview();                 // 预览卡：标题/计数/待填提示/评分/问题列表
