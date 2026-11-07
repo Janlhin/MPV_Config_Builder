@@ -163,7 +163,7 @@ MPV Config Builder 0.1.0
       scripts\sync-renderer.js  把 webui\static 复制到 electron\renderer（单一来源）
       renderer\           构建期复制产物，**不要手改、不入库**
       用法：cd electron && npm install && npm run dist
-  tests\                  单元测试（701 项，含接口端到端与真实脚本测试）
+  tests\                  单元测试（705 项，含接口端到端与真实脚本测试）
   docs\                   开发笔记（面向改这个代码的人，不是给用户的）
       踩过的坑.md         实测出来的结论 —— 想知道「为什么这么做」看这份
       待做.md             **还没做的事**（做完一条删一条，只减不增）
