@@ -341,6 +341,10 @@ def cmd_all():
                             str(Path(__file__).parent / "verify.py"), "i18n"],
                            capture_output=True, cwd=str(ROOT))
         tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        err = p.stderr.decode("utf-8", "replace").strip().splitlines()
+        detail = tail[-1] if tail else "(没有输出)"
+        if p.returncode != 0 and err:
+            detail += " ‖ stderr: " + " / ".join(err[-4:])
         r.add("i18n 切换实机检查", p.returncode == 0,
               tail[-1] if tail else "(没有输出)")
 
@@ -380,6 +384,10 @@ def cmd_all():
                             str(Path(__file__).parent / "verify.py"), "status"],
                            capture_output=True, cwd=str(ROOT))
         tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        err = p.stderr.decode("utf-8", "replace").strip().splitlines()
+        detail = tail[-1] if tail else "(没有输出)"
+        if p.returncode != 0 and err:
+            detail += " ‖ stderr: " + " / ".join(err[-4:])
         r.add("状态栏与后端提示实机检查", p.returncode == 0,
               tail[-1] if tail else "(没有输出)")
 
@@ -402,6 +410,10 @@ def cmd_all():
                             str(Path(__file__).parent / "verify.py"), "ctxmenu"],
                            capture_output=True, cwd=str(ROOT))
         tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        err = p.stderr.decode("utf-8", "replace").strip().splitlines()
+        detail = tail[-1] if tail else "(没有输出)"
+        if p.returncode != 0 and err:
+            detail += " ‖ stderr: " + " / ".join(err[-4:])
         r.add("右键菜单实机检查", p.returncode == 0,
               tail[-1] if tail else "(没有输出)")
 
@@ -426,6 +438,10 @@ def cmd_all():
                             str(Path(__file__).parent / "verify.py"), "hotkeys"],
                            capture_output=True, cwd=str(ROOT))
         tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        err = p.stderr.decode("utf-8", "replace").strip().splitlines()
+        detail = tail[-1] if tail else "(没有输出)"
+        if p.returncode != 0 and err:
+            detail += " ‖ stderr: " + " / ".join(err[-4:])
         r.add("键盘快捷键实机检查", p.returncode == 0,
               tail[-1] if tail else "(没有输出)")
 
@@ -450,8 +466,13 @@ def cmd_all():
                             str(Path(__file__).parent / "verify.py"), "motion"],
                            capture_output=True, cwd=str(ROOT))
         tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
-        r.add("界面动效实机检查", p.returncode == 0,
-              tail[-1] if tail else "(没有输出)")
+        err = p.stderr.decode("utf-8", "replace").strip().splitlines()
+        detail = tail[-1] if tail else "(没有输出)"
+        if p.returncode != 0 and err:
+            # 子进程崩了（traceback 在 stderr，stdout 只剩最后的成功行）——
+            # 不带出来就永远只能看到"挂在哪一行"，看不到"为什么"
+            detail += " ‖ stderr: " + " / ".join(err[-4:])
+        r.add("界面动效实机检查", p.returncode == 0, detail)
 
 
     def check_electron_pack(r):
@@ -472,6 +493,10 @@ def cmd_all():
                             str(Path(__file__).parent / "verify.py"), "electron"],
                            capture_output=True, cwd=str(ROOT))
         tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        err = p.stderr.decode("utf-8", "replace").strip().splitlines()
+        detail = tail[-1] if tail else "(没有输出)"
+        if p.returncode != 0 and err:
+            detail += " ‖ stderr: " + " / ".join(err[-4:])
         r.add("Electron 外壳实机检查", p.returncode == 0,
               tail[-1] if tail else "(没有输出)")
 
