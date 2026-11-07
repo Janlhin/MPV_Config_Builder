@@ -36,10 +36,11 @@ STATIC = BASE / "webui" / "static" if is_frozen() else Path(__file__).resolve().
 from core.schema import (          # noqa: E402
     APP_TITLE, VERSION, PARAMS, native_items, build_shader_catalog, build_memc_catalog,
     find_lazy_pc, scan_lazy, NATIVE_OPTIONS, LAZY_CANDIDATE_DIRS, db_ui_item,
-    PARAMS_EN, CORE_GROUP_EN, NATIVE_EN, NATIVE_GROUP_EN,
+    PARAMS_EN, CORE_GROUP_EN, NATIVE_EN, NATIVE_GROUP_EN, LAZY_BUNDLED_SHADERS,
 )
 from core.i18n import T            # noqa: E402
 from core.combos import COMBOS_EN  # noqa: E402
+from core.schema import load_settings, save_settings  # noqa: E402
 from core.presets import (         # noqa: E402
     CONTENT_CHOICES, PREFER_CHOICES, get_basic_preset, resolve_shader_slots,
     WRITE_MODE_INCLUDE, WRITE_MODE_MERGE,
@@ -1214,8 +1215,11 @@ def api_combos(body):
     for c in COMBOS:
         shaders, memc, missing = resolve_combo(c, catalog)
         en = COMBOS_EN.get(c["id"])
+        lazy_only = any(
+            s in LAZY_BUNDLED_SHADERS
+            for slot in c["shader_slots"] for s in slot)
         out.append({
-            "id": c["id"], "icon": c["icon"],
+            "id": c["id"], "icon": c["icon"], "lazy_only": lazy_only,
             "name": T(c["name"], en[0]) if en else c["name"],
             "note": T(c["note"], en[1]) if en else c["note"],
             "need": T(c.get("need", ""), en[2]) if en and en[2] else c.get("need", ""),
@@ -1223,6 +1227,35 @@ def api_combos(body):
             "shaders": shaders, "memc": memc, "missing": missing,
         })
     return {"ok": True, "combos": out, "target": str(target) if target else ""}
+
+
+# ---- 扫描源列表（第 7 项）：标准目录 + 手动添加目录，不做全盘扫 ----
+def api_scandirs(params):
+    """列出 shader/vpy 扫描源：target 的标准目录 + settings 里的手动添加项。"""
+    target = _resolve_target({"target": params.get("target", "")})
+    pc = target if (target and target.is_dir()) else None
+    standard = [str(Path(pc) / "shaders"), str(Path(pc) / "vs")] if pc else []
+    return {"ok": True, "standard": standard,
+            "extra": list((load_settings() or {}).get("scan_dirs") or [])}
+
+
+def api_scandirs_add(body):
+    d = str(body.get("dir") or "").strip().strip('"')
+    if not d or not Path(d).is_dir():
+        return {"ok": False, "detail": T("目录不存在：", "Directory does not exist: ") + d}
+    st = load_settings() or {}
+    dirs = [x for x in (st.get("scan_dirs") or []) if str(x) != d]
+    dirs.append(d)
+    st["scan_dirs"] = dirs
+    return {"ok": save_settings(st), "dirs": dirs}
+
+
+def api_scandirs_remove(body):
+    d = str(body.get("dir") or "").strip().strip('"')
+    st = load_settings() or {}
+    dirs = [x for x in (st.get("scan_dirs") or []) if str(x) != d]
+    st["scan_dirs"] = dirs
+    return {"ok": save_settings(st), "dirs": dirs}
 
 
 def api_backups(params):

@@ -10,7 +10,7 @@ stdio 直接接后端，不开端口）就只能重写。
 现在把它提成一个**纯函数** `dispatch(req) -> Response`：
 
     ┌──────────────────────────┐
-    │  dispatch(Request)        │────▶ server.api_*（39 个纯函数）
+    │  dispatch(Request)        │────▶ server.api_*（42 个纯函数）
     └──────────────────────────┘
         ▲                  ▲
     HTTP 适配器         未来的 stdio 适配器
@@ -21,7 +21,7 @@ stdio 直接接后端，不开端口）就只能重写。
 
 ## ⚠ 路由表为什么存"属性名"而不是函数对象
 
-`api_*` 这 39 个函数目前还在 `server.py` 里。如果这里在**导入期**写
+`api_*` 这 42 个函数目前还在 `server.py` 里。如果这里在**导入期**写
 `from .server import api_status`，就会形成 `server → api → server` 的**循环导入**。
 
 所以表里存的是**字符串**（`"api_status"`），`dispatch` 在**调用时**通过
@@ -93,6 +93,7 @@ ROUTES_QUERY = {
     "/api/download/job": "api_download_job",
     "/api/userpresets": "api_user_presets",
     "/api/install/plan": "_route_install_plan",
+    "/api/scandirs": "api_scandirs",
 }
 
 # POST
@@ -120,6 +121,8 @@ ROUTES_POST = {
     "/api/presets/save": "api_presets_save",
     "/api/presets/delete": "api_presets_delete",
     "/api/presets/load": "api_presets_load",
+    "/api/scandirs/add": "api_scandirs_add",
+    "/api/scandirs/remove": "api_scandirs_remove",
     "/api/presets/export": "api_presets_export",
 }
 

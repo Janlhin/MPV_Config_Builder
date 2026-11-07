@@ -173,6 +173,55 @@ async function boot() {
   }
 }
 boot();
+
+/* ---- 初始化引导（第 8 项，待做.md §四.3：只在第一次出现） ---- */
+function obOpen() {
+  if (!last) return;
+  const dirs = (last.candidate_details || []).filter(d => d.exists);
+  const p = document.createElement('div');
+  p.className = 'hotkey-help';
+  p.id = 'obOverlay';
+  p.innerHTML = '<div class="hk-card"><div class="hk-head">'
+    + '<span class="hk-title">' + I18N.t('ob.title') + '</span></div>'
+    + '<p style="margin:6px 0 2px"><b>' + I18N.t('ob.goalQ') + '</b></p>'
+    + '<div class="row" style="flex-wrap:wrap;gap:8px;margin:8px 0">'
+    + ['goalCreate', 'goalEdit', 'goalCheck'].map(k =>
+        '<button class="btn small" data-goal="' + k + '">' + I18N.t('ob.' + k) + '</button>').join('')
+    + '</div>'
+    + (dirs.length
+        ? '<p style="margin:10px 0 2px"><b>' + I18N.t('ob.dirQ') + '</b></p>'
+          + '<p class="note">' + I18N.t('ob.dirNote') + '</p>'
+          + dirs.map((d, i) => '<button class="btn small ghost" data-dir="' + esc(d.path)
+            + '" style="display:block;width:100%;text-align:left;margin:4px 0">'
+            + esc(d.path) + ' <span class="muted">（' + esc(d.source) + '）</span></button>').join('')
+        : '')
+    + '<p style="margin:10px 0 0"><a href="#" id="obSkip">' + I18N.t('ob.skip') + '</a></p>'
+    + '</div>';
+  document.body.appendChild(p);
+  const done = () => { try { localStorage.setItem('mpvcb-onboarded', '1'); } catch (e) {} p.remove(); };
+  p.querySelector('#obSkip').onclick = (e) => { e.preventDefault(); done(); };
+  p.querySelectorAll('[data-goal]').forEach(b => {
+    b.onclick = () => {
+      const g = b.dataset.goal;
+      const o = { target: '', mode: g === 'goalEdit' ? 'edit' : 'create' };
+      try { localStorage.setItem('mpvcb', JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('mpvcb') || '{}'), o))); } catch (e) {}
+      location.href = g === 'goalCheck' ? 'analyze.html' : 'basic.html';
+    };
+  });
+  p.querySelectorAll('[data-dir]').forEach(b => {
+    b.onclick = () => {
+      const o = { target: b.dataset.dir };
+      try { localStorage.setItem('mpvcb', JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('mpvcb') || '{}'), o))); } catch (e) {}
+      done();
+      paintTarget();
+    };
+  });
+}
+setTimeout(() => {
+  let seen = false;
+  try { seen = !!localStorage.getItem('mpvcb-onboarded'); } catch (e) {}
+  if (!seen) obOpen();
+}, 600);
 </script>
 </body>
 </html>

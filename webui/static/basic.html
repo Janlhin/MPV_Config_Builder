@@ -243,7 +243,11 @@ async function boot() {
   lazyPc = s.lazy_pc || '';
   document.getElementById('lazyHint').textContent = lazyPc || '未找到 mpv-lazy（可手动填写）';
   document.getElementById('targetLabel').textContent = s.target || '未设置';
-  if (lazyPc) document.getElementById('target').value = lazyPc;
+  // 第 8 项：初始化引导里用户选的目录优先（localStorage mpvcb.target）
+  let obTarget = '';
+  try { obTarget = (JSON.parse(localStorage.getItem('mpvcb') || '{}').target) || ''; } catch (e) {}
+  if (obTarget) document.getElementById('target').value = obTarget;
+  else if (lazyPc) document.getElementById('target').value = lazyPc;
   const hw = s.hardware || {};
   document.getElementById('hwRes').value = hw.resolution || '';
   document.getElementById('hwHz').value = hw.refresh || '';
