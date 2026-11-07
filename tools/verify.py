@@ -21,6 +21,7 @@ check_electron_packaged / check_pack / compare_conflicts），每个都重复一
     status     实机验证 9 页共用的状态栏、离线横幅与右键菜单
     ctxmenu    实机验证右键菜单（复制选项名 / 当前值 / 恢复默认 / 完整说明）
     hotkeys    实机验证键盘快捷键层（Ctrl+S 主操作 / ? 帮助面板 / 选项行导航）
+    motion     实机验证界面动效（page-in / 展开过渡 / 侧栏淡入 / 保存回执 / reduced-motion）
     topnav     实机验证 9 个页面的顶栏常驻入口
     stdio      实机验证 9 个页面跑在 stdio 通道上
     presets    实机验证「我自己的预设」存读
@@ -429,6 +430,30 @@ def cmd_all():
               tail[-1] if tail else "(没有输出)")
 
 
+    def check_motion(r):
+        """界面动效在真浏览器里对吗（R-27 执行轮）。
+
+        判七件事：page-in 入场 / 展开走 grid-rows / 侧栏 pane-in / 保存回执 /
+        applyTop 绑定回归 / 模拟 prefers-reduced-motion 后全部归零。
+        写接口在检查内部已换成桩（不会真写 mpv.conf）。
+        **没有 Edge/Chrome 就跳过，不算失败** —— 同其余实机检查。
+        """
+        if importlib.util.find_spec("uidriver") is None and not (Path(__file__).parent / "uidriver.py").is_file():
+            r.add("界面动效实机检查", True, "跳过（找不到 tools/uidriver.py）")
+            return
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from uidriver import find_browser                            # noqa: PLC0415
+        if not find_browser():
+            r.add("界面动效实机检查", True, "跳过（本机没有 Edge/Chrome）")
+            return
+        p = subprocess.run([sys.executable, "-X", "utf8",
+                            str(Path(__file__).parent / "verify.py"), "motion"],
+                           capture_output=True, cwd=str(ROOT))
+        tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        r.add("界面动效实机检查", p.returncode == 0,
+              tail[-1] if tail else "(没有输出)")
+
+
     def check_electron_pack(r):
         """Electron 那套（如果本机备齐了工具链）能不能跑通。
 
@@ -481,6 +506,7 @@ def cmd_all():
         check_status(r)
         check_ctxmenu(r)
         check_hotkeys(r)
+        check_motion(r)
         check_electron_pack(r)
 
         print("-" * 58)
@@ -1679,6 +1705,214 @@ def cmd_hotkeys():
             d = cdp.js(PROBE_HELP)
             c("有选项行 + 有主操作的页面列 6 条", d.get("rows") == 6,
               f"rows={d.get('rows')}")
+            print()
+            return c.done()
+        finally:
+            stop(browser)
+            if srv:
+                srv.terminate()
+                try:
+                    srv.wait(timeout=10)
+                except Exception:
+                    srv.kill()
+    raise SystemExit(main())
+
+
+# ==========================================================================
+# motion（界面动效）
+# ==========================================================================
+
+def cmd_motion():
+    """界面动效的实机验证（R-27 执行轮）：动效在吗？reduced-motion 会归零吗？
+
+    为什么要真机跑：动效全是 CSS（transition/animation），静态检查只能证明
+    "样式表里有这几行"，证明不了「真的挂在对应的元素上」「展开收起真的平滑」
+    「reduced-motion 用户拿到的是无动画版本」。后者用 CDP 的
+    Emulation.setEmulatedMedia 模拟 prefers-reduced-motion 实测，不靠 grep。
+
+    判七件事：
+      1. body 有 page-in 入场动画（切模式页不再白屏硬切）
+      2. 选项行展开走 grid-rows 过渡：点 label 高度 0→>0，再点回 0
+      3. 侧栏切分区后内容区挂上 pane-in 淡入
+      4. 保存回执：成功路径后按钮挂 ack-ok，✓ 覆盖层动画存在，620ms 后自清
+         ——写接口先换成桩，与 hotkeys/status 检查同一手法（不真写 mpv.conf）
+      5. applyTop 绑定回归：顶栏「生成配置」点击真的触发 applyConfig
+         （2026-11-08 发现它从未绑定，此检查防它再死）
+      6. 模拟 prefers-reduced-motion: reduce 后 body/page-in 归零、
+         .expand 过渡归零——模拟撤除后恢复
+      7. 注入合成行测的是 api.js/state.js 的委托逻辑，不依赖页面真数据（同 ctxmenu）
+
+    用法（会自己起一个临时后端，端口自动挑）：
+        python tools/verify.py motion
+    """
+    import json
+    import socket
+    import subprocess
+    import sys
+    import time
+    import urllib.request
+    from pathlib import Path
+
+    ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "tools"))
+
+    from uidriver import Checker, connect, launch, stop, wait_page   # noqa: PLC0415
+
+    c = Checker()
+
+    STUB_WRITES = ("(() => { API.basicApply = () =>"
+                   " Promise.resolve({ok:true, detail:'stub'}); return true; })()")
+    BODY_ANIM = "(() => getComputedStyle(document.body).animationName)()"
+    REDUCE_ON = ("(() => { matchMedia('(prefers-reduced-motion: reduce)'); return true; })()")
+    SEED_ROWS = (
+        "(function(){"
+        " document.getElementById('panes').innerHTML ="
+        "  '<div class=\"opt\" data-key=\"--test-a\"><div class=\"opt-head\">'"
+        "  + '<input type=\"checkbox\" data-role=\"check\">'"
+        "  + '<label data-role=\"label\">测试 A</label></div>'"
+        "  + '<div class=\"expand\" data-role=\"expand\"><div><div class=\"expand-body\">说明文本</div></div></div></div>';"
+        " document.getElementById('panes').onclick = onOptEvent;"
+        " return true; })()"
+    )
+    CLICK_LABEL = ("(() => { const l = document.querySelector('.opt [data-role=\"label\"]');"
+                   " if (!l) return false; l.click(); return true; })()")
+    EXPAND_PROBE = """
+    (() => {
+      const ex = document.querySelector('.opt .expand');
+      if (!ex) return { none: true };
+      const body = ex.querySelector('.expand-body');
+      return {
+        h: ex.offsetHeight,
+        bh: body ? body.offsetHeight : -1,
+        tp: getComputedStyle(ex).transitionProperty,
+        td: getComputedStyle(ex).transitionDuration,
+        open: ex.classList.contains('open')
+      };
+    })()
+    """
+    ACK_TEST = ("(() => { const b = document.getElementById('applyBtn'); if (!b) return false;"
+                " b.click(); return true; })()")
+    ACK_STATE = """
+    (() => {
+      const b = document.getElementById('applyBtn');
+      return { cls: b.classList.contains('ack-ok'),
+               anim: getComputedStyle(b, '::after').animationName };
+    })()
+    """
+    TOP_SPY = ("(() => { const t = document.getElementById('applyTop'); if (!t) return -1;"
+               " window.__top = 0; t.addEventListener('click', () => { window.__top++; });"
+               " t.click(); return window.__top; })()")
+    PANE_TEST = ("(() => { const items = document.querySelectorAll('.side-item');"
+                 " if (items.length < 2) return false; items[1].click(); return true; })()")
+    PANE_PROBE = ("(() => { const p = document.getElementById('panes');"
+                  " return p ? p.classList.contains('pane-in') : false; })()")
+
+    def free_port():
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        p = s.getsockname()[1]
+        s.close()
+        return p
+
+    def start_server(port):
+        proc = subprocess.Popen(
+            [sys.executable, "-X", "utf8", str(ROOT / "webui" / "server.py"),
+             "--port", str(port), "--no-window"],
+            cwd=str(ROOT), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1) as f:
+                    json.load(f)
+                return proc
+            except Exception:
+                if proc.poll() is not None:
+                    sys.exit("后端启动失败（进程已退出）")
+                time.sleep(0.4)
+        proc.kill()
+        sys.exit("后端 30 秒内没起来")
+
+    def main():
+        port, cdp_port = free_port(), free_port()
+        srv = browser = None
+        try:
+            srv = start_server(port)
+            print(f"后端已起：http://127.0.0.1:{port}\n")
+            browser = launch(cdp_port)
+            cdp = connect(cdp_port)
+            base = f"http://127.0.0.1:{port}/"
+
+            # ---- index：页面入场 + reduced-motion 模拟 ----
+            wait_page(cdp, base + "index.html", wait_s=2.5)
+            time.sleep(0.8)
+            print("—— 页面入场动画 ——")
+            c("body 挂着 page-in 入场动画", cdp.js(BODY_ANIM) == "page-in",
+              f"animationName={cdp.js(BODY_ANIM)!r}")
+
+            cdp.call("Emulation.setEmulatedMedia",
+                     features=[{"name": "prefers-reduced-motion", "value": "reduce"}])
+            time.sleep(0.3)
+            reduced = cdp.js("(() => matchMedia('(prefers-reduced-motion: reduce)').matches)()")
+            anim = cdp.js(BODY_ANIM)
+            print("\n—— prefers-reduced-motion: reduce（模拟） ——")
+            c("模拟已生效", reduced is True)
+            c("reduce 下 page-in 归零", anim == "none", f"animationName={anim!r}")
+            cdp.call("Emulation.setEmulatedMedia",
+                     features=[{"name": "prefers-reduced-motion", "value": "no-preference"}])
+            time.sleep(0.3)
+            c("撤除模拟后动画恢复", cdp.js(BODY_ANIM) == "page-in")
+
+            # ---- basic：保存回执（写接口已换成桩，点击成功路径安全） ----
+            wait_page(cdp, base + "basic.html", wait_s=2.5)
+            cdp.js(STUB_WRITES)
+            time.sleep(0.8)
+            print("\n—— 保存回执（basic） ——")
+            c("basic 主按钮存在", cdp.js(ACK_TEST) is True)
+            time.sleep(0.25)
+            a = cdp.js(ACK_STATE)
+            c("成功路径后按钮挂上 ack-ok", a.get("cls") is True, f"state={a}")
+            c("✓ 覆盖层走 ack-ok 动画", a.get("anim") == "ack-ok",
+              f"::after animation={a.get('anim')!r}")
+            time.sleep(0.75)
+            c("620ms 后回执自清", cdp.js(ACK_STATE).get("cls") is False)
+
+            # ---- advanced：展开过渡 / 侧栏淡入 / applyTop 绑定 / reduce 下的过渡 ----
+            wait_page(cdp, base + "advanced.html", wait_s=2.5)
+            time.sleep(1.2)
+            cdp.js(SEED_ROWS)
+            time.sleep(0.3)
+            print("\n—— 选项行展开（grid-rows） ——")
+            c("展开容器有 grid-rows 过渡",
+              "grid-template-rows" in (cdp.js(EXPAND_PROBE).get("tp") or ""))
+            cdp.js(CLICK_LABEL)
+            time.sleep(0.25)
+            e1 = cdp.js(EXPAND_PROBE)
+            c("点 label 后展开（高度 > 0）", (e1.get("h") or 0) > 0 and e1.get("open") is True,
+              f"h={e1.get('h')} open={e1.get('open')}")
+            cdp.js(CLICK_LABEL)
+            time.sleep(0.25)
+            e2 = cdp.js(EXPAND_PROBE)
+            c("再点后收起（高度归 0）", e2.get("h") == 0 and e2.get("open") is False,
+              f"h={e2.get('h')} open={e2.get('open')}")
+
+            print("\n—— 侧栏切分区淡入 ——")
+            c("点了第二个分区", cdp.js(PANE_TEST) is True)
+            time.sleep(0.2)
+            c("内容区挂上 pane-in", cdp.js(PANE_PROBE) is True)
+
+            print("\n—— applyTop 绑定回归 ——")
+            c("顶栏「生成配置」点击触发了 applyConfig", cdp.js(TOP_SPY) == 1)
+
+            cdp.call("Emulation.setEmulatedMedia",
+                     features=[{"name": "prefers-reduced-motion", "value": "reduce"}])
+            time.sleep(0.3)
+            e3 = cdp.js(EXPAND_PROBE)
+            print("\n—— reduce 下的展开过渡 ——")
+            c("reduce 下 .expand 过渡归零", e3.get("td") in ("0s", "0s, 0s"),
+              f"transitionDuration={e3.get('td')!r}")
+            cdp.call("Emulation.setEmulatedMedia",
+                     features=[{"name": "prefers-reduced-motion", "value": "no-preference"}])
             print()
             return c.done()
         finally:
@@ -3742,6 +3976,7 @@ COMMANDS = {
     "status": cmd_status,
     "ctxmenu": cmd_ctxmenu,
     "hotkeys": cmd_hotkeys,
+    "motion": cmd_motion,
     "stdio": cmd_stdio,
     "presets": cmd_presets,
     "ui": cmd_ui,
