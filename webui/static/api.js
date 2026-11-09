@@ -84,6 +84,8 @@ const API = {
   },
   status: () => API.get('/api/status'),
   presets: () => API.get('/api/presets'),
+  // 版本级兼容检测（待做 §〇 第 13 项）：探测到的 mpv 版本 + 它不支持的参数集合
+  compat: () => API.get('/api/compat'),
   // 全量选项库的分页查询（expert 页的搜索/翻页）
   dbOptions: (p) => API.get('/api/db/options?' + new URLSearchParams(p || {}).toString()),
   // 在线渲染仓库里的文档（guide 页）

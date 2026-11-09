@@ -489,3 +489,32 @@
   125%/4K 下按钮与顶栏的基线可能差 1–2px——属系统绘制层，页面无法修正；
   `verify.py electron` 新增 4 条断言（in-electron 类、拖拽区、按钮 no-drag、
   枚举校验一收一拒）守护回归。
+
+## 2026-11-09 版本级兼容检测（待做 §〇 第 13 项）：数据源从「rst 版本注记」改为「运行时选项存在性比对」
+
+* **决策**：第 13 项的兼容判断**不引入**参数库的 `version`（引入版本）字段，改为**运行时选项存在性比对**——
+  `mpv --version` 取版本、`mpv --list-options` 抓用户 mpv 实际支持的参数集合，与参数库 key 比对，
+  库里有、用户 mpv 没有的就是它不支持的参数（`core/mpv_version.py` 的 `capture_mpv_options` + `diff_unsupported`）。
+  探测失败（没装 mpv / 超时 / 非零退出）一律降级：`scanned=False`、不支持集合为空——**版本未知不报警**。
+* **被否决的替代方案**：
+  * （A）给参数库每个 option 加 `version` 字段，从官方 `options.rst` 的
+    ``versionadded`` / ``versionchanged`` 提取「首次引入版本」—— 实测官方英文 master rst
+    （`~/mpv_doc-en/options.rst`，409KB）里**完全没有** `versionadded`/`versionchanged` 指令（0 处），
+    中文 rst 仅 1 处且是 incidental。数据源不存在，方案不可行；
+  * （B）用 git 历史推断每个选项的引入版本 —— 噪声大、不可靠，且与「你的 mpv 到底认不认这个参数」
+    是两件不直接相关的事。
+* **理由**：「选项存在性比对」直接回答用户最关心的一个问题——**「我的 mpv 跑不跑得动这个选项」**，
+  比静态版本号更准，且零额外数据源（复用已有的 `mpv --list-options` 探测能力）。
+  实测 `mpv --list-options` 正常退出、输出以 `--token` 行定义参数，解析稳定。
+* **连带设计决策**（本轮一并拍板、均取推荐项）：
+  * **D1（① 语义）**：原拟的 `version` 字段被本决策**取代**，不再加字段；
+  * **D2（② 探测对象）**：只探测 **PATH 上的 mpv**（`core/mpv_version._CANDIDATES` 走 `shutil.which`），
+    不扫多个安装目录——多安装择哪个本身没判据，且 PATH 上的就是用户默认会跑的那一个；
+  * **D3（③ 呈现）**：选项行**行内小字提示**（非徽标、非顶部警告），文案「⚠ 当前 mpv 不支持此参数（升级 mpv 后才能用）」，
+    随界面语言切换（i18n 键 `st.unsupportedByMpv`）。
+* **落地**：后端 `webui/server.py::api_compat`（新增路由 `/api/compat`，GET）+ 前端 `API.compat()`
+  + `state.js` 的 `markUnsupportedRows()`（在 `mountOptions` 内与 `i18n:change` 时重刷）；
+  探测核心 `core/mpv_version.py`（②）与覆盖测试 `tests/test_mpv_version.py`（21 项）、
+  `tests/test_api_compat.py`（3 项）均绿。
+* **未做（留待下一批）**：basic 页是预设模式、不渲染 `.opt` 行，③ 仅作用于 advanced/expert；
+  若日后 basic 也逐个选项呈现再补。

@@ -351,6 +351,37 @@ def db_status():
         return {"available": False, "count": 0, "with_zh": 0, "groups": [], "detail": str(e)}
 
 
+def api_compat():
+    """版本级兼容检测（待做 §〇 第 13 项 ①③）。
+
+    探测用户实际运行的 mpv：版本 + 它支持的参数集合（`mpv --list-options`），
+    与参数库比对 —— 库里有、用户 mpv 没有的，就是它**不支持**的参数。
+
+    失败（没装 mpv / 超时 / 非零退出）一律降级：`scanned=False`、
+    `unsupported=[]`，界面**不报警**（版本未知不应该误伤用户）。
+
+    设计来源：原方案想从官方 rst 的 ``versionadded`` 抽「引入版本」，但
+    官方 rst 没有版本注记（实测 0 处），故改用「运行时选项存在性比对」——
+    这能直接回答「你的 mpv 跑不跑得动这个选项」，比静态版本号更准。
+    见 `DECISIONS.md` 2026-11-09 的条目。
+    """
+    from core.mpv_version import (
+        detect_mpv_version, capture_mpv_options, diff_unsupported)
+    from core.options_db import load_db
+
+    db = load_db()
+    db_keys = set((db.get("options") or {}).keys())
+    version = detect_mpv_version()
+    user_options = capture_mpv_options()
+    unsupported = sorted(diff_unsupported(db_keys, user_options))
+    return {
+        "version": version,
+        "unsupported": unsupported,
+        # 仅当真的探测到了 mpv（版本或参数任一拿到）才算"扫过"
+        "scanned": (version is not None) or (user_options is not None),
+    }
+
+
 def api_db_options(params):
     """全量选项库（829 项）：分页 + 分组过滤 + 搜索，给完全体页面用。"""
     try:
