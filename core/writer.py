@@ -256,21 +256,37 @@ def has_include_line(text):
 
 
 def ensure_include_line(main_conf):
-    """确保主 mpv.conf 里有 include 行；返回 (是否修改, 备份路径, 说明)。"""
+    """确保主 mpv.conf 的**全局区**有 include 行；返回 (是否修改, 备份路径, 说明)。
+
+    ⚠ include 必须落在全局区（第一个 [profile] 小节之前），不能追加在文件末尾：
+    否则当主配置以小节结尾（MPVLAZY 的 mpv.conf 正是这样）时，include 会被 mpv
+    当成"仅在该 profile 激活时生效"而失效；而且 `has_include_line` 只查全局区，
+    认不出它，于是每次写入都重复追加一条（真·重复 include 的坑）。
+    """
     main = Path(main_conf)
     tf = textio.read(main)
     text = tf.text if tf is not None else ""
     if has_include_line(text):
         return False, None, "主配置里已有 include 行，未改动"
     backup = backup_file(main) if main.is_file() else None
-    body = text.rstrip("\n")
-    new_text = (body + "\n\n" if body else "") + INCLUDE_LINE + "\n"
+    lines = text.splitlines()
+    # 找第一个 [profile] 小节的位置：include 插到它前面（即全局区末尾）；
+    # 没有小节就直接追加到文件末尾（与旧行为一致）。
+    insert_at = len(lines)
+    for i, ln in enumerate(lines):
+        if SECTION_RE.match(ln):
+            insert_at = i
+            break
+    new_lines = lines[:insert_at] + [INCLUDE_LINE] + lines[insert_at:]
+    new_text = "\n".join(new_lines)
+    if new_lines:
+        new_text += "\n"
     main.parent.mkdir(parents=True, exist_ok=True)
     if tf is not None:
         textio.write_atomic(main, textio.encode(new_text, tf.encoding, tf.bom, tf.newline))
     else:
         textio.write_atomic(main, new_text.encode("utf-8"))
-    return True, backup, "已在主配置末尾追加 include 行"
+    return True, backup, "已在主配置全局区插入 include 行"
 
 
 def _section_map(lines):
