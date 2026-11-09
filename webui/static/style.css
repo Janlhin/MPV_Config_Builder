@@ -292,6 +292,9 @@ input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent);
 .badge.conflict-flag.lv-warn { color: var(--warn); border-color: rgba(255, 176, 32, .5); }
 .badge.conflict-flag.lv-info { color: var(--muted); }
 .opt.has-conflict .opt-head label { color: var(--warn); }
+/* 版本级兼容检测（待做 §〇 第 13 项）：用户 mpv 不支持此参数时的行内提示 */
+.opt.mvp-unsupported .opt-head label { color: var(--warn); }
+.opt.mvp-unsupported-note { display: inline; }
 
 /* ---------- 搜索 / 过滤 ---------- */
 .searchbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }

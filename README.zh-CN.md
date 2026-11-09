@@ -119,7 +119,7 @@ runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Electron 检查要
 ```
 core/          与界面无关的逻辑（26 个模块）
 webui/         网页界面
-  server.py      本地服务 + JSON API（42 个接口，只用标准库）
+  server.py      本地服务 + JSON API（43 个接口，只用标准库）
                加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Electron 用）
   api.py         与传输无关的分发层（HTTP 与 stdio 共用）
   stdio.py       stdio 传输：stdout 只走协议，日志一律 stderr

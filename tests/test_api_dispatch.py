@@ -327,7 +327,9 @@ class TableIntegrityTest(unittest.TestCase):
         self.assertEqual(q & p, set(), "QUERY 与 POST 撞了")
 
     def test_route_count_matches_before_refactor(self):
-        """条数守门：GET 3 / QUERY 13 / POST 26 = 42（T14 后加了 /api/scandirs 与 add/remove，与 verify.py docs 一致）。
+        """条数守门：GET 4 / QUERY 13 / POST 26 = 43（T14 后加了 /api/scandirs 与
+        add/remove；2026-11-09 为第 13 项版本级兼容检测加了 /api/compat，与
+        verify.py docs 一致）。
 
         ⚠ 这条**抓到过一次真事故**：搬运路由表时用的正则非贪婪匹配 `^}`，
         而表里有两处跨行的 lambda（里面带 `}`），于是从那里开始整段没匹配干净，
@@ -335,12 +337,12 @@ class TableIntegrityTest(unittest.TestCase):
         `/api/userpresets`）。别的时候测试全绿 —— 因为它们只打自己关心的接口。
         所以这个"数数"的断言不是形式主义。
         """
-        self.assertEqual(len(api.ROUTES_GET), 3)
+        self.assertEqual(len(api.ROUTES_GET), 4)
         self.assertEqual(len(api.ROUTES_QUERY), 13)
         self.assertEqual(len(api.ROUTES_POST), 26)
         self.assertEqual(len(api.ROUTES_GET) + len(api.ROUTES_QUERY)
-                         + len(api.ROUTES_POST), 42,
-                         "接口总数变了 —— 与 verify.py docs 报的 42 对不上")
+                         + len(api.ROUTES_POST), 43,
+                         "接口总数变了 —— 与 verify.py docs 报的 43 对不上")
 
     def test_all_paths_are_api_paths(self):
         for tbl in (api.ROUTES_GET, api.ROUTES_QUERY, api.ROUTES_POST):

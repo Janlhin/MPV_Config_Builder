@@ -73,6 +73,8 @@ ROUTES_GET = {
     "/api/status": "api_status",
     "/api/presets": "api_presets",
     "/api/options": "api_options",
+    # 版本级兼容检测（待做 §〇 第 13 项）：探测用户 mpv + 选项存在性比对
+    "/api/compat": "api_compat",
 }
 
 # 需要查询参数的 GET（扁平 dict 由适配器准备好）

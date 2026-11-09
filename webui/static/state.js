@@ -27,6 +27,9 @@ var APP = {
   pending: [],          // 勾了但还没填值的键：只提示，不写进配置
   conflicts: [],        // 选项之间的冲突（来自后端 full_check）
   conflictKeys: {},     // key -> 级别，用来在行上打标记
+  // 版本级兼容检测（待做 §〇 第 13 项）：用户 mpv 不支持的参数 key 集合
+  unsupportedKeys: {},
+  unsupportedVersion: null,   // 探测到的 mpv 版本（没探测到为 null）
   custom: '',
   loaded: false,        // 是否已经"读取现有配置"过（edit 语义下必须先读）
   catalog: { shaders: [], memc: [], configs: [] },
@@ -199,10 +202,62 @@ async function loadCatalog() {
 }
 
 async function loadOptions() {
-  if (APP.options.core.length) return APP.options;
+  if (APP.options.core.length) { loadCompat(); return APP.options; }
   APP.options = await API.options();
+  loadCompat();          // 版本级兼容检测（第 13 项）：与 options 并行、失败不阻塞渲染
   return APP.options;
 }
+
+/** 版本级兼容检测（待做 §〇 第 13 项 ①③）。
+
+    探测用户实际运行的 mpv（版本 + 支持的参数集合），与参数库比对，
+    把"用户 mpv 不支持"的参数 key 收进 `APP.unsupportedKeys`。
+    失败（没装 mpv / 离线 / 接口不存在）一律静默降级：不报警。
+    结果就绪后再 `markUnsupportedRows()` 一次，给已渲染的行补上提示。 */
+async function loadCompat() {
+  try {
+    const r = await API.compat();
+    APP.unsupportedVersion = (r && r.version) || null;
+    APP.unsupportedKeys = {};
+    if (r && r.scanned && Array.isArray(r.unsupported)) {
+      r.unsupported.forEach(k => { APP.unsupportedKeys[k] = true; });
+    }
+    markUnsupportedRows();
+  } catch (e) {
+    // 后端不支持此接口 / 离线 / 响应不是 JSON：忽略，不报警
+  }
+}
+
+/** 把"用户 mpv 不支持"的参数在行上标出来（行内小字提示，D3 决策）。
+
+    重新渲染不会丢：mountOptions 渲染完也会调一次本函数，读 APP.unsupportedKeys。 */
+function markUnsupportedRows() {
+  const set = APP.unsupportedKeys || {};
+  document.querySelectorAll('.opt').forEach(row => {
+    const key = row.dataset.key;
+    const hint = row.querySelector('[data-role="hint"]');
+    if (!hint) return;
+    const old = hint.querySelector('.mpv-unsupported-note');
+    if (!key || !set[key]) {
+      if (old) old.remove();
+      row.classList.remove('mpv-unsupported');
+      return;
+    }
+    row.classList.add('mpv-unsupported');
+    const text = (window.I18N ? I18N.t('st.unsupportedByMpv') : '⚠ 当前 mpv 不支持此参数');
+    if (old) { old.textContent = text; }
+    else {
+      const span = document.createElement('span');
+      span.className = 'warn-text mpv-unsupported-note';
+      span.textContent = text;
+      hint.appendChild(document.createTextNode(' '));
+      hint.appendChild(span);
+    }
+  });
+}
+
+// 切语言后，行内小字提示按新语言重刷（与冲突标记同理）
+document.addEventListener('i18n:change', markUnsupportedRows);
 
 async function loadExistingConfig(path) {
   const r = await API.post('/api/config/load', { path: path || APP.source || APP.target });
@@ -603,6 +658,7 @@ function mountOptions(container, items) {
   container.onchange = onOptEvent;
   container.onclick = onOptEvent;
   markConflictRows();
+  markUnsupportedRows();   // 版本级兼容检测（第 13 项）：行内小字提示"你的 mpv 不支持"
   // 字幕那几项下面挂一个实时预览（值从 APP.values 读，跟写进配置的是同一份）
   if (items.some(it => it.key in SUB_PREVIEW_KEYS)) {
     const host = document.createElement('div');
