@@ -34,13 +34,22 @@ backend messages follow the UI language too.
 
 ## Usage
 
-### Regular users: install the desktop build (no Python needed)
+### Desktop build (Tauri shell)
 
-Download `MPV Config Builder-<version>-Setup.exe` from Releases and install.
-No local Python required.
+**There is no installer right now.** On 2026-11-16 the desktop shell moved from
+Electron to Tauri (`3.0.0-alpha.6`), and Electron — along with the old
+installer pipeline — was removed. Bundling on the Tauri side (`bundle.active`)
+has not been turned on yet, so Releases has no `Setup.exe` to download. Build it
+yourself if you want the window:
 
-> ⚠ The installer is **not code-signed**, so Windows shows a SmartScreen prompt
-> once: click "More info" → "Run anyway".
+```powershell
+cd tauri\src-tauri
+cargo build
+.\target\debug\mpv-config-builder.exe
+```
+
+Needs a Rust toolchain + WebView2 (built into Win10/11). Details and the release
+plan: [docs/打包与发布.md](docs/打包与发布.md) (Chinese).
 
 ### From source (Python 3.8+, stdlib only, no `pip install`)
 
@@ -105,9 +114,8 @@ python tools\verify.py          :: pre-release gate (add --offline to skip netwo
 
 `verify.py` runs everything: unit tests, compile check, docs-vs-reality numbers,
 release files, license content, no machine-specific paths, download-list links,
-topbar (real browser), Electron shell and packaged forms (the latter two only
-when `electron/node_modules` exists), and the Tauri preview shell (its live half
-only when `tauri/src-tauri/target/debug` has been built). Browser-based checks also
+topbar (real browser), and the Tauri shell (its live half only when
+`tauri/src-tauri/target/debug` has been built). Browser-based checks also
 cover the i18n switch, statusbar, context menu, keyboard shortcuts and animations.
 
 CI runs the same gate on every push/PR (Windows runner):
@@ -124,11 +132,7 @@ webui/         web UI
   api.py         transport-agnostic dispatch (shared by HTTP and stdio)
   stdio.py       stdio transport: protocol on stdout, logs on stderr
   static/        9 pages
-electron/      Electron shell (the installer comes from here)
-  main.js        spawns the backend over stdio, single instance, CSP, custom titlebar
-  preload.js     the narrow bridge: __MPVCB_INVOKE__ / __MPVCB_INFO__ / __MPVCB_WINDOW__
-  renderer/      copied from webui/static at build time (not in git)
-tauri/         Tauri preview shell (2026-11-16, side by side with electron/; no installer yet)
+tauri/         Tauri shell (Rust + system WebView2; no installer yet — see packaging doc)
   src-tauri/     Rust side: spawns the backend over stdio, injects the same __MPVCB_INVOKE__,
                  loads webui/static directly (no second copy); `cargo build` then run the exe
 packaging/     PyInstaller recipe (standalone backend exe)

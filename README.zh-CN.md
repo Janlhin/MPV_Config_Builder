@@ -28,13 +28,20 @@
 
 ## 怎么用
 
-### 普通用户：装桌面版（不需要 Python）
+### 桌面版（Tauri 外壳）
 
-从 Releases 下载 `MPV Config Builder-<版本>-Setup.exe`，双击安装即可。
-装完桌面会出现图标，双击就能用 —— **本机不需要装 Python**。
+**目前没有安装包。** 2026-11-16 桌面外壳从 Electron 换成 Tauri（`3.0.0-alpha.6`），
+Electron 连同上一个安装包产线一起被移除；Tauri 侧的打包（`bundle.active`）还没开启，
+所以 Releases 里暂时没有可下的 `Setup.exe`。想要窗口形态就自己编一份：
 
-> ⚠ 安装包**没有代码签名**，Windows 会拦一次 SmartScreen 提示：
-> 点「更多信息」→「仍要运行」。
+```powershell
+cd tauri\src-tauri
+cargo build
+.\target\debug\mpv-config-builder.exe
+```
+
+需要 Rust 工具链 + WebView2（Win10/11 自带）。详细步骤与后续打包计划见
+[docs/打包与发布.md](docs/打包与发布.md)。
 
 ### 从源码跑（需要 Python 3.8+，只用标准库，不用 `pip install`）
 
@@ -98,20 +105,19 @@ py -X utf8 tools\verify.py          :: 发布前自检
 
 `verify.py` 一次跑完：单元测试、源码可编译、文档数字与实测一致、发行必带文件、
 许可文件内容、无机器专用路径、下载清单链接可访问、顶栏常驻入口（真浏览器）、
-Electron 外壳与打包形态（装了 `electron/node_modules` 才跑）、Tauri 预览外壳
-（实机那半要 `cargo build` 出 exe 才跑）。
+Tauri 外壳（实机那半要 `cargo build` 出 exe 才跑）。
 
 界面相关的实机验证（需要本机有 Edge/Chrome，脚本会自己起后端）：
 
 ```bat
 python tools\verify.py topnav     :: 9 个页面的顶栏入口
 python tools\verify.py stdio      :: 9 个页面跑在 stdio 通道上
-python tools\verify.py electron   :: Electron 开发形态
+python tools\verify.py tauri      :: Tauri 外壳（25 项，含窗口与关窗实测）
 ```
 
 每次 `push` 与 PR 都会在 CI 上跑一遍上面的自检，配置在
 [`.github/workflows/verify.yml`](.github/workflows/verify.yml)。
-runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Electron 检查要 `electron.exe`，
+runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Tauri 检查要 `cargo build` 出的 exe，
 换 Linux 上这两项会退化成「跳过」，绿灯就成了假的。
 外链可达性不与代码提交绑定，改为每周日单独跑一次。
 
@@ -121,15 +127,11 @@ runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Electron 检查要
 core/          与界面无关的逻辑（26 个模块）
 webui/         网页界面
   server.py      本地服务 + JSON API（43 个接口，只用标准库）
-               加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Electron 用）
+               加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Tauri 外壳用）
   api.py         与传输无关的分发层（HTTP 与 stdio 共用）
   stdio.py       stdio 传输：stdout 只走协议，日志一律 stderr
   static/        9 个页面
-electron/      Electron 桌面外壳（安装器从这里出）
-  main.js        spawn 后端走 stdio、退出杀子进程、单实例、CSP
-  preload.js     唯一的桥，只暴露 __MPVCB_INVOKE__
-  renderer/      构建期从 webui/static 复制（不入库）
-tauri/         Tauri 预览外壳（2026-11-16，与 electron/ 并列；暂不出安装包）
+tauri/         Tauri 桌面外壳（Rust + 系统 WebView2；安装包暂未出，见打包文档）
   src-tauri/     Rust 侧：spawn 后端走 stdio、注入同名 __MPVCB_INVOKE__、
                  直接加载 webui/static（不复制第二份）；cargo build 后跑 exe
 packaging/     PyInstaller 配方（把后端打成独立 exe）
