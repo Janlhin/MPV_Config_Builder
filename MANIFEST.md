@@ -1,8 +1,8 @@
 # MANIFEST —— 第三方来源登记
 
 **单一职责**：登记本项目引入或分发的第三方**数据 / 文本 / 运行时获取的资源**的来源与哈希。
-与 `NOTICE.txt` 的分工：**本文件面向审计者**（来源、哈希、用途、是否入库）；
-`NOTICE.txt` **面向分发者**（许可与归属的成段说明）。两者不重复。
+与 `docs/NOTICE.txt` 的分工：**本文件面向审计者**（来源、哈希、用途、是否入库）；
+`docs/NOTICE.txt` **面向分发者**（许可与归属的成段说明）。两者不重复。
 许可的「为什么」在 `DECISIONS.md`。
 
 > 建文件说明（2026-10-09）：本仓库此前缺这个文件（主规范四个文档之一）。
@@ -20,7 +20,7 @@
 | 内容 | 文件 | 来源 | 许可 | 实测字节 | 实测 SHA256 | 用途 |
 |---|---|---|---|---|---|---|
 | GPL-3.0 许可全文 | `LICENSE` | `https://raw.githubusercontent.com/spdx/license-list-data/main/text/GPL-3.0-only.txt` | GPL-3.0 | **34,960** | `a1e40f21474230ccce72c4f2cc1b825c7ea01f460de611863d5be513cb5aa381` | 履行 GPL-3.0 分发义务；打包产物必须随附 |
-| ├ 其中上游原文部分 | 前 34,674 字节 | 同上 | GPL-3.0 | 34,674 | `fb981668c18a279e285fc4d83fba1e836cc84dd4daa73c9697d3cfd2d8aca6e0` | **已实测核验**：与 `NOTICE.txt` 声明的哈希一致 |
+| ├ 其中上游原文部分 | 前 34,674 字节 | 同上 | GPL-3.0 | 34,674 | `fb981668c18a279e285fc4d83fba1e836cc84dd4daa73c9697d3cfd2d8aca6e0` | **已实测核验**：与 `docs/NOTICE.txt` 声明的哈希一致 |
 | └ 本项目附加说明 | 末 286 字节 | 本项目自写 | GPL-3.0 | 286 | — | 说明为何是 GPL-3.0（传染性来源） |
 | 中文选项说明 | `data/mpv_options_zh.json` | mpv_doc-CN（hooke007 维护，mpv 官方手册中文翻译） | **GPL-3.0** | 578,048 | `88a419571369dea5fb79295437f519dcee4d36e0ace6f147a12d0f1cc4123d2f` | 界面内嵌的 **726 条**中文说明 |
 
@@ -36,7 +36,7 @@ python -c "import hashlib,pathlib;print(hashlib.sha256(pathlib.Path('data/mpv_op
 「许可文件内容（GPL-3.0 全文 + 归属）」一项会在每次校验时判定。
 
 **许可为何是 GPL-3.0**：`data/mpv_options_zh.json` 的 726 条中文说明来自 mpv_doc-CN（GPL-3.0），
-GPL-3.0 具传染性，分发这份衍生数据即要求整个分发物按 GPL-3.0 走。详见 `NOTICE.txt` 与 `DECISIONS.md`。
+GPL-3.0 具传染性，分发这份衍生数据即要求整个分发物按 GPL-3.0 走。详见 `docs/NOTICE.txt` 与 `DECISIONS.md`。
 
 ## 三、运行时从官方地址获取（**不入库**，无本地哈希）
 

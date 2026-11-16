@@ -3,7 +3,7 @@
 
 为什么需要单独一个模块：打包（PyInstaller）之后，代码和数据会被放进一个临时目录，
 `Path(__file__).parent.parent` 那套算法会指到**解包目录**里 —— 如果打包时没把
-`data/` 与 `*.md` 一起带上，界面里的"文档/致谢"页就会 404，而且只有在打包产物里
+`data/` 与 `docs/` 一起带上，界面里的"文档/致谢"页就会 404，而且只有在打包产物里
 才会发现（源码跑永远是对的）。这个坑就是《问题清单》P2-6 记的那条。
 
 约定（打包时必须照做，见 docs/打包与发布.md）：
@@ -12,10 +12,10 @@
     打包运行   sys._MEIPASS/                ← PyInstaller 的解包目录
                ├── core/  webui/            （代码）
                ├── data/                    （必须 --add-data）
-               └── *.md                     （必须 --add-data）
+               └── docs/                    （必须 --add-data，界面文档在这里）
 
 所以打包命令里必须带上：
-    --add-data "data;data"  --add-data "*.md;."
+    --add-data "data;data"  --add-data "docs;docs"
 """
 import os
 import sys
@@ -48,8 +48,12 @@ def data_dir():
 
 
 def doc_path(name):
-    """仓库根目录里的某份文档（打包后是解包目录里的同名文件）。"""
-    return bundle_root() / name
+    """`docs/` 里的某份界面文档（打包后是解包目录 `docs/` 里的同名文件）。
+
+    2026-11-17 起界面文档不再摊在仓库根目录（根目录只留五个文档 + 目录），
+    所以这里带上 `docs` 前缀；调用方仍然只写文件名。
+    """
+    return bundle_root() / "docs" / name
 
 
 def writable_root():

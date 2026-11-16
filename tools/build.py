@@ -45,7 +45,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 def cmd_options_db():
     """重新生成 mpv 全量选项数据库 JSON。
 
-    mpv 升级后重新导出 ``mpv.com --list-options > _mpv_options_raw.txt``，
+    mpv 升级后重新导出 ``mpv.com --list-options > data/_mpv_options_raw.txt``，
     再跑一次本命令即可刷新 ``data/mpv_options_zh.json``。
     """
     from core.options_db import DB_PATH, build_db  # noqa: E402
@@ -367,7 +367,8 @@ def cmd_ps1():
         带 BOM 是唯一让 5.1 / 7 都正确的写法。
       · CRLF 仍然必须：LF 的 .ps1 在部分老宿主上行为不可靠，
         `.gitattributes` 只管行尾、不管 BOM，所以两头都得由这里兜住。
-      · 2026-10-14 启动.bat 转成 启动.ps1 时立下这条约定（AGENTS.md §2.4）。
+      · 2026-10-14 启动.bat 转成 启动.ps1 时立下这条约定（AGENTS.md §2.4）；
+        2026-11-17 启动器搬进 scripts\，约定不变（build.py ps1 会扫子目录）。
 
     模型工具（write / edit）写出的是 LF、无 BOM 的 UTF-8，
     所以**每次用工具改过 .ps1 之后都要跑一遍这个**。

@@ -30,13 +30,13 @@
 ## 目录结构（打包后）
 
     sys._MEIPASS/                 ← onedir 下就是 exe 同级的 _internal/
-        data/                     3 个 JSON（选项库 / 键位 / 命令）
+        data/                     3 个 JSON + 原始选项输出（选项库 / 键位 / 命令）
         webui/static/             9 个页面 + style.css + api.js + state.js
-        *.md                      界面里「文档」页要实时渲染这些
-        LICENSE / NOTICE.txt      许可证与第三方归属（分发合规）
+        docs/                     界面里「文档」页要实时渲染的那 4 份 md + NOTICE.txt
+        LICENSE                   许可证（分发合规）
         core/  webui/             Python 代码
 
-⚠ 漏掉 data/ 或 webui/static/ 或 *.md，程序**照样能启动**，只是某个页面空白
+⚠ 漏掉 data/ 或 webui/static/ 或 docs/，程序**照样能启动**，只是某个页面空白
 —— 这种错只有把每个接口都打一遍才发现。所以有 tools/verify.py pack 专门验它。
 """
 import sys
@@ -51,19 +51,16 @@ datas = [
     (str(ROOT / "data"), "data"),
     (str(ROOT / "webui" / "static"), "webui/static"),
     (str(ROOT / "LICENSE"), "."),
-    (str(ROOT / "NOTICE.txt"), "."),
+    (str(ROOT / "docs" / "NOTICE.txt"), "docs"),
 ]
 
-# 根目录的 md 全部带上（界面里的「文档」页是**实时渲染**它们的）。
-# 为什么不写死那 4 份：guide 之外还有别的入口会读 md，漏一份就是某个页面空白，
-# 而多带几份的代价只是几百 KB。不过要把「不参与运行」的排除掉：
-MD_SKIP = {
-    # 给开发者看的，不是界面文档（界面里点不到，带上是白占体积）
-}
-for md in sorted(ROOT.glob("*.md")):
-    if md.name in MD_SKIP:
-        continue
-    datas.append((str(md), "."))
+# 界面能在线打开的文档（`webui/server.py` 的 DOCS 白名单）全部来自 `docs/`。
+# 2026-11-17 起这些 md 不再摊在仓库根目录，所以只带这 4 份 + NOTICE，
+# 不把整个 docs/（还有开发者文档）塞进发行包。
+UI_DOCS = ("入门指南.md", "MPV_Shader搭配说明书.md", "致谢与许可.md",
+           "产品规划与路线图.md")
+for name in UI_DOCS:
+    datas.append((str(ROOT / "docs" / name), "docs"))
 
 # ---- 确定要 import 的入口 ----
 # 后端入口是 webui/server.py。它靠 `sys.path.insert(0, ROOT)` + `from core.xxx`

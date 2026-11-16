@@ -8,7 +8,7 @@
 # ── 两个设计决定，改之前先看 ──────────────────────────────────────────
 #
 # 1. 为什么是 windows-latest，不是 ubuntu-latest
-#    本项目只支持 Windows：启动器是 启动.ps1（UTF-8 带 BOM + CRLF，Pwsh 入口）、
+#    本项目只支持 Windows：启动器是 scripts\启动.ps1（UTF-8 带 BOM + CRLF，Pwsh 入口）、
 #    桌面外壳是 Tauri（WebView2 + 系统标题栏）、用户数据落在 %LOCALAPPDATA% / %APPDATA%。
 #    更关键的是 verify.py 的实机检查在 Linux 上会**退化成「跳过」**：
 #       · 顶栏常驻入口 —— 要 Edge / Chrome（tools/uidriver.py 的 find_browser）

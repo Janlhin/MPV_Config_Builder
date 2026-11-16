@@ -9,7 +9,7 @@
   编码约定与 .bat 时代相反：**UTF-8 必须带 BOM + CRLF**。
   带 BOM 是因为 Windows PowerShell 5.1 靠 BOM 识别 UTF-8（否则中文乱码），
   Pwsh 7 两种都认。用工具改完本文件后必须跑 python tools\build.py ps1。
-  运行方式：右键 →「使用 PowerShell 运行」，或终端里 pwsh -File .\启动.ps1
+  运行方式：右键 →「使用 PowerShell 运行」，或终端里 pwsh -File .\scripts\启动.ps1
   （执行策略被拦时怎么办，见 README「从源码跑」一节）。
 #>
 [CmdletBinding()]
@@ -20,8 +20,8 @@ try {
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 } catch { }
 
-# 回到仓库根：右键运行时当前目录可能停在别处（桌面、System32……）
-Set-Location -LiteralPath $PSScriptRoot
+# 回到仓库根：本文件在 scripts\ 下，右键运行时当前目录可能停在别处（桌面、System32……）
+Set-Location -LiteralPath (Split-Path -LiteralPath $PSScriptRoot -Parent)
 
 Write-Host '正在启动 MPV Config Builder ...'
 Write-Host ''
@@ -29,7 +29,7 @@ Write-Host ''
 if (-not (Test-Path -LiteralPath 'webui\server.py')) {
     Write-Host '[启动失败] 找不到 webui\server.py'
     Write-Host "当前目录：$((Get-Location).Path)"
-    Write-Host '请确认是在解压出来的项目根目录里运行本文件。'
+    Write-Host '请确认是在解压出来的项目根目录里运行 scripts\启动.ps1。'
     Read-Host '按回车退出'
     exit 1
 }

@@ -36,7 +36,7 @@ class ColorOrderEvidenceTest(unittest.TestCase):
     """
 
     def setUp(self):
-        self.raw = (ROOT / "_mpv_options_raw.txt").read_text(encoding="utf-8")
+        self.raw = (ROOT / "data" / "_mpv_options_raw.txt").read_text(encoding="utf-8")
 
     def _default(self, key):
         m = re.search(rf"^\s{{0,1}}--{re.escape(key)}\s+Color\s+\(default:\s*([^)]*)\)",

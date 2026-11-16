@@ -1207,13 +1207,16 @@ def api_annotate(body):
 
 # ---------------------------------------------------------------- 文档
 
-# 能在线看的文档（白名单，只读仓库根目录里的这几个）
+# 能在线看的文档（白名单，只读仓库 `docs/` 里的这几个）
 DOCS = {
     "guide": "入门指南.md",
     "shaders": "MPV_Shader搭配说明书.md",
     "thanks": "致谢与许可.md",
     "roadmap": "产品规划与路线图.md",
 }
+
+# 2026-11-17 起这些文档搬进了 `docs/`（根目录只留五个文档）。
+DOCS_DIR = BASE / "docs"
 
 
 def api_guide(params):
@@ -1224,11 +1227,11 @@ def api_guide(params):
     if not name:
         return {"ok": False, "detail": f"没有这份文档：{key}",
                 "docs": [{"id": k, "name": v} for k, v in DOCS.items()]}
-    path = BASE / name
+    path = DOCS_DIR / name
     if not path.is_file():
-        # 打包时忘了带 *.md 才会走到这里 —— 说清楚怎么修，别只报"找不到"
-        extra = ("；打包时要把这几份 md 一起带上："
-                 '--add-data "*.md;."' if is_frozen() else "")
+        # 打包时忘了带 docs/ 才会走到这里 —— 说清楚怎么修，别只报"找不到"
+        extra = ("；打包时要把 docs 目录一起带上："
+                 '--add-data "docs;docs"' if is_frozen() else "")
         return {"ok": False, "detail": f"找不到文档文件：{name}{extra}"}
     text = textio.read_text(path)
     return {"ok": True, "doc": key, "file": name,

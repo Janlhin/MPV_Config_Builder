@@ -1,6 +1,6 @@
 # MPV Config Builder
 
-[中文说明](README.zh-CN.md) · **English**
+[中文说明](docs/README.zh-CN.md) · **English**
 
 **Puts all 813 mpv options on the table, and tells you which ones fight each other.**
 
@@ -51,12 +51,12 @@ cargo build
 Needs a Rust toolchain + WebView2 (built into Win10/11). Details and the release
 plan: [docs/打包与发布.md](docs/打包与发布.md) (Chinese).
 
-### From source (Python 3.8+, stdlib only, no `pip install`)
+### From source (Python, stdlib only, no `pip install`)
 
-Right-click `启动.ps1` → "Run with PowerShell", or in a terminal:
+Right-click `scripts\启动.ps1` → "Run with PowerShell", or in a terminal:
 
 ```powershell
-pwsh -NoProfile -File .\启动.ps1
+pwsh -NoProfile -File .\scripts\启动.ps1
 ```
 
 It starts a local server and opens the browser. Manually:
@@ -136,11 +136,13 @@ tauri/         Tauri shell (Rust + system WebView2; no installer yet — see pac
   src-tauri/     Rust side: spawns the backend over stdio, injects the same __MPVCB_INVOKE__,
                  loads webui/static directly (no second copy); `cargo build` then run the exe
 packaging/     PyInstaller recipe (standalone backend exe)
+scripts/       source-run entry (`启动.ps1`) — the only launcher
 tests/         unit tests
 tools/         build.py (generate) / verify.py (verify) / uidriver.py (browser driver)
 .github/       CI: push / PR runs the pre-release gate on Windows
-docs/          field-tested conclusions (pitfalls) + packaging & release
-data/          bundled data (options DB / keybindings / commands)
+docs/          user docs (the four documents the UI renders, both READMEs, NOTICE.txt)
+               + field-tested conclusions (pitfalls) + packaging & release
+data/          bundled data (options DB / keybindings / commands / raw mpv dump)
 AGENTS.md      house rules for working in this repo — read it before changing code
 ```
 
@@ -152,7 +154,7 @@ Why GPL-3.0: the bundled `data/mpv_options_zh.json` embeds **726 Chinese option
 descriptions from [mpv_doc-CN](https://github.com/hooke007/mpv_doc-CN)**
 (GPL-3.0), and GPL-3.0 is viral.
 
-Third-party sources and licenses are summarized in [`NOTICE.txt`](NOTICE.txt).
+Third-party sources and licenses are summarized in [`docs/NOTICE.txt`](docs/NOTICE.txt).
 This project **bundles and forwards no third-party binaries** — the download
 centre only fetches from each project's official address when you click.
 
