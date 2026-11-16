@@ -98,7 +98,8 @@ py -X utf8 tools\verify.py          :: 发布前自检
 
 `verify.py` 一次跑完：单元测试、源码可编译、文档数字与实测一致、发行必带文件、
 许可文件内容、无机器专用路径、下载清单链接可访问、顶栏常驻入口（真浏览器）、
-Electron 外壳与打包形态（装了 `electron/node_modules` 才跑）。
+Electron 外壳与打包形态（装了 `electron/node_modules` 才跑）、Tauri 预览外壳
+（实机那半要 `cargo build` 出 exe 才跑）。
 
 界面相关的实机验证（需要本机有 Edge/Chrome，脚本会自己起后端）：
 
@@ -128,6 +129,9 @@ electron/      Electron 桌面外壳（安装器从这里出）
   main.js        spawn 后端走 stdio、退出杀子进程、单实例、CSP
   preload.js     唯一的桥，只暴露 __MPVCB_INVOKE__
   renderer/      构建期从 webui/static 复制（不入库）
+tauri/         Tauri 预览外壳（2026-11-16，与 electron/ 并列；暂不出安装包）
+  src-tauri/     Rust 侧：spawn 后端走 stdio、注入同名 __MPVCB_INVOKE__、
+                 直接加载 webui/static（不复制第二份）；cargo build 后跑 exe
 packaging/     PyInstaller 配方（把后端打成独立 exe）
 tests/         单元测试
 tools/         build.py（生成）/ verify.py（验证）/ uidriver.py（浏览器驱动共用）
