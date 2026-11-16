@@ -618,7 +618,7 @@ def cmd_docs():
         # ⚠⚠ 白名单有个**天生的盲区**：写错的数字要是不在名单里，就永远匹配不上，
         # 也就永远查不出来（实测：把 424 手滑成 420，这个模式一个字都不匹配，
         # 检查照样报"一致 ✓"）。所以底下还有一条「按上下文兜底」的规则。
-        (r"(?<![\d])(181|199|220|222|228|236|259|287|327|352|358|360|392|424|444|476|497|509|547|548|575|595|606|615|645|648|649|650|654|701|705|717) 项",
+        (r"(?<![\d])(181|199|220|222|228|236|259|287|327|352|358|360|392|424|444|476|497|509|547|548|575|595|606|615|645|648|649|650|654|701|705|717|748|765) 项",
          tests, "测试数"),
         # 兜底：**三位数**的 `N 项` 出现在「测试」附近时，必须等于实测总数。
         #
@@ -2651,6 +2651,10 @@ def cmd_ui():
              项自己的 handler 拿不到 input，于是"点候选完全没反应"。
         两个都只有真跑才看得见（第一个还能靠截图，第二个连报错都没有）。
 
+    **第 14 项 ①（地狱模式参数补全）**同理：面板位置靠 canvas 量前缀宽度推算、
+    接受动作靠 `setRangeText` 只换 token —— 读代码都"看起来对"，
+    只有真按一次 Tab 才知道文本到底有没有被替换、面板会不会先被 blur 关掉。
+
     ⚠ 需要本机有 Edge 或 Chrome。
     截图落在仓库根的 `_shots/`。
     """
@@ -2667,7 +2671,23 @@ def cmd_ui():
 
     ROOT = Path(__file__).resolve().parent.parent      # 仓库根（本文件在 tools/ 下）
     SHOTS = ROOT / "_shots"
-    PORT = 9222
+
+    def free_port():
+        """挑一个空着的本机端口给 CDP。
+
+        为什么不能写死 9222（实测 2026-11-16）：本机 Edge 的后台进程会占着它，
+        `/json/list` 回 **404** —— 新起的无头浏览器绑不上端口，检查直接报
+        "浏览器没起来"，而浏览器其实好好的。端口是环境资源，不该由脚本假定。
+        """
+        import socket
+        s = socket.socket()
+        try:
+            s.bind(("127.0.0.1", 0))
+            return s.getsockname()[1]
+        finally:
+            s.close()
+
+    PORT = free_port()
     URL = "http://127.0.0.1:8765/advanced.html#g:字幕样式"
 
 
@@ -3117,6 +3137,73 @@ def cmd_ui():
                   return e ? e.textContent : null; })()""")
                 check("没有候选值时给说明而不是空白", bool(note), str(note))
                 shot("25_完全体_组合框.png")
+
+            print("== 地狱模式：参数补全（第 14 项 ①） ==")
+            # 为什么也要真机验：面板位置靠 canvas 量前缀宽度、键盘替换靠 setRangeText，
+            # 这两件事读代码都"看起来对" —— 只有在真浏览器里按一次才知道有没有生效。
+            c.call("Page.navigate", url="http://127.0.0.1:8765/hell.html")
+            time.sleep(3.0)
+
+            def acPanel():
+                return c.js("""(() => {
+                  const p = document.querySelector('.ac-pop');
+                  if (!p) return {open:false};
+                  const cs = getComputedStyle(p), r = p.getBoundingClientRect();
+                  return {open:true,
+                          items:[...p.querySelectorAll('.ac-item')].map(x => x.textContent),
+                          bg: cs.backgroundColor, pos: cs.position,
+                          rect:[Math.round(r.left), Math.round(r.top), Math.round(r.width)]};
+                })()""")
+
+            def acType(text):
+                return c.js("""(() => { const b = document.getElementById('rawBox');
+                  b.focus(); b.value = %s; b.setSelectionRange(b.value.length, b.value.length);
+                  b.dispatchEvent(new Event('input', {bubbles:true})); return b.value; })()""" % json.dumps(text))
+
+            def acKey(key):
+                return c.js("""(() => { document.getElementById('rawBox').dispatchEvent(
+                  new KeyboardEvent('keydown', {key:%s, bubbles:true})); return true; })()""" % json.dumps(key))
+
+            acType("sca")
+            time.sleep(1.5)
+            ac = acPanel()
+            check("键名位置弹出补全", ac.get("open"), json.dumps(ac, ensure_ascii=False)[:220])
+            if ac.get("open"):
+                check("前缀命中最前的是 scale",
+                      (ac["items"] or [""])[0].startswith("scale"), str(ac["items"][:3]))
+                check("面板在页面 DOM 里、跟着主题走（不是浏览器 UI 层）",
+                      ac["bg"] == "rgb(23, 28, 38)", str(ac.get("bg")))
+                check("面板是 fixed（贴光标，不撑开布局）", ac["pos"] == "fixed", str(ac.get("pos")))
+                shot("27_地狱模式_补全_键名.png")
+                acKey("ArrowDown")
+                time.sleep(0.2)
+                acKey("Tab")
+                time.sleep(0.4)
+                after = c.js("document.getElementById('rawBox').value")
+                check("Tab 接受：文本被替换成候选", after == "scale", repr(after))
+                check("接受后面板收起", not c.js("!!document.querySelector('.ac-pop')"))
+
+            acType("scale=ewa")
+            time.sleep(1.5)
+            vac = acPanel()
+            check("`key=` 之后弹出取值补全", vac.get("open"),
+                  json.dumps(vac, ensure_ascii=False)[:220])
+            if vac.get("open"):
+                items = vac["items"] or []
+                check("候选全按前缀过滤（ewa）",
+                      bool(items) and all(str(i).lower().startswith("ewa") for i in items),
+                      str(items[:3]))
+                check("候选里有 ewa_lanczos4sharpest",
+                      any(str(i).startswith("ewa_lanczos4sharpest") for i in items), str(items[:3]))
+                shot("28_地狱模式_补全_取值.png")
+                acKey("Escape")
+                time.sleep(0.3)
+                check("Esc 关掉面板", not c.js("!!document.querySelector('.ac-pop')"))
+
+            acType("# sca")
+            time.sleep(1.0)
+            check("注释行不弹补全（误弹比不弹更烦）",
+                  not c.js("!!document.querySelector('.ac-pop')"))
 
             print()
             if fails:
