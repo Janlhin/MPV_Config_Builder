@@ -185,7 +185,7 @@ async function boot() {
 }
 boot();
 
-/* ---- 初始化引导（第 8 项，待做.md §四.3：只在第一次出现） ---- */
+/* ---- 初始化引导（2026-09-14 拍板的第 3 条：只在第一次出现，见 DECISIONS.md） ---- */
 function obOpen() {
   if (!last) return;
   const dirs = (last.candidate_details || []).filter(d => d.exists);

@@ -97,7 +97,7 @@ def _resolve_en_rst_path(en_rst_path=None):
     """定位**官方英文**手册 options.rst（第 5 项：选项英文说明）。
 
     与中文源对称：中文来自 mpv_doc-CN 的翻译，英文取 mpv 官方仓库原文——
-    比翻译准，也比翻译省事（待做.md §四.7 的原话）。缺省找
+    比翻译准，也比翻译省事（2026-09-14 拍板的第 7 条，见 ``DECISIONS.md``）。缺省找
     ``~/mpv_doc-en/options.rst``（官方 DOCS/man/options.rst 的单文件副本）；
     找不到返回 None——**没有英文源就照常出库，只是没有 en_desc**，不报错。
     """

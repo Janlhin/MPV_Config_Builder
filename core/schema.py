@@ -559,7 +559,7 @@ def find_lazy_pc():
 def scan_lazy(pc):
     """扫描配置目录，返回 (shader 文件列表, vpy 文件列表)。
 
-    扫描源是一个**列表**（第 7 项，待做.md §四.5 拍板「改成列表，不做全盘扫」）：
+    扫描源是一个**列表**（2026-09-14 拍板的第 5 条「改成列表，不做全盘扫」，见 ``DECISIONS.md``）：
     标准两个目录（``shaders/``、``vs/``）+ settings.json 里 ``scan_dirs`` 记的
     手动添加目录。手动目录里两种扩展名都认（.glsl→shaders、.vpy→vpy）；
     同一文件不会因为重复添加目录而出现两次。

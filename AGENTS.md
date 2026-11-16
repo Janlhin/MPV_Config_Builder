@@ -163,7 +163,8 @@ PowerShell 的 `-File` 又不接受无扩展名文件（Q-002 实测）。所以
 
 ## 6. 接手时先看哪里
 
-`docs/待做.md` §〇（下一步做什么、按什么顺序）→ `docs/踩过的坑.md`（实测结论）→
-`README.md`（怎么跑、目录结构、技术栈版本）→ `python tools\verify.py help`（验证手段）。
+`TASKS.md`（队列与台账：先看「未完成队列」与「被阻塞」）→ `DECISIONS.md`（为什么这么定）
+→ `docs/既有约定.md`（结构性约束与实测判据）→ `README.md`（怎么跑、目录结构、技术栈版本）
+→ `python tools\verify.py help`（验证手段）。
 
-> 本文只写「怎么干活」；「活是什么」在 `docs/待做.md`，「坑是什么」在 `docs/踩过的坑.md`。
+> 本文只写「怎么干活」；「活是什么」在 `TASKS.md`，「坑是什么」在 `docs/既有约定.md` 的「实测判据」。
