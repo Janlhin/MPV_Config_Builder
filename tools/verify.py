@@ -522,6 +522,8 @@ def cmd_all():
         check_license_content(r)
         check_absolute_paths(r)
         check_script_baseline(r)
+        r.add("根目录白名单与 README 目录声明", cmd_layout() == 0, "")
+        r.add("技术栈版本登记同源", cmd_stack() == 0, "")
         check_links(r, offline=args.offline)
         check_ui_nav(r)
         check_i18n(r)
