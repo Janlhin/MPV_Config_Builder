@@ -3196,6 +3196,19 @@ def cmd_ui():
                 check("候选里有 ewa_lanczos4sharpest",
                       any(str(i).startswith("ewa_lanczos4sharpest") for i in items), str(items[:3]))
                 shot("28_地狱模式_补全_取值.png")
+                # 鼠标路径：点第一项也要能接受 —— `.ac-pop` 上拦 mousedown 默认
+                # 就是为了"点候选时文本框别先失焦"，失去焦面板会当场消失。
+                first = center(c, ".ac-item", 0)
+                want = c.js("document.querySelector('.ac-item code').textContent")
+                c.click(first["x"], first["y"])
+                time.sleep(0.5)
+                got = c.js("document.getElementById('rawBox').value")
+                check("点候选也能接受（不是只有键盘能选）",
+                      got == "scale=" + want, f"{got} vs scale={want}")
+
+                acType("scale=ew")
+                time.sleep(1.5)
+                check("重新弹出补全（点击后没有残留状态）", (acPanel() or {}).get("open"))
                 acKey("Escape")
                 time.sleep(0.3)
                 check("Esc 关掉面板", not c.js("!!document.querySelector('.ac-pop')"))
