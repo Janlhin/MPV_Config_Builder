@@ -670,7 +670,6 @@ def cmd_docs():
         # 2026-09-14 清理过一轮开发文档：已完成清单 / 问题清单 / 制作与发布文档都删了
         # （在 git 历史里）。这里只剩真正还在的文档，**加新文档记得同步这份列表**。
         for name in ("docs/README.zh-CN.md", "README.md", "docs/产品规划与路线图.md",
-                     "docs/踩过的坑.md",
                      # ⚠ 2026-10-09 补齐：这三份以前**不在检查范围里**，
                      # 数字写错也没人拦（它们同样是用户与打包会读到的文档）。
                      "docs/入门指南.md", "docs/致谢与许可.md",
@@ -1121,7 +1120,7 @@ def cmd_i18n():
             #     标了 data-no-i18n 的不算：那是文件名、键名这类标识符，
             #     本来就不该翻（guide 顶栏显示的 `入门指南.md` 就是这种）。
             #   * 整页剩余中文只**测量不判定** —— 726 条选项说明按设计不翻译
-            #     （待做.md：直接取 mpv 官方英文原文，那是另一件事），
+            #     （取 mpv 官方英文原文，那是另一件事，见 DECISIONS.md 2026-09-14），
             #     硬判「一个汉字都不许剩」只会逼人去关门禁。把数字打出来，剩余工作量才可见。
             PAGES = ["index.html", "basic.html", "advanced.html", "expert.html",
                      "analyze.html", "keys.html", "downloads.html", "guide.html",
