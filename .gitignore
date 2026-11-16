@@ -40,6 +40,12 @@ npm-debug.log*
 yarn-error.log*
 .npm/
 
+# ---------- Tauri（预览外壳，2026-11-16） ----------
+# Rust 编译产物：随时可用 cargo 重建，不入库。
+# ⚠ tauri/src-tauri 下的 Cargo.toml / tauri.conf.json / capabilities 都是源码，必须入库。
+tauri/src-tauri/target/
+tauri/src-tauri/gen/
+
 # ---------- 运行时产物（会被工具重建） ----------
 # 截图：由 tools/check_ui.py 与 tools/check_presets.py 生成，随时可重跑
 _shots/

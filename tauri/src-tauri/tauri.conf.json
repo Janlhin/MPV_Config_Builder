@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MPV Config Builder",
+  "version": "0.1.0",
+  "identifier": "io.github.janlhin.mpvconfigbuilder",
+  "build": {
+    "frontendDist": "../../webui/static"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": "all",
+    "icon": [
+      "../../electron/assets/icon.ico",
+      "../../electron/assets/icon.png"
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+[package]
+name = "mpv-config-builder"
+version = "0.1.0"
+description = "MPV Config Builder 的 Tauri 预览外壳"
+edition = "2021"
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
