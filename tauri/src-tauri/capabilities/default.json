@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "预览外壳只需要核心默认能力；页面里的调用走自建命令 mpvcb_invoke",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
