@@ -106,8 +106,9 @@ python tools\verify.py          :: pre-release gate (add --offline to skip netwo
 `verify.py` runs everything: unit tests, compile check, docs-vs-reality numbers,
 release files, license content, no machine-specific paths, download-list links,
 topbar (real browser), Electron shell and packaged forms (the latter two only
-when `electron/node_modules` exists). Browser-based checks also cover the i18n
-switch, statusbar, context menu, keyboard shortcuts and animations.
+when `electron/node_modules` exists), and the Tauri preview shell (its live half
+only when `tauri/src-tauri/target/debug` has been built). Browser-based checks also
+cover the i18n switch, statusbar, context menu, keyboard shortcuts and animations.
 
 CI runs the same gate on every push/PR (Windows runner):
 [`.github/workflows/verify.yml`](.github/workflows/verify.yml).
@@ -127,6 +128,9 @@ electron/      Electron shell (the installer comes from here)
   main.js        spawns the backend over stdio, single instance, CSP, custom titlebar
   preload.js     the narrow bridge: __MPVCB_INVOKE__ / __MPVCB_INFO__ / __MPVCB_WINDOW__
   renderer/      copied from webui/static at build time (not in git)
+tauri/         Tauri preview shell (2026-11-16, side by side with electron/; no installer yet)
+  src-tauri/     Rust side: spawns the backend over stdio, injects the same __MPVCB_INVOKE__,
+                 loads webui/static directly (no second copy); `cargo build` then run the exe
 packaging/     PyInstaller recipe (standalone backend exe)
 tests/         unit tests
 tools/         build.py (generate) / verify.py (verify) / uidriver.py (browser driver)
