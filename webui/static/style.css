@@ -278,6 +278,29 @@ input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent);
 .combo-item.sel::after { content: "✓"; float: right; color: var(--accent); margin-left: 10px; }
 .combo-empty { padding: 6px 9px; color: var(--muted); font-size: 12.5px; }
 
+/* ---------- 地狱模式的参数补全面板（待做 §〇 第 14 项 ①） ----------
+   和候选值下拉同一套配色，但它要贴着**文本光标**走，所以是 fixed。
+   没有动画：光标处弹面板，淡入反而先挡一下字。 */
+.ac-pop {
+  position: fixed; z-index: 70; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--shadow); padding: 4px;
+}
+.ac-item {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 5px 9px; border-radius: 7px; cursor: pointer;
+  white-space: nowrap; overflow: hidden;
+}
+.ac-item code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12.5px; }
+.ac-item .ac-type { color: var(--muted); font-size: 11px; flex: none; }
+.ac-item .ac-desc {
+  color: var(--muted); font-size: 11.5px; flex: 1;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.ac-item:hover, .ac-item.active { background: var(--panel-2); }
+.ac-item:hover code, .ac-item.active code { color: var(--accent); }
+
 .badge {
   font-size: 11px; padding: 1px 7px; border-radius: 20px;
   border: 1px solid var(--border); color: var(--muted);

@@ -130,6 +130,215 @@ function toExpert() {
   location.href = 'expert.html?from=hell';
 }
 
+/* ---------------- 参数补全（待做 §〇 第 14 项 ①） ----------------
+   数据来自后端已有的全量选项库（/api/db/options）：键名位置按前缀给选项名，
+   `key=` 之后给这个 key 的真值（库里 choices + 精选层建议）。
+   不把整库拉到前端（带说明的 800 多条太大，且库一更新前端就是陈旧副本）；
+   不用 <datalist>（那个气泡由浏览器 UI 层绘制，不在 DOM、不吃 CSS，结论见 tests/test_combo.py）。
+   后端不在（静态模式）时静默降级：没有候选就不弹、不报错 —— 这页本来就能裸写。 */
+const AC_DELAY = 120;          // 按键防抖：一串输入最多发一个请求
+const AC_MAX = 12;             // 候选上限
+const AC_TYPE_KEYS = {
+  bool: 'st.typeBool', enum: 'st.typeEnum', int: 'st.typeInt',
+  float: 'st.typeFloat', str: 'st.typeStr', color: 'st.typeColor', list: 'st.typeList'
+};
+let acPop = null, acList = [], acCtx = null, acActive = -1;
+let acTimer = 0, acSeq = 0, acMute = false, acCanvas = null;
+
+function acBox() { return document.getElementById('rawBox'); }
+
+/** 关面板。定时器一起清 —— 否则关掉之后那颗防抖子弹还会把面板弹回来。 */
+function acClose() {
+  if (acTimer) { clearTimeout(acTimer); acTimer = 0; }
+  if (acPop) { acPop.remove(); acPop = null; }
+  acList = []; acCtx = null; acActive = -1;
+  window.removeEventListener('scroll', acClose, true);
+  window.removeEventListener('resize', acClose);
+}
+
+/**
+ * 光标处的补全上下文：{mode, key, token, start, end}；null = 这里不补全。
+ * 判据故意窄（注释 / 小节名 / 空 token 一律不弹）：误弹一次比不弹更烦。
+ */
+function acContext(box) {
+  const head = box.value.slice(0, box.selectionStart);
+  const line = head.slice(head.lastIndexOf('\n') + 1);
+  const s = line.replace(/^[ \t]+/, '');
+  if (!s) return null;                              // 空行不猜
+  if (s[0] === '#' || s[0] === ';') return null;    // 注释行
+  if (s[0] === '[') return null;                    // [profile] 小节名
+  const eq = s.indexOf('=');
+  if (eq < 0) {
+    const token = (/[A-Za-z0-9_-]+$/.exec(s) || [''])[0];
+    if (!token || !/^[A-Za-z]/.test(token)) return null;
+    return { mode: 'key', key: '', token: token,
+             start: box.selectionStart - token.length, end: box.selectionStart };
+  }
+  const key = s.slice(0, eq).trim().replace(/^--/, '');
+  if (!key || /\s/.test(key)) return null;
+  // 值可能带空格（`sub-font=LXGW WenKai`）：只按"整串前缀"匹配，对不上就不弹
+  const token = s.slice(eq + 1).replace(/[ \t]+$/, '').replace(/^[ \t]+/, '');
+  if (!token) return null;
+  return { mode: 'value', key: key, token: token,
+           start: box.selectionStart - token.length, end: box.selectionStart };
+}
+
+/** 键名候选：前缀命中最前（`sca` → `scale`），其次是库里按说明命中的。
+    说明只留第一行前 80 字：库里有的条目是整段官方说明，全塞进面板既重又没用（CSS 会省略）。 */
+async function acKeyList(token) {
+  const r = await API.dbOptions({ q: token, limit: 40 });
+  if (!r || r.ok === false || !Array.isArray(r.items)) return [];   // 静态模式 / 后端挂了
+  const t = token.toLowerCase();
+  const pref = r.items.filter(x => String(x.key || '').toLowerCase().startsWith(t));
+  const rest = r.items.filter(x => pref.indexOf(x) < 0);
+  return pref.concat(rest).slice(0, AC_MAX).map(x => ({
+    value: String(x.key || ''), type: x.type || '',
+    desc: String(x.desc || '').replace(/\s+/g, ' ').slice(0, 80)
+  }));
+}
+
+/** 取值候选：只认这个 key 在库里的真值（bool 就是 yes/no），按前缀过滤。 */
+async function acValueList(key, token) {
+  const r = await API.dbOptions({ q: key, limit: 6 });
+  if (!r || r.ok === false || !Array.isArray(r.items)) return [];
+  const hit = r.items.filter(x => x.key === key)[0];
+  if (!hit) return [];                                   // 库里没这个 key：不猜
+  const all = ((hit.options && hit.options.length) ? hit.options : (hit.values || [])).map(String);
+  const t = token.toLowerCase();
+  return all.filter(v => v.toLowerCase().startsWith(t)).slice(0, AC_MAX)
+    .map(v => ({ value: v, type: hit.type || '', desc: '' }));
+}
+
+/** 面板里的文字用 textContent 写（不拼 HTML），类型徽标走已有 i18n 键。 */
+function acShow(ctx, list) {
+  acCtx = ctx; acList = list; acActive = -1;
+  if (!acPop) {
+    acPop = document.createElement('div');
+    acPop.className = 'ac-pop';
+    // 点候选项时别让文本框先失焦 —— 失焦会走 acClose，面板当场消失
+    acPop.addEventListener('mousedown', ev => ev.preventDefault());
+    document.body.appendChild(acPop);
+    window.addEventListener('scroll', acClose, true);
+    window.addEventListener('resize', acClose);
+  }
+  acPop.textContent = '';
+  list.forEach((it, i) => {
+    const row = document.createElement('div');
+    row.className = 'ac-item';
+    row.dataset.idx = String(i);
+    const code = document.createElement('code');
+    code.textContent = it.value;
+    row.appendChild(code);
+    if (it.type && AC_TYPE_KEYS[it.type]) {
+      const badge = document.createElement('span');
+      badge.className = 'ac-type';
+      badge.textContent = I18N.t(AC_TYPE_KEYS[it.type]);
+      row.appendChild(badge);
+    }
+    if (it.desc) {
+      const desc = document.createElement('span');
+      desc.className = 'ac-desc';
+      desc.textContent = it.desc;
+      row.appendChild(desc);
+    }
+    row.addEventListener('click', () => acAccept(i));
+    acPop.appendChild(row);
+  });
+  acPlace();
+}
+
+/** 光标位置 → 屏幕坐标。canvas 量前缀宽度 + 行高推算（textarea 没有 caret 坐标 API）。 */
+function acCaret() {
+  const box = acBox();
+  const cs = getComputedStyle(box);
+  const lh = parseFloat(cs.lineHeight) || (parseFloat(cs.fontSize) || 13) * 1.2;
+  const head = box.value.slice(0, box.selectionStart);
+  const lineIdx = (head.match(/\n/g) || []).length;
+  const colText = head.slice(head.lastIndexOf('\n') + 1);
+  const canvas = acCanvas || (acCanvas = document.createElement('canvas').getContext('2d'));
+  canvas.font = cs.font || `${cs.fontSize} ${cs.fontFamily}`;
+  const width = canvas.measureText(colText.replace(/\t/g, '    ')).width;
+  const r = box.getBoundingClientRect();
+  const padL = parseFloat(cs.paddingLeft) || 0;
+  const padT = parseFloat(cs.paddingTop) || 0;
+  return {
+    x: r.left + padL - box.scrollLeft + Math.min(width, Math.max(0, box.clientWidth - 24)),
+    y: r.top + padT - box.scrollTop + (lineIdx + 1) * lh + 4
+  };
+}
+
+/** 贴着光标放；下方放不下就翻到光标上一行之上。 */
+function acPlace() {
+  if (!acPop) return;
+  const box = acBox();
+  const pt = acCaret();
+  const w = Math.min(360, Math.max(210, Math.round(box.clientWidth / 2)));
+  const h = Math.min(acPop.scrollHeight, 230);
+  const x = Math.max(6, Math.min(pt.x, window.innerWidth - w - 8));
+  let y = pt.y;
+  if (y + h > window.innerHeight - 8) y = Math.max(8, pt.y - h - 22);
+  acPop.style.width = w + 'px';
+  acPop.style.maxHeight = '230px';
+  acPop.style.left = x + 'px';
+  acPop.style.top = y + 'px';
+}
+
+function acHighlight(i) {
+  if (!acPop) return;
+  const rows = acPop.querySelectorAll('.ac-item');
+  if (!rows.length) { acActive = -1; return; }
+  acActive = Math.max(0, Math.min(i, rows.length - 1));
+  rows.forEach((row, n) => row.classList.toggle('active', n === acActive));
+  rows[acActive].scrollIntoView({ block: 'nearest' });
+}
+
+/** 接受第 i 个候选：只替换光标所在的那段 token，不重写整段文本（保住撤销栈）。 */
+function acAccept(i) {
+  const it = acList[i];
+  if (!it || !acCtx) return;
+  const box = acBox();
+  const ctx = acCtx;
+  box.setRangeText(String(it.value), ctx.start, ctx.end, 'end');
+  acClose();
+  // 派发 input 让行数提示刷新，同时用 acMute 挡住"接受完又立刻重开"
+  acMute = true;
+  try { box.dispatchEvent(new Event('input', { bubbles: true })); } finally { acMute = false; }
+  box.focus();
+}
+
+async function acQuery() {
+  acTimer = 0;
+  const box = acBox();
+  const ctx = acContext(box);
+  if (!ctx) { acClose(); return; }
+  const seq = ++acSeq;
+  let list = [];
+  try {
+    list = ctx.mode === 'key' ? await acKeyList(ctx.token) : await acValueList(ctx.key, ctx.token);
+  } catch (e) { list = []; }
+  if (seq !== acSeq) return;             // 更晚的一次按键已经发出去了：这次结果丢掉
+  if (!list.length) { acClose(); return; }
+  acShow(ctx, list);
+}
+
+function acSchedule() {
+  if (acMute) return;
+  if (acTimer) clearTimeout(acTimer);
+  acTimer = setTimeout(acQuery, AC_DELAY);
+}
+
+/** 补全面板开着时的按键。返回时已经把该吃的吃掉，光标不会被顺带移走。 */
+function acKeydown(ev) {
+  if (!acPop) return;
+  if (ev.key === 'ArrowDown') { ev.preventDefault(); acHighlight(acActive + 1); return; }
+  if (ev.key === 'ArrowUp') { ev.preventDefault(); acHighlight(acActive - 1); return; }
+  if (ev.key === 'Escape') { ev.preventDefault(); acClose(); return; }
+  if (ev.key === 'Tab' || ev.key === 'Enter') {
+    ev.preventDefault();
+    acAccept(acActive < 0 ? 0 : acActive);
+  }
+}
+
 document.getElementById('scanDir').onclick = listDir;
 document.getElementById('openFile').onclick = openFile;
 document.getElementById('reload').onclick = openFile;
@@ -149,6 +358,15 @@ document.getElementById('dl').onclick = () => {
   a.click();
 };
 document.getElementById('toExpert').onclick = toExpert;
+
+// 参数补全（第 14 项 ①）：输入、光标移动、点击都触发；失焦就收起来
+document.getElementById('rawBox').addEventListener('input', acSchedule);
+document.getElementById('rawBox').addEventListener('keydown', acKeydown);
+document.getElementById('rawBox').addEventListener('keyup', ev => {
+  if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'Home' || ev.key === 'End') acSchedule();
+});
+document.getElementById('rawBox').addEventListener('click', acSchedule);
+document.getElementById('rawBox').addEventListener('blur', acClose);
 
 (async function boot() {
   loadLocal();
