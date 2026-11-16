@@ -541,3 +541,39 @@
   属显示层偏差，不影响接受后的文本。
 * **影响面**：`webui/static/hell.html`、`webui/static/style.css`、`tests/test_hell_autocomplete.py`（新增）、
   `tools/verify.py::cmd_ui`（新增地狱页实机断言）。**不触碰** `core/` 与 `webui/server.py`。
+
+## 2026-11-16 换外壳技术：Electron → Tauri，**只做预览版**，Electron 原样保留
+
+* **决策**：新建 `tauri/` 作为与 `electron/` **并列的预览外壳**。预览版的判据只有四条：
+  窗口能起来、9 个页面能跑、后端通信通（**stdio，不开端口**）、退出不留孤儿进程。
+  **不做**安装包、不接管交付形态、不删 Electron —— 在预览版过一轮验收之前，
+  Electron 仍是默认形态。
+* **与旧裁定的关系（显式覆盖，不改写理由）**：2026-09-14 否决过「换掉 Electron 界面技术
+  （Qt / Tauri / C#）」（`docs/待做.md` §五 第 1 行），理由不是「换不了」，而是
+  **「套壳感来自缺快捷键/右键/状态栏这些细节，换技术也躲不掉」**。本条目**覆盖那条的结论
+  （从「不做」改为「准做」）**，但**那条理由仍然成立**：Tauri 不会自动带来快捷键、右键菜单、
+  状态栏、自绘标题栏 —— 那些是 R-27/28/29 已经在 Electron 侧逐条做完的事，Tauri 侧必须
+  逐条对齐，否则换完只会更空。旧条目按「只增不改」保留原文，覆盖关系写在这里。
+* **T17 不受影响**：T17 是「连 `core/` 一起换语言从零重建」，本条只管外壳，两者仍**不可互相引用结案**。
+* **决定性事实（为什么这次能动手）**：Rust 1.102 已装、WebView2 Runtime 158 已装、
+  crates.io 可达；更关键的是传输层早已可替换 —— 前端 `api.js` 只看
+  `window.__MPVCB_INVOKE__` 在不在，在就走 stdio、不在才 fetch。所以 Tauri 侧只要
+  「spawn 后端 + 注入一个 invoke 桥」，9 个页面一行都不用改。
+* **预览版边界（写明不做的）**：
+  * 不出安装包（`bundle.active = false`），不碰 `electron/release/` 那条 electron-builder 链路；
+  * **不复制第二份前端**：`frontendDist` 直指 `../../webui/static`，单一来源不变；
+  * 不自绘标题栏（R-29 的 overlay 三键是 Windows 专有接口，Tauri 要自己画按钮）→ 预览版用系统标题栏；
+  * 不做原生菜单（`electron/menu.js` 没有 Tauri 对应物；页面内入口照旧可用）；
+  * 不做单实例锁；
+  * **不开端口**——沿用 `webui/stdio.py` 的 JSONL 协议。这条最容易走偏：图省事让窗口
+    加载 `http://127.0.0.1:<port>` 就同时丢掉了「不开端口」和 CSP 同源兜底。
+* **被否决的替代方案**：
+  1. 预览版走本机 HTTP（`server.py --port` + 窗口 load 本地地址）—— 工作量少一半，但要开端口、
+     页面从 `http://` 加载，CSP 与同源面全变，等于换了个项目在预览；
+  2. 直接删 `electron/`、改打包链路一次到位 —— 预览版还没验收就先拆掉可用链路，回滚成本最高；
+  3. 只出方案文档不落代码 —— 用户要的是能双击起来看一眼的东西。
+* **代价（诚实登记）**：多一门 Rust 工具链要维护；首次 `cargo build` 要拉几百个 crate（网络与时间成本）；
+  WebView2 随系统更新，出问题时的排查面比 Electron 新（Electron 的 Chromium 是自己带的）。
+* **影响面**：新增 `tauri/`（`package.json` + `src-tauri/`）；`tools/verify.py::cmd_tauri`；
+  `tests/test_tauri_preview.py`；`docs/打包与发布.md` 与 `TASKS.md` 各加一段。
+  **不改** `webui/static`、**不改** `electron/`、**不改** `core/`。
