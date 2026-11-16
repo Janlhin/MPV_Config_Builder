@@ -142,12 +142,14 @@ def cmd_all():
     sys.stdout.reconfigure(encoding="utf-8")
 
     # 界面上能在线打开的文档（webui/server.py 的 DOCS 白名单）+ 发行包该带的
+    # 2026-11-17 起界面文档在 docs/（根目录只留五个文档，见 README「目录结构」）
     REQUIRED_DOCS = [
-        "入门指南.md", "MPV_Shader搭配说明书.md", "致谢与许可.md",
-        "产品规划与路线图.md",
+        "docs/入门指南.md", "docs/MPV_Shader搭配说明书.md", "docs/致谢与许可.md",
+        "docs/产品规划与路线图.md",
     ]
     REQUIRED_DATA = [
         "data/mpv_options_zh.json", "data/mpv_keybindings.json", "data/mpv_commands.json",
+        "data/_mpv_options_raw.txt",
     ]
     REQUIRED_STATIC = ["webui/static/index.html", "webui/static/style.css",
                        "webui/static/api.js", "webui/static/state.js"]
@@ -155,7 +157,7 @@ def cmd_all():
     # ⚠ 为什么把它们列进"必带"而不是只在结尾提醒一句：提醒是**空话** ——
     # 忘了也没人拦。之前它们既不在这个清单里、也不在打包文档的 --add-data 里，
     # 也就是说"提醒你带"和"检查你带了"之间是断的。
-    REQUIRED_LEGAL = ["LICENSE", "NOTICE.txt"]
+    REQUIRED_LEGAL = ["LICENSE", "docs/NOTICE.txt"]
 
     # 不该再出现的"作者机器专用"路径（用户名硬编码）
     FORBIDDEN = [re.compile(r"C:\\Users\\Janlhin", re.I)]
@@ -230,7 +232,7 @@ def cmd_all():
         光检查存在会漏掉最糟的情况：`LICENSE` 是个空文件、或者被人换成了别的东西 ——
         那样"带上了"却仍然不合规。所以这里额外验两件事：
           · `LICENSE` 确实是 **GPL-3.0 全文**（认标题、版本、结尾段，以及 0–17 条）；
-          · `NOTICE.txt` 里写了本项目自身的许可与那几个第三方来源。
+          · `docs/NOTICE.txt` 里写了本项目自身的许可与那几个第三方来源。
         """
         lic = ROOT / "LICENSE"
         if not lic.is_file():
@@ -250,9 +252,9 @@ def cmd_all():
         if len(text.encode("utf-8")) < 30000:
             problems.append(f"太短（{len(text.encode('utf-8'))} 字节）—— GPL-3.0 全文约 35 KB")
 
-        notice = ROOT / "NOTICE.txt"
+        notice = ROOT / "docs" / "NOTICE.txt"
         if not notice.is_file():
-            problems.append("没有 NOTICE.txt")
+            problems.append("没有 docs/NOTICE.txt")
         else:
             nt = notice.read_text(encoding="utf-8", errors="replace")
             for label, needle in (("本项目许可声明", "GPL-3.0"),
@@ -536,8 +538,8 @@ def cmd_all():
         print("\n提醒：发之前还想清楚 ——")
         print("   1. 打包命令要带全（否则文档页与选项库会空）：")
         print("      --add-data \"data;data\"  --add-data \"webui\\static;webui\\static\"")
-        print("      --add-data \"LICENSE;.\"  --add-data \"NOTICE.txt;.\"   ← 合规要求")
-        print("      --add-data \"*.md;.\"（界面里的文档是实时渲染它们的）")
+        print("      --add-data \"LICENSE;.\"  --add-data \"docs;docs\"   ← 合规要求")
+        print("      （界面文档与 NOTICE.txt 都在 docs/，打包时整目录带上）")
         print("   2. 打包产物附上 GPL-3.0 全文（就是上面那个 LICENSE）")
         return 0
     sys.exit(main())
@@ -662,11 +664,12 @@ def cmd_docs():
         bad_total = 0
         # 2026-09-14 清理过一轮开发文档：已完成清单 / 问题清单 / 制作与发布文档都删了
         # （在 git 历史里）。这里只剩真正还在的文档，**加新文档记得同步这份列表**。
-        for name in ("README.zh-CN.md", "README.md", "产品规划与路线图.md",
+        for name in ("docs/README.zh-CN.md", "README.md", "docs/产品规划与路线图.md",
                      "docs/踩过的坑.md",
                      # ⚠ 2026-10-09 补齐：这三份以前**不在检查范围里**，
                      # 数字写错也没人拦（它们同样是用户与打包会读到的文档）。
-                     "入门指南.md", "致谢与许可.md", "MPV_Shader搭配说明书.md"):
+                     "docs/入门指南.md", "docs/致谢与许可.md",
+                     "docs/MPV_Shader搭配说明书.md"):
             p = ROOT / name
             if not p.is_file():
                 continue
@@ -3630,7 +3633,7 @@ def cmd_pack():
         for rel in ("data/mpv_options_zh.json", "data/mpv_keybindings.json",
                     "data/mpv_commands.json", "webui/static/index.html",
                     "webui/static/api.js", "webui/static/style.css",
-                    "LICENSE", "NOTICE.txt", "入门指南.md"):
+                    "LICENSE", "docs/NOTICE.txt", "docs/入门指南.md"):
             ck(f"包内带上了 {rel}", (internal / rel).is_file())
 
         # ---- stdio：协议纯净性（本 spec 的核心风险）----

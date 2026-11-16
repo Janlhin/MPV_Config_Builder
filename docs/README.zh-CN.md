@@ -1,6 +1,6 @@
 # MPV Config Builder
 
-**English** · [中文说明](README.zh-CN.md)（本页） · 打包与发布详版见 [docs/打包与发布.md](docs/打包与发布.md)
+[English](../README.md) · **中文说明**（本页） · 打包与发布详版见 [打包与发布.md](打包与发布.md)
 
 **把 mpv 的 813 个选项摊开给你调，还告诉你哪个和哪个打架。**
 
@@ -41,19 +41,19 @@ cargo build
 ```
 
 需要 Rust 工具链 + WebView2（Win10/11 自带）。详细步骤与后续打包计划见
-[docs/打包与发布.md](docs/打包与发布.md)。
+[打包与发布.md](打包与发布.md)。
 
-### 从源码跑（需要 Python 3.8+，只用标准库，不用 `pip install`）
+### 从源码跑（需要 Python 3.13，只用标准库，不用 `pip install`）
 
-在项目根目录**右键 `启动.ps1` →「使用 PowerShell 运行」**，或在终端里：
+在项目根目录**右键 `scripts\启动.ps1` →「使用 PowerShell 运行」**，或在终端里：
 
 ```powershell
-pwsh -NoProfile -File .\启动.ps1
+pwsh -NoProfile -File .\scripts\启动.ps1
 ```
 
 它会起一个本地服务并自动打开浏览器。也可以手动：
 
-```bat
+```powershell
 python webui\server.py
 ```
 
@@ -98,9 +98,9 @@ python webui\server.py
 
 ## 跑测试
 
-```bat
-py -m unittest discover -s tests -t .
-py -X utf8 tools\verify.py          :: 发布前自检
+```powershell
+python -m unittest discover -s tests -t .
+python -X utf8 tools\verify.py          # 发布前自检
 ```
 
 `verify.py` 一次跑完：单元测试、源码可编译、文档数字与实测一致、发行必带文件、
@@ -109,14 +109,14 @@ Tauri 外壳（实机那半要 `cargo build` 出 exe 才跑）。
 
 界面相关的实机验证（需要本机有 Edge/Chrome，脚本会自己起后端）：
 
-```bat
-python tools\verify.py topnav     :: 9 个页面的顶栏入口
-python tools\verify.py stdio      :: 9 个页面跑在 stdio 通道上
-python tools\verify.py tauri      :: Tauri 外壳（25 项，含窗口与关窗实测）
+```powershell
+python tools\verify.py topnav     # 9 个页面的顶栏入口
+python tools\verify.py stdio      # 9 个页面跑在 stdio 通道上
+python tools\verify.py tauri      # Tauri 外壳（25 项，含窗口与关窗实测）
 ```
 
 每次 `push` 与 PR 都会在 CI 上跑一遍上面的自检，配置在
-[`.github/workflows/verify.yml`](.github/workflows/verify.yml)。
+[`.github/workflows/verify.yml`](../.github/workflows/verify.yml)。
 runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Tauri 检查要 `cargo build` 出的 exe，
 换 Linux 上这两项会退化成「跳过」，绿灯就成了假的。
 外链可达性不与代码提交绑定，改为每周日单独跑一次。
@@ -135,17 +135,21 @@ tauri/         Tauri 桌面外壳（Rust + 系统 WebView2；安装包暂未出�
   src-tauri/     Rust 侧：spawn 后端走 stdio、注入同名 __MPVCB_INVOKE__、
                  直接加载 webui/static（不复制第二份）；cargo build 后跑 exe
 packaging/     PyInstaller 配方（把后端打成独立 exe）
+scripts/       源码运行入口（`启动.ps1`，唯一的启动器）
 tests/         单元测试
 tools/         build.py（生成）/ verify.py（验证）/ uidriver.py（浏览器驱动共用）
 .github/       CI：push / PR 在 Windows runner 上跑一遍发布前自检
-docs/          实测出来的结论（踩过的坑）
-data/          内置数据（选项库 / 键位 / 命令）
-AGENTS.md      在这个仓库里干活的规矩 —— **改代码前先读**
+docs/          用户文档（界面能读的 4 份、中英 README、NOTICE.txt）+ 实测结论
+data/          内置数据（选项库 / 键位 / 命令 / mpv 原始输出）
 ```
+
+仓库根目录**只放**五个文档（`README.md` / `AGENTS.md` / `DECISIONS.md` /
+`TASKS.md` / `MANIFEST.md`）、许可证、点文件和上面这些目录；散文类文件一律进
+`docs/`，`verify.py layout` 会与 `git ls-files` 比对。
 
 ## 许可
 
-**GPL-3.0** —— 全文见 [`LICENSE`](LICENSE)。
+**GPL-3.0** —— 全文见 [`LICENSE`](../LICENSE)。
 
 为什么是 GPL-3.0：随包分发的 `data/mpv_options_zh.json` 内嵌了 **726 条来自
 [mpv_doc-CN](https://github.com/hooke007/mpv_doc-CN) 的中文选项说明**（GPL-3.0），

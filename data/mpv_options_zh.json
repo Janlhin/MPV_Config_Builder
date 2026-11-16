@@ -1,6 +1,6 @@
 {
   "meta": {
-    "source_mpv": "_mpv_options_raw.txt（mpv --list-options 输出）",
+    "source_mpv": "data/_mpv_options_raw.txt（mpv --list-options 输出）",
     "source_zh": "mpv_doc-CN official_man/options.rst",
     "source_en": "mpv 官方 DOCS/man/options.rst（~/mpv_doc-en/）",
     "license_note": "中文说明来自 mpv_doc-CN，GPL-3.0；本文件是其衍生数据。英文说明来自 mpv 官方手册（GPL-2.0+/LGPL-2.1+）",

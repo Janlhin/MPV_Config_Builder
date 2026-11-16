@@ -36,11 +36,13 @@ from pathlib import Path
 from .paths import bundle_root, data_dir    # noqa: E402
 
 CORE_DIR = Path(__file__).resolve().parent
-# 打包后 data/ 与 _mpv_options_raw.txt 在解包目录里（见 core/paths.py）
+# 打包后 data/ 与 data/_mpv_options_raw.txt 在解包目录里（见 core/paths.py）
 REPO_ROOT = bundle_root()
 
 DB_PATH = data_dir() / "mpv_options_zh.json"
-RAW_PATH = REPO_ROOT / "_mpv_options_raw.txt"
+#: 原始选项输出的文件名（2026-11-17 从仓库根目录搬进 data/，根目录只留五个文档）
+RAW_NAME = "_mpv_options_raw.txt"
+RAW_PATH = data_dir() / RAW_NAME
 # 中文手册的来源文件在**作者机器**上，不在仓库里 —— 只有重新生成选项库时才需要。
 # 用环境变量 DSH_MPV_OPTIONS_RST 指到自己的那份；指不到也不影响读取已生成的 JSON。
 RST_PATH = Path(os.environ.get("DSH_MPV_OPTIONS_RST")
@@ -73,8 +75,9 @@ def _resolve_raw_path(raw_txt_path=None):
         return Path(env)
     if RAW_PATH.exists():
         return RAW_PATH
+    # 兼容旧布局：以前的仓库根目录 / 解包目录里直接放这份文件（2026-11-17 前）
     for parent in [REPO_ROOT] + list(REPO_ROOT.parents):
-        cand = parent / "_mpv_options_raw.txt"
+        cand = parent / RAW_NAME
         if cand.exists():
             return cand
     return RAW_PATH
@@ -565,7 +568,7 @@ def build_db(raw_txt_path=None, rst_path=None, en_rst_path=None):
         groups.append("其它")
 
     meta = {
-        "source_mpv": "_mpv_options_raw.txt（mpv --list-options 输出）",
+        "source_mpv": "data/_mpv_options_raw.txt（mpv --list-options 输出）",
         "source_zh": "mpv_doc-CN official_man/options.rst",
         "source_en": ("mpv 官方 DOCS/man/options.rst（~/mpv_doc-en/）" if en_map else ""),
         "license_note": "中文说明来自 mpv_doc-CN，GPL-3.0；本文件是其衍生数据。"

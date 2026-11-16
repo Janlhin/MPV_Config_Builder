@@ -46,8 +46,10 @@ class FrozenModeTest(unittest.TestCase):
         (self.fake / "data").mkdir()
         (self.fake / "data" / "mpv_options_zh.json").write_text(
             '{"meta": {"count": 0}, "options": {}, "groups": []}', encoding="utf-8")
+        # 界面文档在 docs/ 子目录里（2026-11-17 起不再摊在根目录）
+        (self.fake / "docs").mkdir()
         for doc in ("入门指南.md", "致谢与许可.md"):
-            (self.fake / doc).write_text("# 标题\n", encoding="utf-8")
+            (self.fake / "docs" / doc).write_text("# 标题\n", encoding="utf-8")
         self._saved = (getattr(sys, "frozen", None), getattr(sys, "_MEIPASS", None))
         sys.frozen = True
         sys._MEIPASS = str(self.fake)
@@ -72,7 +74,7 @@ class FrozenModeTest(unittest.TestCase):
 
     def test_docs_resolve_inside_bundle(self):
         self.assertTrue(paths.doc_path("入门指南.md").is_file())
-        self.assertEqual(paths.doc_path("入门指南.md").parent, self.fake)
+        self.assertEqual(paths.doc_path("入门指南.md").parent, self.fake / "docs")
 
     def test_data_resolves_inside_bundle(self):
         self.assertTrue((paths.data_dir() / "mpv_options_zh.json").is_file())
@@ -103,7 +105,9 @@ class ServerUsesBundleRootTest(unittest.TestCase):
         src = (ROOT / "webui" / "server.py").read_text(encoding="utf-8")
         start = src.index("def api_guide")
         body = src[start:start + 900]
-        self.assertIn("BASE / name", body, "文档路径还在用 __file__ 推的 ROOT")
+        # 文档搬进 docs/ 之后仍必须由 bundle_root 推路径，不能用 __file__
+        self.assertIn("DOCS_DIR = BASE / \"docs\"", src)
+        self.assertIn("DOCS_DIR / name", body)
         self.assertIn("is_frozen()", body, "打包后找不到文档时应提示 --add-data")
 
 

@@ -60,7 +60,7 @@ class MdRenderTest(unittest.TestCase):
     def test_real_docs_render(self):
         """仓库里这几份文档都要能渲染，且不残留 Markdown 标记。"""
         for name in ("入门指南.md", "致谢与许可.md", "MPV_Shader搭配说明书.md"):
-            path = ROOT / name
+            path = ROOT / "docs" / name
             if not path.is_file():
                 continue
             text = path.read_text(encoding="utf-8")
