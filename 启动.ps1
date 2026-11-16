@@ -49,7 +49,7 @@ if (-not $runner) {
     Write-Host ''
     Write-Host '   已经试过 python 和 py -3，两个都跑不起来。'
     Write-Host '   想从源码跑：去 python.org 装一个，安装时记得勾选 "Add Python to PATH"。'
-    Write-Host '   只是想把软件用起来：装 Electron 桌面版就行，不需要 Python。'
+    Write-Host '   只是想把软件用起来：安装包暂时还没出，按 docs\打包与发布.md 自己编一份 Tauri 外壳。'
     Read-Host '按回车退出'
     exit 1
 }

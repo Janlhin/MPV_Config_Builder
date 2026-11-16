@@ -15,7 +15,7 @@ APP_TITLE = "MPV Config Builder"
 # 有 4 处 import 并在标题里拼它 —— 它 import 的是**仓库里的** core.schema，
 # 所以删了这个常数，那边会直接 ImportError。
 # 为了一个显示用的常数去改一份"保留但不维护"的归档不值得，留着。
-# 主界面（webui / electron）**不要用它** —— 见下面 FULL_TITLE 的说明。
+# 主界面（webui / Tauri 外壳）**不要用它** —— 见下面 FULL_TITLE 的说明。
 # tests/test_version.py 有一条测试钉住"不许删"（归档这台机器上不在就跳过）。
 APP_VERSION = "2.0"
 # 软件版本号（打包 / Release / 更新检测用）。**主界面唯一的版本号来源。**
@@ -26,7 +26,7 @@ APP_VERSION = "2.0"
 #     觉得能正式推荐给别人了     0.x   → 1.0.0
 #
 # ⚠ 改这里之后要跑一次 `py tools/build.py version`，
-#   把版本刷进 electron/package.json（那边打包时要用）。
+#   把版本刷进 tauri.conf.json 与 Cargo.toml（窗口 / 安装器要用）。
 #   tests/test_version.py 有一条测试钉住两边相等，忘了会红。
 VERSION = "0.1.0"
 #: 打包工具（PyInstaller / setuptools）习惯认这个名字

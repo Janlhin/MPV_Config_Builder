@@ -13,19 +13,19 @@
 
 ## 为什么是 onedir 而不是 onefile
 
-这是给 **Electron 当后端**用的，不是给人双击的绿色版：
+这是给**桌面外壳（Tauri）当后端**用的，不是给人双击的绿色版：
 
-1. **启动速度**：Electron 每次启动都要 spawn 它，onefile 每次都要解压到临时目录，
+1. **启动速度**：外壳每次启动都要 spawn 它，onefile 每次都要解压到临时目录，
    多等 2–5 秒；onedir 直接跑，~0.2 秒。
 2. **协议安全**：stdio 模式下 stdout 是 JSON 协议流，**一行杂音就让前端失联**。
    onefile 的 bootloader 要解压、可能打印进度；onedir 没这一步。
-3. 产物是给 electron-builder 塞进安装包的，**用户看不到这些文件**，
+3. 产物是给安装器塞进安装包的，**用户看不到这些文件**，
    「单文件好看」在这里没价值。
 
 ## 为什么必须 console=True（不能加 --windowed）
 
 `--windowed` 会把标准流换掉（Windows 下没有控制台），**stdio 协议直接废**。
-这个后端跟 Electron 说话全靠 stdin/stdout，所以必须保留控制台。
+这个后端跟外壳说话全靠 stdin/stdout，所以必须保留控制台。
 
 ## 目录结构（打包后）
 

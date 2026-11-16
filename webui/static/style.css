@@ -70,15 +70,10 @@ a { color: var(--accent); text-decoration: none; }
 .brand small { color: var(--muted); font-weight: 400; margin-left: 6px; }
 .topbar .spacer { flex: 1; }
 
-/* ---------- 自绘标题栏（R-29） ----------
-   Electron 下顶栏即拖拽区（系统三键由 overlay 画在右上，width≈144px 预留）。
-   规则全部挂在 html.in-electron 作用域内 —— 浏览器直开时该类不存在，
-   app-region 是惰性属性，什么都不发生。 */
-html.in-electron .topbar { -webkit-app-region: drag; padding-right: 144px; }
-html.in-electron .topbar button,
-html.in-electron .topbar a,
-html.in-electron .topbar input,
-html.in-electron .topbar select { -webkit-app-region: no-drag; }
+/* 自绘标题栏（R-29）的拖拽区规则已随 Electron 移除（2026-11-16）。
+   那时顶栏即拖拽区、右上角给 overlay 三键留 144px；Tauri 用系统标题栏，
+   没有 `in-electron` 这个作用域，留着只会是永不生效的样式。 */
+
 .target {
   display: flex; align-items: center; gap: 8px;
   background: var(--panel); border: 1px solid var(--border);

@@ -15,7 +15,7 @@
 ## ⚠ 唯一的硬约束：stdout 只能走协议
 
 HTTP 模式下多打一行字没人管；stdio 模式下**一行日志就足以让整个后端失联**
-—— Electron 那边 `JSON.parse` 会炸，而且后续所有响应都错位。
+—— 外壳那边 `JSON.parse` 会炸，而且后续所有响应都错位。
 所以这个模块的 `serve()` 一进来就把 `server.QUIET_STDOUT` 打开，
 之后 `server.log()` 一律走 stderr。
 
@@ -137,7 +137,7 @@ def handle_line(line):
 def _install_exit_signals():
     """SIGTERM/SIGINT/SIGBREAK → 正常退出（SystemExit）。
 
-    ⚠ Windows 上 Electron 的 kill() 是 TerminateProcess，**不可捕获** ——
+    ⚠ Windows 上外壳的 kill() 是 TerminateProcess，**不可捕获** ——
     真正让后端优雅退出的是 stdin EOF（下面的 for line 读到 EOF 就 return 0）。
     这个处理器只在 POSIX / 手动 Ctrl+C 时起作用，属于第二道。
     """

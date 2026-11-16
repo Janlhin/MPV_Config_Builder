@@ -280,6 +280,9 @@ fn mpvcb_info() -> Value {
 fn main() {
     let ctx = tauri::generate_context!();
     tauri::Builder::default()
+        // v3 的运行时是显式选的（拆包成 tauri-runtime-wry）。不写这一行，
+        // build 直接 RuntimeNotConfigured —— 不会走到 setup。
+        .runtime(tauri_runtime_wry::Wry::default())
         .invoke_handler(tauri::generate_handler![mpvcb_invoke, mpvcb_info])
         .setup(|app| {
             if let Err(err) = spawn_backend() {

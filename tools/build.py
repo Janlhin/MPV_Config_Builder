@@ -14,9 +14,9 @@ make_icon / sync_version / fix_bat / gen_conflicts_golden），每个都重复�
 
     options-db      重新生成 data/mpv_options_zh.json（mpv 升级后跑一次）
     keybindings     重新生成 data/mpv_keybindings.json + data/mpv_commands.json
-    icon            生成 electron/assets/icon.ico + icon.png
+    icon            生成 tauri/src-tauri/icons/icon.ico + icon.png
     ps1             把仓库里的 .ps1 统一成 UTF-8 带 BOM + CRLF
-    version         把 core/schema.py 的版本号同步到 electron/package.json
+    version         把 core/schema.py 的版本号同步到 tauri.conf.json + Cargo.toml
                     （--check 只检查不改，CI / 测试用）
     golden          重新生成 tests/data/conflicts_golden.json（冲突检测快照）
                     （--check 只比对不写盘）
@@ -218,11 +218,11 @@ def cmd_keybindings():
 # icon
 # --------------------------------------------------------------------------
 def cmd_icon():
-    """生成应用图标 electron/assets/icon.ico（多尺寸，零依赖手写 PNG + ICO 封装）。
+    """生成应用图标 tauri/src-tauri/icons/icon.ico（多尺寸，零依赖手写 PNG + ICO 封装）。
 
     ## 为什么要自己画
 
-    electron-builder 不给图标就用 Electron 默认图标，一眼看过去像"没做完的 Demo"。
+    外壳不给图标就用默认图标，一眼看过去像"没做完的 Demo"。
     但要为这个去装 Pillow 又违背本项目的零依赖习惯（构建期也不想加）。
     所以这里手写：标准库 `zlib` + `struct` 就能产出合法 PNG，而 ICO 允许直接内嵌 PNG。
 
@@ -233,15 +233,15 @@ def cmd_icon():
     小尺寸（16/24）下细节会糊，所以三角按尺寸等比缩放，不做像素级微调 ——
     16px 下能认出是"播放"就够了。
 
-    产物：
-        electron/assets/icon.ico    （多尺寸，给 electron-builder / 窗口图标）
-        electron/assets/icon.png    （256px，给 README / 商店页）
+    产物（Tauri 的 bundle 配置就指这两个）：
+        tauri/src-tauri/icons/icon.ico    （多尺寸，窗口 / 安装器图标）
+        tauri/src-tauri/icons/icon.png    （256px，给 README / 商店页）
 
-    ⚠ 目录叫 `assets/` 而不是 `build/`：`.gitignore` 里的 `build/` 是**任意层级**匹配，
-    会把 `electron/build/` 一起忽略掉 —— 图标是源材料，必须入库。
+    ⚠ 目录叫 `icons/` 而不是 `build/`：`.gitignore` 里的 `build/` 是**任意层级**匹配，
+    会把 `tauri/src-tauri/build/` 一起忽略掉 —— 图标是源材料，必须入库。
     （同一个坑在 packaging/backend.spec 上也踩过一次。）
     """
-    OUT_DIR = ROOT / "electron" / "assets"
+    OUT_DIR = ROOT / "tauri" / "src-tauri" / "icons"
 
     # 界面主色（style.css 的 --accent / --accent-2）
     ACCENT = (106, 168, 255)
@@ -408,16 +408,17 @@ def cmd_version():
 
     ## 为什么要有它
 
-    版本号原来写在两个地方，得手改：
+    版本号以前写在三个地方，得手改：
 
-        core/schema.py            VERSION = "0.1.0"     ← 软件里显示的
-        electron/package.json     "version": "0.1.0"    ← 打包时用的（安装包文件名）
+        core/schema.py               VERSION = "0.1.0"   ← 软件里显示的
+        tauri/src-tauri/tauri.conf.json   "version": "0.1.0"  ← 窗口/安装器用的
+        tauri/src-tauri/Cargo.toml        version = "0.1.0"    ← 二进制元数据
 
     只改一处的话，会出现「安装包叫 0.2.0-Setup.exe，但软件里显示 0.1.0」——
     **两边都看起来正常**，特别难发现。
 
     现在：`core/schema.py` 是唯一来源，改完跑这个命令，剩下的地方自动跟上。
-    `tests/test_version.py` 有一条测试钉住两边相等，忘了跑会红。
+    `tests/test_version.py` 有测试钉住三边相等，忘了跑会红。
 
     ## 用法
 
@@ -432,54 +433,64 @@ def cmd_version():
     """
     from core.schema import VERSION                                    # noqa: E402
 
-    PKG = ROOT / "electron" / "package.json"
+    TG = ROOT / "tauri" / "src-tauri"
+    CONF = TG / "tauri.conf.json"
+    CARGO = TG / "Cargo.toml"
 
-    def read_pkg_version():
-        """读 package.json 里的 version —— 用正则而不是 json.loads。
+    def _grab(path, pattern, what):
+        """读某个文件里的版本号 —— 用正则而不是序列化再写回。
 
-        为什么不用 json.loads 再 dump 回去：那会把整个文件的缩进、键序、
-        以及 npm 自己写进去的字段全部重排一遍，diff 会变成几十行噪音。
-        我们只改一个字段，就只动那一行。
+        为什么不 json.loads 再 dump：那会把整个文件的缩进、键序重排一遍，
+        diff 变成几十行噪音。我们只改一个字段，就只动那一行。
         """
-        text = PKG.read_text(encoding="utf-8")
-        m = re.search(r'^(\s*)"version"\s*:\s*"([^"]*)"', text, re.M)
+        if not path.is_file():
+            return None, None, None
+        text = path.read_text(encoding="utf-8")
+        m = re.search(pattern, text, re.M)
         if not m:
             return None, None, text
-        return m.group(2), m, text
+        return m.group(1), m, text
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="只检查，不写盘")
     args = ap.parse_args()
 
-    if not PKG.is_file():
-        print(f"❌ 找不到 {PKG}")
+    conf_cur, conf_m, conf_text = _grab(CONF, r'^\s*"version"\s*:\s*"([^"]*)"', "tauri.conf.json")
+    if conf_cur is None:
+        print(f"❌ 读不到 {CONF} 的 version")
+        return 1
+    cargo_cur, cargo_m, cargo_text = _grab(CARGO, r'^version = "([^"]*)"', "Cargo.toml")
+    if cargo_cur is None:
+        print(f"❌ 读不到 {CARGO} 的 [package] version")
         return 1
 
-    cur, m, text = read_pkg_version()
-    if cur is None:
-        print(f"❌ {PKG} 里没有 version 字段")
-        return 1
+    print(f"  唯一来源 core/schema.py         : {VERSION}")
+    print(f"  tauri/src-tauri/tauri.conf.json : {conf_cur}")
+    print(f"  tauri/src-tauri/Cargo.toml      : {cargo_cur}")
 
-    print(f"  唯一来源 core/schema.py : {VERSION}")
-    print(f"  electron/package.json   : {cur}")
-
-    if cur == VERSION:
+    if conf_cur == VERSION and cargo_cur == VERSION:
         print("\n✅ 已经一致，不用改")
         return 0
 
     if args.check:
-        print(f"\n❌ 不一致（差了 {cur} → {VERSION}）")
+        print(f"\n❌ 不一致（tauri.conf.json {conf_cur} / Cargo.toml {cargo_cur} → {VERSION}）")
         print("   跑一下：py tools/build.py version")
         return 1
 
-    new_text = text[:m.start(2)] + VERSION + text[m.end(2):]
-    PKG.write_text(new_text, encoding="utf-8", newline="")
-    print(f"\n✅ 已同步 package.json：{cur} → {VERSION}")
+    if conf_cur != VERSION:
+        CONF.write_text(conf_text[:conf_m.start(1)] + VERSION + conf_text[conf_m.end(1):],
+                        encoding="utf-8", newline="")
+        print(f"   ✅ tauri.conf.json：{conf_cur} → {VERSION}")
+    if cargo_cur != VERSION:
+        CARGO.write_text(cargo_text[:cargo_m.start(1)] + VERSION + cargo_text[cargo_m.end(1):],
+                         encoding="utf-8", newline="")
+        print(f"   ✅ Cargo.toml：{cargo_cur} → {VERSION}")
 
     # 复核：真的写进去了吗
-    again, _, _ = read_pkg_version()
-    if again != VERSION:
-        print(f"❌ 写进去了但读出来是 {again}，有问题")
+    again_conf, _, _ = _grab(CONF, r'^\s*"version"\s*:\s*"([^"]*)"', "tauri.conf.json")
+    again_cargo, _, _ = _grab(CARGO, r'^version = "([^"]*)"', "Cargo.toml")
+    if again_conf != VERSION or again_cargo != VERSION:
+        print(f"❌ 写进去了但读出来是 {again_conf} / {again_cargo}，有问题")
         return 1
     print("   复核通过")
     return 0

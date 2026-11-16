@@ -8,8 +8,8 @@
 **违反了也不会红、但会在很久以后咬人**的约定：
 
 * `frontendDist` 必须指回 `webui/static`：一旦有人在 `tauri/` 下复制一份前端，
-  副本会漂移，然后「测试全绿、窗口里跑的是另一套页面」（`electron/renderer/`
-  踩过这个坑，靠同步脚本兜着；这里选择**根本不复制**）；
+  副本会漂移，然后「测试全绿、窗口里跑的是另一套页面」（已移除的
+  `electron/renderer/` 正是这么坏掉的，当年靠同步脚本兜着；这里选择**根本不复制**）；
 * **不开端口**：`main.rs` 里不许出现 `127.0.0.1` / `http://`。图省事让窗口加载
   本地 HTTP，会一步丢掉「不开端口」和 CSP 同源兜底；
 * 退出顺序必须是「关 stdin → 等 → 才 kill」。只留 kill 会打断正在写的 `mpv.conf`。
@@ -55,10 +55,18 @@ class SkeletonTest(unittest.TestCase):
         for f in (CARGO, SRC / "build.rs", CONF, MAINRS, CAPS, TAURI / "package.json"):
             self.assertTrue(f.is_file(), f"缺 {f}")
 
-    def test_cargo_declares_tauri_2(self):
+    def test_cargo_declares_pinned_tauri(self):
         text = CARGO.read_text(encoding="utf-8")
-        self.assertIn('tauri = { version = "2"', text)
+        # alpha 线也要钉死版本号：写成 "3" 哪天又发个 alpha 会悄悄换掉验证过的东西
+        m = re.search(r'tauri = \{ version = "(?P<v>\d+\.\d+\.\d+(?:-[a-z]+\.\d+)?)"', text)
+        self.assertIsNotNone(m, "Cargo.toml 里没找到钉死版本的 tauri 依赖")
+        self.assertEqual(m.group("v"), "3.0.0-alpha.6")
         self.assertIn("tauri-build", text)
+        self.assertIn("tauri-runtime-wry", text)
+
+    def test_explicit_wry_runtime(self):
+        """v3 把运行时拆包，不显式选就 RuntimeNotConfigured（实测 panic 101）。"""
+        self.assertIn("tauri_runtime_wry::Wry::default()", _mainrs())
 
     def test_build_rs_calls_tauri_build(self):
         self.assertIn("tauri_build::build()", (SRC / "build.rs").read_text(encoding="utf-8"))

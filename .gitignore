@@ -26,25 +26,19 @@ env/
 # 打包输出（build/ dist/ *.spec 上面已经盖住了）
 # 注意：不要忽略 data/ 与 *.md —— 它们是**发行必带**的源材料
 
-# ---------- Electron / Node ----------
+# ---------- Node（仅 tauri/ 下的 Tauri CLI 包装会用到） ----------
 node_modules/
-electron/dist/
-electron/out/
-electron/release/
-# renderer/ 是 `npm run sync` 从 webui/static/ **复制**来的（单一来源）。
-# ⚠ 不要手改、也不要入库 —— 入库就会出现两份会漂移的副本，
-#    而实机验证脚本测的是 webui/static 那份。
-#    一致性由 tools/check_electron.py 检查。
-electron/renderer/
 npm-debug.log*
 yarn-error.log*
 .npm/
 
-# ---------- Tauri（预览外壳，2026-11-16） ----------
+# ---------- Tauri（唯一桌面外壳） ----------
 # Rust 编译产物：随时可用 cargo 重建，不入库。
-# ⚠ tauri/src-tauri 下的 Cargo.toml / tauri.conf.json / capabilities 都是源码，必须入库。
+# ⚠ tauri/src-tauri 下的 Cargo.toml / tauri.conf.json / capabilities / icons 都是源码，必须入库。
 tauri/src-tauri/target/
 tauri/src-tauri/gen/
+# 本机构建临时用的镜像配置（如 rsproxy），不该影响别人
+tauri/src-tauri/.cargo/
 
 # ---------- 运行时产物（会被工具重建） ----------
 # 截图：由 tools/check_ui.py 与 tools/check_presets.py 生成，随时可重跑

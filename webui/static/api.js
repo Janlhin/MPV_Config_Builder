@@ -4,18 +4,18 @@
    ---------- 两种传输，界面无感（W-4 第②③步）----------
 
    HTTP     浏览器里直接开页面用（开发 / 调试 / 实机测试脚本）。
-   stdio    Electron 里用：外壳 spawn 后端，一行一条 JSON 走管道，**不开端口**。
+   stdio    Tauri 外壳里用：外壳 spawn 后端，一行一条 JSON 走管道，**不开端口**。
 
    切换点在 `invoke()`：只要 `window.__MPVCB_INVOKE__` 存在就走 stdio，否则 fetch。
-   这个全局由 Electron 的 preload 注入 —— **页面自己不知道跑在哪种传输下**，
+   这个全局由 Tauri 的注入脚本（main.rs 里的 INIT_SCRIPT）提供 —— **页面自己不知道跑在哪种传输下**，
    也不需要知道。所以下面 39 个方法一个都不用改。
 
    ⚠ 两种传输的**错误形状必须一致**：
    后端 HTTP 模式回 `{ok:false, detail:"..."}`，stdio 协议回 `{ok:false, error:"..."}`。
    页面里 64 处都在读 `r.detail`，所以 invoke() 负责把 `error` 映射成 `detail`
-   —— 否则 Electron 下每个报错都会显示成 undefined。 */
+   —— 否则外壳下每个报错都会显示成 undefined。 */
 
-/** 有没有 Electron 给的调用通道。没有就是普通浏览器。 */
+/** 有没有外壳给的调用通道。没有就是普通浏览器。 */
 function hasInvoke() {
   return typeof window !== 'undefined'
     && typeof window.__MPVCB_INVOKE__ === 'function';
@@ -264,7 +264,7 @@ function PAGE_() {
 }
 
 /** 这个入口是不是当前页 —— 用 body 的 data-page 判断，不用 location.pathname，
-    因为页面既能用 http:// 打开、也能被 Electron 用 file:// 载入 */
+    因为页面既能用 http:// 打开、也能被外壳用资源协议载入 */
 function isHere(item) {
   try { return !!item.isHere(); } catch (e) { return false; }
 }
@@ -319,27 +319,13 @@ function initTheme() {
   initThemeBtn();
 }
 
-/* ---------- 自绘标题栏（R-29） ----------
+/* ---------- 自绘标题栏（R-29）—— 2026-11-16 随 Electron 一起移除 ----------
 
-   Electron 下系统标题条被藏掉（titleBarStyle: 'hidden'），页面顶栏顶上去成为
-   拖拽区，窗口三键由系统 overlay 绘制。这里做三件事：
-   1. 给 <html> 挂 in-electron 类 —— 拖拽区 CSS 只在这个作用域生效，
-      浏览器直开（HTTP）完全不受影响；
-   2. 把当前主题推给主进程换 overlay 配色（浅色页面配浅色 overlay）；
-   3. 监听主题切换，实时跟随。
-   桥（__MPVCB_WINDOW__）只收 'light' | 'dark' 枚举，色值表在主进程。 */
-
-function initTitlebarBridge() {
-  const w = window.__MPVCB_WINDOW__;
-  if (!w || typeof w.setOverlayTheme !== 'function') return;
-  document.documentElement.classList.add('in-electron');
-  const push = () => {
-    const t = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-    try { w.setOverlayTheme(t).catch(() => {}); } catch (e) {}
-  };
-  push();
-  document.addEventListener('mpvcb:theme', push);
-}
+   原来是给 Electron 的 `titleBarStyle: 'hidden'` 配的：页面顶栏顶上去当拖拽区、
+   窗口三键由系统 overlay 绘制、主题经 `__MPVCB_WINDOW__` 推给主进程换色。
+   Electron 整体移除后这三个前提都没了（Tauri 用的是系统标题栏），留着就是死代码
+   —— 唯一效果是给 <html> 挂一个谁也不再消费的 `in-electron` 类。
+   将来若在 Tauri 侧补自绘标题栏（R-29 的后续项），重新按 Tauri 的窗口 API 写。 */
 
 function promptTarget() {
   const cur = (APP && APP.target) || '';
@@ -463,7 +449,7 @@ MPVCB.busy = function (on) {
     后端据此返回对应语言的文案；I18N 没加载时缺省，后端回中文。
     静态模式（Q-006 裁决 A，第 12 项）：探测不到后端时 API.invoke 直接失败，
     页面各自降级；静态数据走 API.staticData（相对路径取仓库里的 JSON），
-    **故意用 fetch** —— 上面「不许直接 fetch」的规矩针对的是 Electron stdio
+    **故意用 fetch** —— 上面「不许直接 fetch」的规矩针对的是外壳 stdio
     通道下的后端调用；静态模式按定义没有后端，fetch 仓库静态文件是唯一路径。 */
 const _rawInvoke = API.invoke.bind(API);
 API.invoke = async function (method, url, body) {
@@ -491,7 +477,7 @@ API.invoke = async function (method, url, body) {
    部署形态 = 仓库根直接上 GitHub Pages：页面在 /webui/static/，
    数据 JSON 在 /data/（**不复制**，仓库里只有一份），文档 md 在仓库根。
    页面加载后探测一次 /api/status：
-   · 通了 → 一切照旧（本地服务 / Electron）
+   · 通了 → 一切照旧（本地服务 / 外壳）
    · 不通（Pages / file://）→ MPVCB.STATIC = true，API.invoke 统一返回
      「静态模式」响应，页面用它降级；需要数据的页面走 API.staticData。
 
@@ -522,7 +508,7 @@ API.staticData = async function (name) {
   return null;
 };
 /* 加载即分类：GitHub Pages 等静态托管（https + 非本机）不可能有本机后端，
-   直接判静态；本机形态（localhost / file / Electron）再异步探测一次兜底。
+   直接判静态；本机形态（localhost / 资源协议）再异步探测一次兜底。
    api.js 在页面内联脚本之前执行，所以页面 boot() 发起的第一个调用就已带上
    正确的分类，不会闪一次错误横幅。 */
 (function () {
@@ -885,7 +871,6 @@ function initHotkeys() {
 document.addEventListener('DOMContentLoaded', () => {
   initTopbarNav();
   initTheme();
-  initTitlebarBridge();
   initLangToggle();
   initStatusbar();
   initBackendWatch();

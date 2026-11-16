@@ -2,7 +2,7 @@
   "name": "mpv-config-builder-tauri",
   "version": "0.1.0",
   "private": true,
-  "description": "MPV Config Builder 的 Tauri 预览外壳（与 electron/ 并列，不接管交付形态）",
+  "description": "MPV Config Builder 的 Tauri 桌面外壳（现有唯一外壳）",
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",

@@ -22,7 +22,7 @@ from webui import api, stdio                              # noqa: E402
 
 
 def line(obj):
-    """把 dict 变成协议行（跟 Electron 会发的东西一样）。"""
+    """把 dict 变成协议行（跟外壳会发的东西一样）。"""
     return json.dumps(obj, ensure_ascii=False)
 
 
@@ -235,7 +235,7 @@ class RealProcessTest(unittest.TestCase):
         return p, p.stdout.decode("utf-8", "replace"), p.stderr.decode("utf-8", "replace")
 
     def test_eof_exits_within_two_seconds(self):
-        """Electron 关闭时只关 stdin：后端必须在 2 秒内自己退出（不是被杀）。"""
+        """外壳关闭时只关 stdin：后端必须在 2 秒内自己退出（不是被杀）。"""
         env = dict(os.environ)
         env["PYTHONIOENCODING"] = "utf-8"
         p = subprocess.Popen(

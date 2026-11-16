@@ -76,7 +76,7 @@ async function load(doc) {
       : '<p class="note danger">❌ ' + I18N.t('static.docMissing') + '</p>';
     return;
   }
-  // ⚠ 走 API.guide，不要直接 fetch —— 直连在 Electron 的 stdio 通道下不通
+  // ⚠ 走 API.guide，不要直接 fetch —— 直连在外壳的 stdio 通道下不通
   const r = await API.guide(doc)
     .catch(() => ({ ok: false, detail: '读取失败' }));
   const toc = document.getElementById('toc');

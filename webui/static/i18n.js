@@ -6,8 +6,8 @@
  * ── 三个设计决定，改之前先看 ────────────────────────────────────────────
  *
  * 1. 语言包**内嵌在 JS 里，不用 fetch 去取 JSON**
- *    Electron 用 win.loadFile() 从 file:// 载入页面（electron/main.js），
- *    file:// 下 fetch 相对路径的 JSON 会被 CORS 挡掉。
+ *    页面可能从 file:// 或外壳的资源协议载入；file:// 下 fetch 相对路径的
+ *    JSON 会被 CORS 挡掉，资源协议也未必通。
  *    所以翻译表只能跟着 <script src="i18n.js"> 一起进页面。
  *
  * 2. 不做两套 HTML

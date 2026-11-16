@@ -6,10 +6,16 @@ edition = "2021"
 rust-version = "1.77"
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "3.0.0-alpha.4", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# Tauri 3 目前只有 alpha 线（3.0.0-alpha.6，2026-11）；2.12.6 是稳定线。
+# 用户明确要求用 3，所以这里钉死 alpha 版本号 —— 不能写成 "3"，否则哪天
+# 又发一个 alpha 会悄悄换掉我们验证过的东西。
+tauri = { version = "3.0.0-alpha.6", features = [] }
+# v3 把运行时拆成可选后端：`Builder::default()` 不再自带 wry，必须显式
+# `.runtime(Wry::default())`，否则 build 时报 RuntimeNotConfigured（实测）。
+tauri-runtime-wry = "3.0.0-alpha.6"
 serde_json = "1"
 
 [profile.release]
