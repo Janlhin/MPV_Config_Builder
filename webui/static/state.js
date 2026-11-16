@@ -194,7 +194,7 @@ function rerender() {
 /* ---------------- 网络 ---------------- */
 
 async function loadCatalog() {
-  // ⚠ 必须走 API.*，不能直接 fetch —— 否则 Electron 的 stdio 通道下这条请求发不出去
+  // ⚠ 必须走 API.*，不能直接 fetch —— 否则外壳的 stdio 通道下这条请求发不出去
   // （这条以前就是直连 fetch，是 verify.py stdio 逮出来的）
   const r = await API.catalog(APP.target || '');
   if (r.ok) APP.catalog = r;

@@ -6,7 +6,8 @@
 
 2026-09-14 用户定：**界面只显示软件版本**，`APP_VERSION` 退成「只给旧界面用」，
 `FULL_TITLE` 不再拼它。并且版本号只有 `core/schema.py` 一个来源，
-`electron/package.json` 那边靠 `tools/build.py version` 同步（下面有测试钉住）。
+Tauri 的 `tauri.conf.json` 与 `Cargo.toml` 两边靠 `tools/build.py version` 同步
+（下面有测试钉住）。
 
 2026-10-09：旧界面（Tkinter）**移出了仓库**，归档在仓库旁边的
 `..\\MPV_Config_Builder_legacy\\`。原来盯 `legacy/mpv_config_builder.py` 的三条
@@ -15,6 +16,7 @@
 **仓库这侧只留一条**：`APP_VERSION` 不许删 —— 归档副本 import 它，删了那边就崩。
 """
 import os
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -51,7 +53,7 @@ class VersionSourceTest(unittest.TestCase):
                       "归档副本不再用 APP_VERSION 了？那这条测试可以删")
 
     def test_main_ui_does_not_show_generation_number(self):
-        """主界面（webui / electron）不许再出现"产品代数"这种东西。"""
+        """主界面（webui / 外壳）不许再出现"产品代数"这种东西。"""
         for f in list((ROOT / "webui").glob("*.py")) + \
                 list((ROOT / "webui" / "static").glob("*.html")) + \
                 list((ROOT / "webui" / "static").glob("*.js")):
@@ -69,23 +71,31 @@ class VersionSourceTest(unittest.TestCase):
     def test_version_is_semverish(self):
         self.assertRegex(schema.VERSION, r"^\d+\.\d+(\.\d+)?$")
 
-    def test_package_json_version_matches(self):
+    def test_tauri_versions_match(self):
         """版本号只有一个来源：`core/schema.py`。
 
-        electron/package.json 那边打包时要用（决定安装包文件名），
-        它必须跟着走。两边不一致的话会出现「安装包叫 0.2.0-Setup.exe，
-        软件里却显示 0.1.0」—— **两边都看起来正常**，特别难发现。
+        Tauri 那边有两处要用：`tauri.conf.json` 的 version（窗口/安装器看到的名字）
+        和 `Cargo.toml` 的 [package] version（二进制元数据）。它们必须跟着走。
+        不一致的话会出现「安装包叫 0.2.0-Setup.exe，软件里却显示 0.1.0」——
+        **两边都看起来正常**，特别难发现。
 
         改完 schema.py 记得跑：py tools/build.py version
         """
         import json
-        pkg = ROOT / "electron" / "package.json"
-        if not pkg.is_file():
-            self.skipTest("没有 electron/package.json")
-        data = json.loads(pkg.read_text(encoding="utf-8"))
+        conf = ROOT / "tauri" / "src-tauri" / "tauri.conf.json"
+        cargo = ROOT / "tauri" / "src-tauri" / "Cargo.toml"
+        self.assertTrue(conf.is_file(), "没有 tauri.conf.json")
+        self.assertTrue(cargo.is_file(), "没有 Cargo.toml")
+        data = json.loads(conf.read_text(encoding="utf-8"))
         self.assertEqual(
             data.get("version"), schema.VERSION,
-            "electron/package.json 的 version 和 core/schema.py 不一致"
+            "tauri.conf.json 的 version 和 core/schema.py 不一致"
+            " —— 跑一下 py tools/build.py version")
+        m = re.search(r'^version = "([^"]*)"', cargo.read_text(encoding="utf-8"), re.M)
+        self.assertIsNotNone(m, "Cargo.toml 里找不到 [package] version")
+        self.assertEqual(
+            m.group(1), schema.VERSION,
+            "Cargo.toml 的 version 和 core/schema.py 不一致"
             " —— 跑一下 py tools/build.py version")
 
     def test_sync_script_agrees(self):

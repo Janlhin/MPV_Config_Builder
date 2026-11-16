@@ -1,5 +1,5 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
+  "$schema": "https://schema.tauri.app/config/3",
   "productName": "MPV Config Builder",
   "version": "0.1.0",
   "identifier": "io.github.janlhin.mpvconfigbuilder",
@@ -16,8 +16,8 @@
     "active": false,
     "targets": "all",
     "icon": [
-      "../../electron/assets/icon.ico",
-      "../../electron/assets/icon.png"
+      "icons/icon.ico",
+      "icons/icon.png"
     ]
   }
 }

@@ -172,7 +172,7 @@ async function boot() {
   document.addEventListener('i18n:change', paintTarget);
 
   try {
-    // ⚠ 走 API.status，不要直接 fetch —— 直连在 Electron 的 stdio 通道下不通
+    // ⚠ 走 API.status，不要直接 fetch —— 直连在外壳的 stdio 通道下不通
     const r = await API.status();
     last = r;
     document.getElementById('ver').textContent = 'v' + r.version;

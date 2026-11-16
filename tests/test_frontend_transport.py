@@ -4,7 +4,7 @@
 ## 为什么需要这条测试
 
 第③步把传输换成 stdio 之后，**页面里任何一处 `fetch('/api/...')` 都会在
-Electron 下静默失效** —— 因为 stdio 模式下根本没有 HTTP 服务。
+外壳（Tauri）下静默失效** —— 因为 stdio 模式下根本没有 HTTP 服务。
 而这种错**在浏览器里开发时完全看不出来**（浏览器下 fetch 照样通）。
 
 实测：改传输时有 4 处直连被漏掉 ——
@@ -53,7 +53,7 @@ class NoDirectApiFetchTest(unittest.TestCase):
                     offenders.append(f"{f.name}:{i}: {line.strip()[:100]}")
         if offenders:
             self.fail(
-                "有代码绕过 API 层直接 fetch('/api/...') —— 这在 Electron 的 stdio "
+                "有代码绕过 API 层直接 fetch('/api/...') —— 这在外壳的 stdio "
                 "通道下会静默失效（那种模式下没有 HTTP 服务）。请改用 API.xxx()：\n  "
                 + "\n  ".join(offenders))
 

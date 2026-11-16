@@ -54,7 +54,7 @@ from core.loader import load_config_file, parse_config_text, effective_config  #
 from core import textio                                     # noqa: E402
 
 # ⚠ `webui/api.py` 必须两种运行方式都能导入：
-#   · **直接跑脚本**（`py webui\server.py`）—— 启动器与将来的 Electron 都这么用；
+#   · **直接跑脚本**（`py webui\server.py`）—— 启动器与 Tauri 外壳都这么用；
 #     此时没有包上下文，`from . import api` 会报
 #     "attempted relative import with no known parent package"；
 #   · **被当包导入**（`from webui import server`）—— 测试与 verify.py docs 这么用。
@@ -85,7 +85,7 @@ from core import dlcenter                                  # noqa: E402
 
 # ------------------------------------------------- 日志层（M5-E-1）
 #
-# stdio 模式下 **stdout 是协议流**，多打一行字就会让 Electron 那边的
+# stdio 模式下 **stdout 是协议流**，多打一行字就会让外壳那边的
 # JSON.parse 炸掉、后续响应全部错位。所以所有给人看的话都要走 stderr。
 #
 # stdio.serve() 一进来就把 QUIET_STDOUT 打开、并把 LOG_STREAM 指到 stderr；
@@ -1502,7 +1502,7 @@ def open_window(url):
 
 
 def main():
-    # ---- stdio 模式：给 Electron 用的，不开端口（M5-E-1 + W-4 第②步）
+    # ---- stdio 模式：给 Tauri 外壳用的，不开端口（M5-E-1 + W-4 第②步）
     if "--stdio" in sys.argv:
         try:
             from . import stdio as _stdio

@@ -6,6 +6,8 @@ check_topnav / check_stdio_ui / check_presets / check_ui / check_electron /
 check_electron_packaged / check_pack / compare_conflicts），每个都重复一遍
 「找仓库根 + 插 sys.path + main()」的样板。2026-10-09 合并到这里 ——
 **只收拢，不改逻辑**，每个子命令都保留了原脚本自己的说明（见各函数 docstring）。
+2026-11-16 Electron 整体移除：check_electron / check_electron_packaged 两个
+子命令随之删除，外壳只剩 Tauri（`tauri`）。
 
 用法（仓库根目录）：
 
@@ -26,15 +28,13 @@ check_electron_packaged / check_pack / compare_conflicts），每个都重复一
     stdio      实机验证 9 个页面跑在 stdio 通道上
     presets    实机验证「我自己的预设」存读
     ui         实机验证候选值下拉
-    electron   实机验证 Electron 开发形态
-    tauri      实机验证 Tauri 预览外壳（stdio 桥、不开端口、退出不留孤儿）
-    packaged   实机验证打包后的 Electron 应用
+    tauri      实机验证 Tauri 外壳（stdio 桥、不开端口、退出不留孤儿）
     pack       对打包产物做端到端验证
     conflicts  冲突规则重构前后等价性（4699 组枚举）
 
-`all` 与 `electron` / `packaged` / `pack` 依赖打包产物或 electron/node_modules，
-缺了会自动跳过（不算失败）；`topnav` / `stdio` / `presets` / `ui` 要本机有
-Edge/Chrome，没有也会跳过。细节看各子命令自己的说明。
+`all` 与 `tauri` / `pack` 依赖编译产物（Tauri exe / 后端 exe），缺了会自动跳过
+（不算失败）；`topnav` / `stdio` / `presets` / `ui` 要本机有 Edge/Chrome，
+没有也会跳过。细节看各子命令自己的说明。
 """
 import argparse
 import importlib.util
@@ -63,8 +63,8 @@ def script_baseline_problems():
     `AGENTS.md` §2.6「数字不要手抄」的同种毛病，只不过抄的是规则。
 
     判两条（2026-10-14 立：启动.bat 转成 启动.ps1、仓库 Pwsh-only 之后）：
-      1. 仓库里**没有** `.bat` / `.cmd`。构建产物目录除外 —— `node_modules` /
-         `dist` / `electron/release` 不入库、由打包流程重新生成，判它们等于判打包机。
+      1. 仓库里**没有** `.bat` / `.cmd`。构建产物目录除外 —— `dist` /
+         `tauri/src-tauri/target` 不入库、由编译重新生成，判它们等于判打包机。
       2. `.ps1` 必须是 **UTF-8 带 BOM + CRLF**。BOM 是必须的：Windows
          PowerShell 5.1 靠 BOM 识别 UTF-8（无 BOM 中文乱码），Pwsh 7 两种都认。
          ⚠ 与 2026-10-09 的 .bat「**无** BOM」结论正好相反，别把旧结论套过来。
@@ -121,8 +121,8 @@ def cmd_all():
         6. 没有残留的"机器专用绝对路径"
         7. 许可文件内容（GPL-3.0 全文 + 第三方归属）
         8. 顶栏常驻入口在 9 个页面上真的渲染出来了（要本机有 Edge/Chrome；没有就跳过）
-        9. Electron 外壳能跑、页面能拿到后端数据（要装了 node_modules；没装就跳过）
-        10. Tauri 预览外壳（静态约定每次都查；实机要 cargo build 出的 exe，没有就跳过）
+        9. Tauri 外壳（唯一外壳）能跑、页面能拿到后端数据
+           （静态约定每次都查；实机要 cargo build 出的 exe，没有就跳过）
 
     ⚠ 联网那一步（4）在国内网络下可能整体失败 —— 那是网络问题不是清单问题，
     脚本会明确区分"清单失效"与"连不上"。
@@ -478,40 +478,6 @@ def cmd_all():
         r.add("界面动效实机检查", p.returncode == 0, detail)
 
 
-    def check_electron_pack(r):
-        """Electron 那套（如果本机备齐了工具链）能不能跑通。
-
-        **没装 node_modules 就算跳过，不算失败** —— Electron 是可选的外壳，
-        不是发布源码包的必要条件。但只要装了，它的实机检查就必须过。
-        """
-        el = ROOT / "electron"
-        if not (el / "node_modules" / "electron" / "dist" / "electron.exe").is_file():
-            r.add("Electron 外壳实机检查", True, "跳过（electron/node_modules 没装）")
-            return
-        if not (ROOT / "dist" / "MPVConfigBuilderBackend" / "MPVConfigBuilderBackend.exe").is_file():
-            r.add("Electron 外壳实机检查", True,
-                  "跳过（后端 exe 还没打；先跑 py -m PyInstaller packaging/backend.spec）")
-            return
-        p = subprocess.run([sys.executable, "-X", "utf8",
-                            str(Path(__file__).parent / "verify.py"), "electron"],
-                           capture_output=True, cwd=str(ROOT))
-        tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
-        err = p.stderr.decode("utf-8", "replace").strip().splitlines()
-        detail = tail[-1] if tail else "(没有输出)"
-        if p.returncode != 0 and err:
-            detail += " ‖ stderr: " + " / ".join(err[-4:])
-        r.add("Electron 外壳实机检查", p.returncode == 0,
-              tail[-1] if tail else "(没有输出)")
-
-        if (el / "release" / "win-unpacked" / "MPV Config Builder.exe").is_file():
-            p2 = subprocess.run([sys.executable, "-X", "utf8",
-                                 str(Path(__file__).parent / "verify.py"), "packaged"],
-                                capture_output=True, cwd=str(ROOT))
-            tail2 = p2.stdout.decode("utf-8", "replace").strip().splitlines()
-            r.add("Electron 打包形态检查", p2.returncode == 0,
-                  tail2[-1] if tail2 else "(没有输出)")
-
-
     def check_tauri(r):
         """Tauri 预览外壳（待做 §〇 第 15 项）。
 
@@ -558,7 +524,6 @@ def cmd_all():
         check_ctxmenu(r)
         check_hotkeys(r)
         check_motion(r)
-        check_electron_pack(r)
         check_tauri(r)
 
         print("-" * 58)
@@ -644,7 +609,7 @@ def cmd_docs():
         # ⚠⚠ 白名单有个**天生的盲区**：写错的数字要是不在名单里，就永远匹配不上，
         # 也就永远查不出来（实测：把 424 手滑成 420，这个模式一个字都不匹配，
         # 检查照样报"一致 ✓"）。所以底下还有一条「按上下文兜底」的规则。
-        (r"(?<![\d])(181|199|220|222|228|236|259|287|327|352|358|360|392|424|444|476|497|509|547|548|575|595|606|615|645|648|649|650|654|701|705|717|748|765|784) 项",
+        (r"(?<![\d])(181|199|220|222|228|236|259|287|327|352|358|360|392|424|444|476|497|509|547|548|575|595|606|615|645|648|649|650|654|701|705|717|748|765|781|784) 项",
          tests, "测试数"),
         # 兜底：**三位数**的 `N 项` 出现在「测试」附近时，必须等于实测总数。
         #
@@ -2198,7 +2163,7 @@ def cmd_stdio():
         ⚠ 为什么要连静态文件一起发：如果页面在 A 源、转发器在 B 源，
         注入的 `fetch('/__bridge__')` 就是跨源请求；`Content-Type: application/json`
         还会触发 OPTIONS 预检 —— 那就得给转发器加一整套 CORS 头，
-        而**这套头在真实 Electron 里根本不存在**（那边是 file:// + 管道）。
+        而**这套头在真实外壳里根本不存在**（Tauri 那边的页面是资源协议 + 管道）。
         同源提供之后 CORS 问题自然消失，测试也更接近真场景。
 
         **只认 `/__bridge__` 这一个 API 路径**，其它 `/api/...` 一律 404 ——
@@ -3260,353 +3225,6 @@ def cmd_ui():
     main()
 
 # ==========================================================================
-# electron（原 check_electron.py）
-# ==========================================================================
-def cmd_electron():
-    """Electron 外壳的实机验证（B1-4）。
-
-    ## 为什么必须自动化验，而不是"打开看一眼"
-
-    GUI 应用没法靠命令行断定它对不对，而"我双击了一下能开"几乎什么都证明不了。
-    前几步已经吃过几次亏：**看不出来的错才是真错**（样式没生效、exe 崩在 import）。
-    所以这里走和浏览器版一样的路子：给 Electron 开一个**本地**调试端口，
-    用 CDP 连进去，把该验的事一条条验掉。
-
-    ## 验什么
-
-    1. **窗口起来了、页面渲染了**（不是白屏、没有未捕获异常）
-    2. **数据是后端给的** —— 页面上的版本号/目标目录来自 Python，
-       而 Electron 里**没有任何 HTTP 服务**，所以能显示出来就证明
-       `页面 → preload → IPC → 主进程 → 后端 stdio` 这条链是通的
-    3. **preload 注入生效**：`window.__MPVCB_INVOKE__` 在，且 `window.require` 等
-       Node 能力**不在**（contextIsolation 没白开）
-    4. **9 个页面都能在 Electron 里打开**并拿到数据
-    5. **单实例**：第二次启动不会开出第二个窗口/第二个后端
-    6. **退出时后端被杀干净**（不留孤儿进程占着配置目录）
-
-    用法：
-        node scripts/sync-renderer.js          # 或 npm run sync
-        py tools/verify.py electron
-    """
-    import json
-    import socket
-    import subprocess
-    import sys
-    import time
-    import urllib.request
-    from pathlib import Path
-
-    ROOT = Path(__file__).resolve().parent.parent
-    ELECTRON_DIR = ROOT / "electron"
-    ELECTRON_EXE = ELECTRON_DIR / "node_modules" / "electron" / "dist" / "electron.exe"
-    BACKEND_EXE = ROOT / "dist" / "MPVConfigBuilderBackend" / "MPVConfigBuilderBackend.exe"
-
-    PASS, FAIL = [], []
-
-
-    def ck(label, cond, detail=""):
-        print(("  ✅ " if cond else "  ❌ ") + label + (f"  {detail}" if detail else ""))
-        (PASS if cond else FAIL).append(label)
-        return bool(cond)
-
-
-    def free_port():
-        s = socket.socket()
-        s.bind(("127.0.0.1", 0))
-        p = s.getsockname()[1]
-        s.close()
-        return p
-
-
-    def find_ws(port, timeout=60):
-        """等 Electron 的调试端口起来，拿页面的 WebSocket 地址。"""
-        deadline = time.time() + timeout
-        last = ""
-        while time.time() < deadline:
-            try:
-                with urllib.request.urlopen(
-                        f"http://127.0.0.1:{port}/json/list", timeout=2) as f:
-                    tabs = json.load(f)
-                page = next((t for t in tabs if t.get("type") == "page"), None)
-                if page and page.get("webSocketDebuggerUrl"):
-                    return page["webSocketDebuggerUrl"]
-                last = f"还没有 page：{tabs}"
-            except Exception as e:
-                last = str(e)
-            time.sleep(0.6)
-        return None
-
-
-    def backend_procs():
-        """有没有后端进程在跑。
-
-        ⚠⚠ 别用 `tasklist /FI "IMAGENAME eq X.exe"`。
-        实测踩过：在 cmd 里那条过滤器是**一个参数**（带引号），
-        而 Python 用 list 传参时会拆成 `IMAGENAME` / `eq` / `X.exe` 三个 ——
-        tasklist 不认，于是**永远返回 0**。现象极具迷惑性：
-        同一时刻后端明明活着（IPC 调得通、`tasklist` 不带过滤器也能看到它），
-        只有这条检查在报"没有后端进程"。
-
-        正确做法：列全部进程，在 Python 里数。慢一点，但判据是真的。
-        """
-        try:
-            # ⚠ encoding/errors 必须显式：tasklist 输出按控制台代码页（本机 936）
-            # 编码，环境里有中文进程行时 utf-8 严格解码会炸。而 Python 3.13 的
-            # text=True 解码在**读取线程**里进行，失败时主线程不抛异常 ——
-            # 线程把 traceback 打到 stderr 后静默返回 stdout=None，
-            # 下游就会撞上莫名的 AttributeError（2026-10-14 实测，见踩过的坑）。
-            # 这里只做 ASCII 子串匹配，errors="replace" 对判据无损。
-            out = subprocess.run(["tasklist", "/NH", "/FO", "CSV"],
-                                 capture_output=True, text=True,
-                                 encoding="utf-8", errors="replace",
-                                 timeout=30).stdout
-        except Exception:
-            return -1
-        return sum(1 for line in (out or "").splitlines()
-                   if "MPVConfigBuilderBackend.exe".lower() in line.lower())
-
-
-    def wait_backend(want, timeout=20):
-        """等后端进程数达到 want。
-
-        ⚠ 为什么必须等：调试端口是主进程一起来就开的，而 spawn 后端与它几乎同时发生
-        —— 于是「刚连上 CDP 就查进程」会抢在后端真正出现之前，假报 0。
-        实测踩过：第一次跑 check_electron 时这条假红，而同一时刻 IPC 调用是成功的。
-        **报错和成功同时出现时，先怀疑检查本身。**
-        """
-        deadline = time.time() + timeout
-        n = backend_procs()
-        while time.time() < deadline:
-            n = backend_procs()
-            if n == want:
-                return n
-            time.sleep(0.4)
-        return n
-
-
-    def report():
-        print()
-        if FAIL:
-            print(f"❌ {len(FAIL)} 项没过：")
-            for x in FAIL:
-                print("   - " + x)
-            return 1
-        print(f"✅ 全部通过（{len(PASS)} 项）")
-        return 0
-
-
-    def sync_diff():
-        """renderer/ 与 webui/static/ 有没有差异。
-
-        这是「同一个东西不存两份」那条决策的守门人：renderer/ 是构建期复制产物，
-        一旦有人在里面手改（或忘了重新同步），Electron 里跑的就是**另一套页面** ——
-        而我的其它实机脚本测的还是 webui/static 那份，于是「测试全绿、发出去的却是别的」。
-        """
-        import hashlib
-
-        def digest(d):
-            out = {}
-            for f in sorted(d.rglob("*")):
-                if f.is_file():
-                    out[str(f.relative_to(d))] = hashlib.sha256(f.read_bytes()).hexdigest()
-            return out
-
-        src = digest(ROOT / "webui" / "static")
-        dst = digest(ELECTRON_DIR / "renderer")
-        only_src = sorted(set(src) - set(dst))
-        only_dst = sorted(set(dst) - set(src))
-        modified = sorted(k for k in set(src) & set(dst) if src[k] != dst[k])
-        return only_src, only_dst, modified
-
-
-    def main():
-        print("=" * 58)
-        print("Electron 外壳验证")
-        print("=" * 58)
-
-        if not ck("electron 二进制就位", ELECTRON_EXE.is_file(), str(ELECTRON_EXE)):
-            return report()
-        if not ck("后端 exe 就位（打包产物）", BACKEND_EXE.is_file(),
-                  "先跑：py -m PyInstaller packaging/backend.spec"):
-            return report()
-        if not ck("renderer 已同步（webui/static → electron/renderer）",
-                  (ELECTRON_DIR / "renderer" / "index.html").is_file(),
-                  "先跑：cd electron && npm run sync"):
-            return report()
-
-        # 内容一致性：光有文件不算同步，得逐字节一样
-        only_src, only_dst, modified = sync_diff()
-        ck("renderer 与 webui/static 逐字节一致（没人在副本上手改）",
-           not (only_src or only_dst or modified),
-           f"缺 {only_src} 多 {only_dst} 改了 {modified}")
-
-        port = free_port()
-        env = dict(**__import__("os").environ)
-        env["ELECTRON_ENABLE_LOGGING"] = "1"
-        # ⚠ 宿主环境（WorkBuddy 等 Electron 应用）会设 ELECTRON_RUN_AS_NODE=1，
-        # 子进程继承后 electron.exe 退化成纯 Node：app undefined、调试端口不开。
-        # 实测踩过（2026-10-10）：electron 验收全红，根因就是它。spawn 前必须摘掉。
-        env.pop("ELECTRON_RUN_AS_NODE", None)
-        # ⚠ --in-process-gpu：本会话环境里独立 GPU 进程必崩（2026-10-14 实测，
-        # exit 0xC0000005，重试 9 次后 Electron FATAL "GPU process isn't
-        # usable. Goodbye" 整个退出）。现象极像 main.js 写错了 —— 窗口创建成功、
-        # 调试端口也开了，但 CDP 一连上就 ConnectionReset。三种绕法实测：
-        # --disable-gpu 无效（GPU 进程照崩）；--no-sandbox 能活但削弱安全面；
-        # --in-process-gpu 单独可解，且不改变被验证的行为（本检查验的是页面
-        # 渲染 / IPC / 导航，不是 GPU 性能）。CI（windows-latest）不受影响。
-        proc = subprocess.Popen(
-            [str(ELECTRON_EXE), ".", f"--debug-port={port}",
-             "--in-process-gpu"],
-            cwd=str(ELECTRON_DIR), env=env,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-        try:
-            ws = find_ws(port)
-            if not ck("Electron 调试端口起来了（窗口已创建）", bool(ws), f"port={port}"):
-                return report()
-
-            sys.path.insert(0, str(ROOT / "tools"))
-            from uidriver import CDP                      # noqa: PLC0415
-            cdp = CDP(ws)
-            cdp.call("Page.enable")
-            cdp.call("Runtime.enable")
-            time.sleep(3.0)          # 等页面 boot() 把 status/catalog 拉完
-
-            ck("后端进程被拉起来了", wait_backend(1) == 1,
-               f"tasklist 命中 {backend_procs()} 个")
-
-            # ---- 1. 页面渲染 ----
-            got = cdp.js("""(() => ({
-              title: document.title,
-              text: document.body.innerText.slice(0, 500),
-              hasInvoke: typeof window.__MPVCB_INVOKE__ === 'function',
-              leakedRequire: typeof window.require,
-              leakedProcess: typeof window.process,
-              hasTopnav: !!document.querySelector('.topnav'),
-              navItems: [...document.querySelectorAll('.topnav > *')].map(e => e.textContent.trim())
-            }))()""")
-            ck("页面加载了（有标题）", bool(got.get("title")), str(got.get("title")))
-            ck("页面渲染出了内容（不是白屏）", len(got.get("text", "").strip()) > 80,
-               f"前 70 字：{got.get('text', '')[:70]!r}")
-            ck("顶栏常驻入口也在（U-1 在 Electron 下同样生效）",
-               bool(got.get("hasTopnav")) and len(got.get("navItems") or []) == 3,
-               str(got.get("navItems")))
-
-            # ---- 2. 数据来自后端（Electron 里没有 HTTP，所以这证明 IPC→stdio 通了）----
-            ck("页面显示出了后端给的版本号",
-               "v0.1.0" in got.get("text", ""), "文本里含 v0.1.0")
-            ck("页面显示出了后端探测到的 mpv 目录",
-               "portable_config" in got.get("text", ""),
-               "文本里含 portable_config")
-
-            # ---- 3. preload 只暴露该暴露的 ----
-            ck("preload 注入了 __MPVCB_INVOKE__", bool(got.get("hasInvoke")))
-            ck("contextIsolation 生效：页面拿不到 window.require",
-               got.get("leakedRequire") == "undefined", str(got.get("leakedRequire")))
-            ck("nodeIntegration 关闭：页面拿不到 window.process",
-               got.get("leakedProcess") == "undefined", str(got.get("leakedProcess")))
-
-            # ---- 3.5 自绘标题栏（R-29）----
-            tb = cdp.js("""(() => {
-              const bar = document.querySelector('.topbar');
-              const btn = bar ? bar.querySelector('button, a') : null;
-              const ar = (el) => el ? getComputedStyle(el).WebkitAppRegion : '';
-              return { cls: document.documentElement.classList.contains('in-electron'),
-                       hasWin: typeof window.__MPVCB_WINDOW__ === 'object',
-                       bar: bar ? ar(bar) : '',
-                       btn: btn ? ar(btn) : '' };
-            })()""")
-            ck("自绘标题栏：in-electron 类已挂（桥已接入）",
-               tb.get("cls") is True and tb.get("hasWin") is True, json.dumps(tb, ensure_ascii=False))
-            ck("顶栏是拖拽区（app-region: drag）", tb.get("bar") == "drag",
-               f"topbar app-region={tb.get('bar')!r}")
-            ck("顶栏按钮不拖拽（可正常点击）", tb.get("btn") == "no-drag",
-               f"button app-region={tb.get('btn')!r}")
-            ov = cdp.js("""(async () => {
-              const w = window.__MPVCB_WINDOW__;
-              const good = await w.setOverlayTheme('dark');
-              const bad = await w.setOverlayTheme('not-a-theme');
-              await w.setOverlayTheme('light');
-              return { ok: good && good.ok, rejected: bad && bad.ok === false };
-            })()""")
-            ck("overlay 主题桥：合法枚举接受、非法值拒绝",
-               ov.get("ok") is True and ov.get("rejected") is True,
-               json.dumps(ov, ensure_ascii=False))
-
-            # ---- 4. 直接打一发 IPC，确认协议形状对 ----
-            call = cdp.js("""(async () => {
-              const r = await window.__MPVCB_INVOKE__({path: 'status', method: 'GET', query: {}});
-              return {ok: r.ok, version: (r.data && r.data.version) || null};
-            })()""")
-            ck("IPC 直调 status 成功且形状正确",
-               call.get("ok") and call.get("version") == "0.1.0",
-               json.dumps(call, ensure_ascii=False))
-
-            bad = cdp.js("""(async () => {
-              const r = await window.__MPVCB_INVOKE__({path: '根本没有这个接口'});
-              return {ok: r.ok, error: r.error};
-            })()""")
-            ck("不存在的接口返回 ok=false + error（不是抛异常）",
-               bad.get("ok") is False and bool(bad.get("error")),
-               json.dumps(bad, ensure_ascii=False))
-
-            # ---- 5. 9 个页面都能开 ----
-            pages = ["index.html", "basic.html", "advanced.html", "expert.html",
-                     "analyze.html", "keys.html", "downloads.html", "guide.html",
-                     "hell.html"]
-            base = (ELECTRON_DIR / "renderer").as_uri()
-            page_bad = []
-            for name in pages:
-                cdp.call("Page.navigate", url=f"{base}/{name}")
-                time.sleep(1.6)
-                r = cdp.js("""(() => ({
-                  len: document.body.innerText.trim().length,
-                  nav: document.querySelectorAll('.topnav > *').length
-                }))()""")
-                if r.get("len", 0) < 40 or r.get("nav") != 3:
-                    page_bad.append(f"{name}(len={r.get('len')}, nav={r.get('nav')})")
-            ck("9 个页面在 Electron 里都能打开且有内容", not page_bad, "；".join(page_bad))
-
-            # ---- 6. 单实例 ----
-            # 同一套开关：GPU 进程崩溃与传什么页面无关（见上面 spawn 处的注释）
-            second = subprocess.Popen(
-                [str(ELECTRON_EXE), ".", f"--debug-port={free_port()}",
-                 "--in-process-gpu"],
-                cwd=str(ELECTRON_DIR), env=env,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(4.0)
-            n_after = wait_backend(1, timeout=8)
-            ck("第二次启动不会开出第二个后端（单实例生效）", n_after == 1,
-               f"后端进程数 {n_after}")
-            try:
-                second.terminate()
-            except Exception:
-                pass
-        finally:
-            try:
-                if proc.poll() is None:
-                    proc.terminate()
-                    proc.wait(timeout=15)
-            except Exception:
-                try:
-                    proc.kill()
-                except Exception:
-                    pass
-
-        # ---- 7. 退出时杀干净（必须在 finally 之后查）----
-        # 同样要等：进程退出有延迟，立刻查会查到还没消失的那个
-        left = 0
-        deadline = time.time() + 15
-        while time.time() < deadline:
-            left = backend_procs()
-            if left == 0:
-                break
-            time.sleep(0.5)
-        ck("退出后没有孤儿后端进程", left == 0, f"还剩 {left} 个")
-        return report()
-    sys.exit(main())
-
-# ==========================================================================
 # tauri（预览外壳，2026-11-16，待做 §〇 第 15 项）
 # ==========================================================================
 def cmd_tauri():
@@ -3617,14 +3235,14 @@ def cmd_tauri():
     静态那层守的是几条**出问题也不会报错**的约定：
 
       · `frontendDist` 必须指回 `webui/static` —— 一旦有人在 `tauri/` 下复制一份前端，
-        副本就会漂移，然后「测试全绿、窗口里跑的是另一套页面」（`electron/renderer/`
-        已经踩过这个坑，靠同步脚本兜着）；
+        副本就会漂移，然后「测试全绿、窗口里跑的是另一套页面」（已移除的
+        `electron/renderer/` 正是这么坏掉的，当年靠同步脚本兜着）；
       · **不开端口**：`main.rs` 里不许出现 `127.0.0.1` / `http://` 之类地址。
         图省事让窗口加载本地 HTTP 会一步丢掉「不开端口」和 CSP 同源兜底；
       · 退出路径必须是「关 stdin → 等 → 还不退才 kill」。只留 kill 会打断正在写的
         `mpv.conf`，留半截文件。
 
-    动态那层的判据与 `cmd_electron` 是同一条：**页面必须显示出后端给的数据**。
+    动态那层的判据只有一条：**页面必须显示出后端给的数据**。
     Tauri 里没有 HTTP，所以能显示出来就证明
     「页面 → 注入的 `__MPVCB_INVOKE__` → Rust 命令 → 后端 stdio」这条链是通的。
 
@@ -3766,8 +3384,10 @@ def cmd_tauri():
         ident = str(conf.get("identifier", ""))
         ck("identifier 填了、不是脚手架默认值", bool(ident) and "com.tauri" not in ident, ident)
 
-        ck("Cargo.toml 声明 tauri 2 依赖",
-           'tauri = { version = "2"' in CARGO.read_text(encoding="utf-8"))
+        cargo = CARGO.read_text(encoding="utf-8")
+        m = re.search(r'tauri = \{ version = "(\d+\.\d+\.\d+(?:-[a-z]+\.\d+)?)"', cargo)
+        ck("Cargo.toml 钉死 tauri 版本（alpha 线也钉，不写成 \"3\"）",
+           bool(m) and m.group(1) == "3.0.0-alpha.6", m.group(1) if m else "没找到")
 
         caps = json.loads(CAPS.read_text(encoding="utf-8"))
         ck("capabilities 只开 core:default，且窗口名对得上",
@@ -3786,6 +3406,9 @@ def cmd_tauri():
            and "WebviewUrl::External" not in code)
         ck("注入了 __MPVCB_INVOKE__ 桥 + 同名命令",
            "__MPVCB_INVOKE__" in src and "fn mpvcb_invoke" in src)
+        # v3 把运行时拆包了：不写 .runtime(Wry) 就直接 RuntimeNotConfigured（实测）
+        ck("显式选了 wry 运行时（v3 不再默认带）",
+           "tauri-runtime-wry" in cargo and "tauri_runtime_wry::Wry::default()" in code)
         ck("退出是「关 stdin → 等 → 才 kill」而不是立刻杀",
            "fn shutdown_backend" in src and "SHUTDOWN_GRACE" in src
            and "try_wait" in src and "child.kill()" in src)
@@ -3920,184 +3543,6 @@ def cmd_tauri():
 
     sys.exit(main())
 
-
-# ==========================================================================
-# packaged（原 check_electron_packaged.py）
-# ==========================================================================
-def cmd_packaged():
-    """验证**打包后的 Electron 应用**（release/win-unpacked）能真跑。
-
-    ## 为什么必须单独验打包形态
-
-    开发形态（`electron .`）与打包形态的差别，恰好是路径解析最容易出错的地方：
-      * `app.isPackaged` 从 false 变成 true，后端路径整条分支不一样；
-      * 代码进了 `app.asar`（只读归档），`__dirname` 的语义跟着变；
-      * renderer 从 asar 里读，`file://` 路径变了。
-
-    **而且这些错都不会让窗口打不开** —— 只是数据出不来了。所以判据还是那一条：
-    **页面必须显示出后端给的数据**。
-
-    用法：
-        cd electron && npm run dist:dir      # 只打包不生成安装器，快
-        py tools/verify.py packaged
-    """
-    import json
-    import socket
-    import subprocess
-    import sys
-    import time
-    import urllib.request
-    from pathlib import Path
-
-    ROOT = Path(__file__).resolve().parent.parent
-    EL = ROOT / "electron"
-    APP = EL / "release" / "win-unpacked" / "MPV Config Builder.exe"
-
-    PASS, FAIL = [], []
-
-
-    def ck(label, cond, detail=""):
-        print(("  ✅ " if cond else "  ❌ ") + label + (f"  {detail}" if detail else ""))
-        (PASS if cond else FAIL).append(label)
-        return bool(cond)
-
-
-    def free_port():
-        s = socket.socket()
-        s.bind(("127.0.0.1", 0))
-        p = s.getsockname()[1]
-        s.close()
-        return p
-
-
-    def find_ws(port, timeout=60):
-        deadline = time.time() + timeout
-        while time.time() < deadline:
-            try:
-                with urllib.request.urlopen(
-                        f"http://127.0.0.1:{port}/json/list", timeout=2) as f:
-                    tabs = json.load(f)
-                page = next((t for t in tabs if t.get("type") == "page"), None)
-                if page and page.get("webSocketDebuggerUrl"):
-                    return page["webSocketDebuggerUrl"]
-            except Exception:
-                pass
-            time.sleep(0.6)
-        return None
-
-
-    def backend_procs():
-        # ⚠ 别用 tasklist 的 /FI 过滤器：Python 传 list 时引号会被拆开，永远匹配不到
-        # ⚠ encoding/errors 必须显式 + try 兜底：与 cmd_electron 的同名函数同一套
-        #   坑（tasklist 输出是 936 编码；3.13 的 text=True 解码失败静默返回 None，
-        #   而这里原先连 try 都没有，解码一炸整个 packaged 检查直接崩）。
-        try:
-            out = subprocess.run(["tasklist", "/NH", "/FO", "CSV"],
-                                 capture_output=True, text=True,
-                                 encoding="utf-8", errors="replace",
-                                 timeout=30).stdout
-        except Exception:
-            return -1
-        return sum(1 for l in (out or "").splitlines()
-                   if "MPVConfigBuilderBackend.exe".lower() in l.lower())
-
-
-    def report():
-        print()
-        if FAIL:
-            print(f"❌ {len(FAIL)} 项没过：")
-            for x in FAIL:
-                print("   - " + x)
-            return 1
-        print(f"✅ 全部通过（{len(PASS)} 项）")
-        return 0
-
-
-    def main():
-        print("=" * 58)
-        print("打包后的 Electron 应用验证")
-        print("=" * 58)
-
-        if not ck("打包产物存在", APP.is_file(),
-                  "先跑：cd electron && npm run dist:dir" if not APP.is_file() else str(APP)):
-            return report()
-
-        res = EL / "release" / "win-unpacked" / "resources"
-        for rel in ("backend/MPVConfigBuilderBackend.exe", "LICENSE", "NOTICE.txt"):
-            ck(f"打包产物里带上了 {rel}", (res / rel).is_file())
-
-        port = free_port()
-        # 同 cmd_electron：必须摘掉宿主的 ELECTRON_RUN_AS_NODE，否则退化成纯 Node
-        env = dict(**__import__("os").environ)
-        env.pop("ELECTRON_RUN_AS_NODE", None)
-        # 同 cmd_electron：--in-process-gpu 绕开本环境独立 GPU 进程必崩的问题
-        # （2026-10-14 实测，详见 cmd_electron spawn 处的注释）
-        proc = subprocess.Popen([str(APP), f"--debug-port={port}",
-                                 "--in-process-gpu"], cwd=str(APP.parent),
-                                env=env,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        try:
-            ws = find_ws(port)
-            if not ck("打包后的应用能启动并创建窗口", bool(ws), f"port={port}"):
-                return report()
-
-            sys.path.insert(0, str(ROOT / "tools"))
-            from uidriver import CDP                          # noqa: PLC0415
-            cdp = CDP(ws)
-            cdp.call("Page.enable")
-            cdp.call("Runtime.enable")
-            time.sleep(3.5)
-
-            ck("打包形态下后端被拉起来了", backend_procs() >= 1,
-               f"命中 {backend_procs()} 个")
-
-            got = cdp.js("""(() => ({
-              url: location.href,
-              text: document.body.innerText.slice(0, 400),
-              hasInvoke: typeof window.__MPVCB_INVOKE__ === 'function',
-              nav: document.querySelectorAll('.topnav > *').length,
-              leaked: typeof window.require
-            }))()""")
-            ck("页面从 asar 里加载成功", "app.asar" in got.get("url", ""),
-               got.get("url", ""))
-            ck("页面显示出后端数据（打包形态路径解析正确）",
-               "v0.1.0" in got.get("text", ""), f"前 60 字：{got.get('text','')[:60]!r}")
-            ck("preload 在打包形态下也生效", bool(got.get("hasInvoke")))
-            ck("顶栏入口在打包形态下也在", got.get("nav") == 3, str(got.get("nav")))
-            ck("contextIsolation 在打包形态下仍生效",
-               got.get("leaked") == "undefined", str(got.get("leaked")))
-
-            # 打一发真接口，确认 asar 里的 renderer + resources 里的后端都工作
-            call = cdp.js("""(async () => {
-              const r = await window.__MPVCB_INVOKE__({path: 'options'});
-              return {ok: r.ok,
-                      core: r.data && r.data.core ? r.data.core.length : null,
-                      native: r.data && r.data.native ? r.data.native.length : null};
-            })()""")
-            ck("打包形态下接口可取到选项库（resources 里的 data/ 可读）",
-               call.get("ok") and (call.get("core") or 0) > 0,
-               json.dumps(call, ensure_ascii=False))
-        finally:
-            try:
-                if proc.poll() is None:
-                    proc.terminate()
-                    proc.wait(timeout=15)
-            except Exception:
-                try:
-                    proc.kill()
-                except Exception:
-                    pass
-
-        left = 0
-        deadline = time.time() + 15
-        while time.time() < deadline:
-            left = backend_procs()
-            if left == 0:
-                break
-            time.sleep(0.5)
-        ck("退出后没有孤儿后端进程", left == 0, f"还剩 {left} 个")
-        return report()
-    sys.exit(main())
 
 # ==========================================================================
 # pack（原 check_pack.py）
@@ -4574,9 +4019,7 @@ COMMANDS = {
     "stdio": cmd_stdio,
     "presets": cmd_presets,
     "ui": cmd_ui,
-    "electron": cmd_electron,
     "tauri": cmd_tauri,
-    "packaged": cmd_packaged,
     "pack": cmd_pack,
     "conflicts": cmd_conflicts,
 }

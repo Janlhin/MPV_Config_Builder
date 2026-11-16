@@ -9,10 +9,10 @@
 #
 # 1. 为什么是 windows-latest，不是 ubuntu-latest
 #    本项目只支持 Windows：启动器是 启动.ps1（UTF-8 带 BOM + CRLF，Pwsh 入口）、
-#    安装包是 Electron Windows 版、用户数据落在 %LOCALAPPDATA% / %APPDATA%。
-#    更关键的是 verify.py 的两项实机检查在 Linux 上会**退化成「跳过」**：
+#    桌面外壳是 Tauri（WebView2 + 系统标题栏）、用户数据落在 %LOCALAPPDATA% / %APPDATA%。
+#    更关键的是 verify.py 的实机检查在 Linux 上会**退化成「跳过」**：
 #       · 顶栏常驻入口 —— 要 Edge / Chrome（tools/uidriver.py 的 find_browser）
-#       · Electron 外壳 —— 要 electron/node_modules/electron/dist/electron.exe
+#       · Tauri 外壳 —— 要 cargo build 出的 exe
 #    跳过不算失败，于是门禁在 Linux 上等于少跑两层却照样显示绿灯 —— 那是假通过。
 #    GitHub 的 windows-latest 镜像预装 Edge 与 Chrome，这两项能真跑起来。
 #
@@ -27,7 +27,8 @@
 # ── 已知缺口（诚实登记）─────────────────────────────────────────────
 #   · 只在 Python 3.13 上跑。README 声称「需要 Python 3.8+」，这条**未被 CI 验证**。
 #     见 TASKS.md T12。
-#   · Electron 打包形态（packaged / pack）仍会跳过：CI 不装 node_modules、不打 exe。
+#   · Tauri 实机那一半（窗口/CDP/关窗）仍会跳过：CI 不装 Rust、不 cargo build。
+#   · 「打包后的安装包」没有任何自动验证 —— Tauri 还没出安装器（见 docs/打包与发布.md）。
 
 name: verify
 
@@ -64,9 +65,9 @@ jobs:
 
       - name: 发布前自检（离线）
         # verify.py 的 exit code 就是门禁：0 = 全绿，非 0 = 有项没过。
-        # 内含：单元测试（649 项）、源码可编译、文档数字与实测一致、
+        # 内含：单元测试、源码可编译、文档数字与实测一致、
         #       发行必带文件、许可文件内容、无机器专用路径、
-        #       顶栏实机检查、Electron 实机检查（缺件才跳过）。
+        #       顶栏实机检查、Tauri 外壳检查（实机那半缺 exe 才跳过）。
         run: python tools/verify.py --offline
 
   links:
