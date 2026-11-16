@@ -27,6 +27,7 @@ check_electron_packaged / check_pack / compare_conflicts），每个都重复一
     presets    实机验证「我自己的预设」存读
     ui         实机验证候选值下拉
     electron   实机验证 Electron 开发形态
+    tauri      实机验证 Tauri 预览外壳（stdio 桥、不开端口、退出不留孤儿）
     packaged   实机验证打包后的 Electron 应用
     pack       对打包产物做端到端验证
     conflicts  冲突规则重构前后等价性（4699 组枚举）
@@ -121,6 +122,7 @@ def cmd_all():
         7. 许可文件内容（GPL-3.0 全文 + 第三方归属）
         8. 顶栏常驻入口在 9 个页面上真的渲染出来了（要本机有 Edge/Chrome；没有就跳过）
         9. Electron 外壳能跑、页面能拿到后端数据（要装了 node_modules；没装就跳过）
+        10. Tauri 预览外壳（静态约定每次都查；实机要 cargo build 出的 exe，没有就跳过）
 
     ⚠ 联网那一步（4）在国内网络下可能整体失败 —— 那是网络问题不是清单问题，
     脚本会明确区分"清单失效"与"连不上"。
@@ -510,6 +512,29 @@ def cmd_all():
                   tail2[-1] if tail2 else "(没有输出)")
 
 
+    def check_tauri(r):
+        """Tauri 预览外壳（待做 §〇 第 15 项）。
+
+        静态部分每次都跑（几毫秒，守「前端不复制副本 / 不开端口 / 退出先礼后兵」）。
+        实机部分要 `cargo build` 出 exe 才有，**没有就跳过不算失败** ——
+        预览版是可选形态，不该拖住每次发布自检；但 exe 在，它就必须过。
+        """
+        if not (ROOT / "tauri" / "src-tauri" / "tauri.conf.json").is_file():
+            r.add("Tauri 预览外壳检查", True, "跳过（没有 tauri/ 脚手架）")
+            return
+        p = subprocess.run([sys.executable, "-X", "utf8",
+                            str(Path(__file__).parent / "verify.py"), "tauri"],
+                           capture_output=True, cwd=str(ROOT))
+        tail = p.stdout.decode("utf-8", "replace").strip().splitlines()
+        err = p.stderr.decode("utf-8", "replace").strip().splitlines()
+        detail = tail[-1] if tail else "(没有输出)"
+        if p.returncode != 0:
+            detail = " ‖ ".join(tail[-6:]) or "(没有输出)"
+            if err:
+                detail += " ‖ stderr: " + " / ".join(err[-4:])
+        r.add("Tauri 预览外壳检查", p.returncode == 0, detail)
+
+
     def main():
         ap = argparse.ArgumentParser()
         ap.add_argument("--offline", action="store_true", help="跳过联网检查")
@@ -534,6 +559,7 @@ def cmd_all():
         check_hotkeys(r)
         check_motion(r)
         check_electron_pack(r)
+        check_tauri(r)
 
         print("-" * 58)
         if r.failed:
@@ -618,7 +644,7 @@ def cmd_docs():
         # ⚠⚠ 白名单有个**天生的盲区**：写错的数字要是不在名单里，就永远匹配不上，
         # 也就永远查不出来（实测：把 424 手滑成 420，这个模式一个字都不匹配，
         # 检查照样报"一致 ✓"）。所以底下还有一条「按上下文兜底」的规则。
-        (r"(?<![\d])(181|199|220|222|228|236|259|287|327|352|358|360|392|424|444|476|497|509|547|548|575|595|606|615|645|648|649|650|654|701|705|717|748|765) 项",
+        (r"(?<![\d])(181|199|220|222|228|236|259|287|327|352|358|360|392|424|444|476|497|509|547|548|575|595|606|615|645|648|649|650|654|701|705|717|748|765|784) 项",
          tests, "测试数"),
         # 兜底：**三位数**的 `N 项` 出现在「测试」附近时，必须等于实测总数。
         #
@@ -3581,6 +3607,321 @@ def cmd_electron():
     sys.exit(main())
 
 # ==========================================================================
+# tauri（预览外壳，2026-11-16，待做 §〇 第 15 项）
+# ==========================================================================
+def cmd_tauri():
+    """Tauri 预览外壳的验证。
+
+    ## 分两层：先验「配置与源码承诺的事」，再验「窗口真能跑」
+
+    静态那层守的是几条**出问题也不会报错**的约定：
+
+      · `frontendDist` 必须指回 `webui/static` —— 一旦有人在 `tauri/` 下复制一份前端，
+        副本就会漂移，然后「测试全绿、窗口里跑的是另一套页面」（`electron/renderer/`
+        已经踩过这个坑，靠同步脚本兜着）；
+      · **不开端口**：`main.rs` 里不许出现 `127.0.0.1` / `http://` 之类地址。
+        图省事让窗口加载本地 HTTP 会一步丢掉「不开端口」和 CSP 同源兜底；
+      · 退出路径必须是「关 stdin → 等 → 还不退才 kill」。只留 kill 会打断正在写的
+        `mpv.conf`，留半截文件。
+
+    动态那层的判据与 `cmd_electron` 是同一条：**页面必须显示出后端给的数据**。
+    Tauri 里没有 HTTP，所以能显示出来就证明
+    「页面 → 注入的 `__MPVCB_INVOKE__` → Rust 命令 → 后端 stdio」这条链是通的。
+
+    另外单验一件事：**关窗之后有没有孤儿后端**。这里的关窗走 WM_CLOSE（等于用户点 ×），
+    验的是我们写的优雅退出，不是 `TerminateProcess`。
+
+    用法：
+        cd tauri/src-tauri && cargo build      # 或 cd tauri && npm run dev
+        py tools/verify.py tauri
+    """
+    import json
+    import socket
+    import subprocess
+    import time
+    import urllib.request
+    from pathlib import Path
+
+    ROOT = Path(__file__).resolve().parent.parent
+    TAURI = ROOT / "tauri"
+    SRC = TAURI / "src-tauri"
+    CONF = SRC / "tauri.conf.json"
+    CARGO = SRC / "Cargo.toml"
+    MAINRS = SRC / "src" / "main.rs"
+    CAPS = SRC / "capabilities" / "default.json"
+    EXE = SRC / "target" / "debug" / "mpv-config-builder.exe"
+
+    PASS, FAIL = [], []
+
+
+    def ck(label, cond, detail=""):
+        print(("  ✅ " if cond else "  ❌ ") + label + (f"  {detail}" if detail else ""))
+        (PASS if cond else FAIL).append(label)
+        return bool(cond)
+
+
+    def report():
+        print()
+        if FAIL:
+            print(f"❌ {len(FAIL)} 项没过：")
+            for x in FAIL:
+                print("   - " + x)
+            return 1
+        print(f"✅ 全部通过（{len(PASS)} 项）")
+        return 0
+
+
+    def free_port():
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        p = s.getsockname()[1]
+        s.close()
+        return p
+
+
+    def find_ws(port, timeout=60):
+        """等 WebView2 的调试端口起来，拿页面的 WebSocket 地址。"""
+        deadline = time.time() + timeout
+        last = ""
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(
+                        f"http://127.0.0.1:{port}/json/list", timeout=2) as f:
+                    tabs = json.load(f)
+                page = next((t for t in tabs if t.get("type") == "page"), None)
+                if page and page.get("webSocketDebuggerUrl"):
+                    return page["webSocketDebuggerUrl"]
+                last = f"还没有 page：{tabs}"
+            except Exception as e:
+                last = str(e)
+            time.sleep(0.5)
+        print(f"  （等调试端口超时：{last}）")
+        return ""
+
+
+    def stdio_backend_pids():
+        """后端是 `python webui/server.py --stdio` —— 只能按命令行认，按进程名会误伤。"""
+        ps = ("Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+              "Where-Object { $_.CommandLine -like '*webui\\\\server.py*' -and "
+              "$_.CommandLine -like '*--stdio*' } | ForEach-Object { $_.ProcessId }")
+        try:
+            r = subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                capture_output=True, text=True, encoding="utf-8",
+                errors="replace", timeout=60)
+        except Exception:
+            return []
+        return [int(x) for x in (r.stdout or "").split() if x.strip().isdigit()]
+
+
+    def request_close(pid):
+        """给该进程的**主窗口**发 WM_CLOSE —— 等于用户点右上角 ×，走应用自己的退出路径。
+
+        ⚠ 不能对所有顶层窗口发：WebView2 进程里有几个隐藏的辅助窗口，对它们发
+        WM_CLOSE 不会关掉应用（实测会误报「点 × 之后没退出」）。判据取
+        「可见 + 有标题」，那才是用户看到的那个窗口。
+        """
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        found = []
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def _cb(hwnd, _lparam):
+            p = wintypes.DWORD(0)
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(p))
+            if p.value == pid and user32.IsWindowVisible(hwnd) \
+                    and user32.GetWindowTextLengthW(hwnd) > 0:
+                found.append(hwnd)
+            return True
+
+        user32.EnumWindows(_cb, 0)
+        for h in found:
+            user32.PostMessageW(h, 0x0010, 0, 0)          # WM_CLOSE
+        return len(found)
+
+
+    def main():
+        print("=" * 58)
+        print("Tauri 预览外壳验证")
+        print("=" * 58)
+
+        # ---- 1. 静态：它会跑起来吗、跑起来的是不是我们以为的那套 ----
+        if not ck("tauri/src-tauri 脚手架在", CONF.is_file() and CARGO.is_file() and MAINRS.is_file(),
+                  str(SRC)):
+            return report()
+
+        conf = json.loads(CONF.read_text(encoding="utf-8"))
+        ck("tauri.conf.json 是合法 JSON", True, conf.get("productName", ""))
+
+        dist = str(conf.get("build", {}).get("frontendDist", "")).replace("\\", "/")
+        ck("frontendDist 直指 webui/static（前端只有一份，不在 tauri/ 下复制）",
+           dist.endswith("webui/static")
+           and (ROOT / "webui" / "static" / "index.html").is_file(), dist)
+
+        ck("预览版不出安装包（bundle.active = false）",
+           conf.get("bundle", {}).get("active") is False,
+           str(conf.get("bundle", {}).get("active")))
+
+        ident = str(conf.get("identifier", ""))
+        ck("identifier 填了、不是脚手架默认值", bool(ident) and "com.tauri" not in ident, ident)
+
+        ck("Cargo.toml 声明 tauri 2 依赖",
+           'tauri = { version = "2"' in CARGO.read_text(encoding="utf-8"))
+
+        caps = json.loads(CAPS.read_text(encoding="utf-8"))
+        ck("capabilities 只开 core:default，且窗口名对得上",
+           caps.get("permissions") == ["core:default"]
+           and caps.get("windows") == ["main"],
+           f"windows={caps.get('windows')} permissions={caps.get('permissions')}")
+
+        src = MAINRS.read_text(encoding="utf-8")
+        # 注释里专门写着「别把窗口改成加载本机 HTTP 端口」，那句必然带违规字面量 ——
+        # 判据落在代码上，不落在注释上。
+        code = "\n".join(ln for ln in src.splitlines() if not ln.strip().startswith("//"))
+
+        ck("后端走 stdio（不开端口：代码里没有 127.0.0.1 / http://）",
+           "--stdio" in code and "server.py" in code
+           and "127.0.0.1" not in code and "http://" not in code
+           and "WebviewUrl::External" not in code)
+        ck("注入了 __MPVCB_INVOKE__ 桥 + 同名命令",
+           "__MPVCB_INVOKE__" in src and "fn mpvcb_invoke" in src)
+        ck("退出是「关 stdin → 等 → 才 kill」而不是立刻杀",
+           "fn shutdown_backend" in src and "SHUTDOWN_GRACE" in src
+           and "try_wait" in src and "child.kill()" in src)
+        ck("没有写死的机器路径（盘符 / 用户名）",
+           not any(s in src for s in ("C:\\Users", "D:\\Projects", "Janlhin")))
+
+        copied = [str(p.relative_to(TAURI)) for p in TAURI.rglob("*")
+                  if p.is_file() and p.suffix.lower() in (".html", ".css", ".js")
+                  and "target" not in p.parts and "node_modules" not in p.parts
+                  and "gen" not in p.parts]
+        ck("tauri/ 下没有第二份前端副本", not copied, "；".join(copied[:5]))
+
+        ignore = (ROOT / ".gitignore").read_text(encoding="utf-8", errors="replace")
+        ck("编译产物不入库（.gitignore 盖住 target/）",
+           "tauri/src-tauri/target/" in ignore)
+
+        # ---- 2. 动态：窗口真跑起来了吗 ----
+        if not EXE.is_file():
+            print("  ⏭  跳过实机（没有 exe）：先跑 cd tauri/src-tauri && cargo build")
+            return report()
+
+        port = free_port()
+        env = dict(**__import__("os").environ)
+        # WebView2 的调试端口只能靠这个环境变量开，且只绑 127.0.0.1
+        env["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = f"--remote-debugging-port={port}"
+        before = set(stdio_backend_pids())
+        proc = subprocess.Popen([str(EXE)], cwd=str(SRC), env=env,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        cdp = None
+        try:
+            ws = find_ws(port)
+            if not ck("窗口起来了（WebView2 调试端口可用）", bool(ws), f"port={port}"):
+                return report()
+
+            sys.path.insert(0, str(ROOT / "tools"))
+            from uidriver import CDP                      # noqa: PLC0415
+            cdp = CDP(ws)
+            cdp.call("Page.enable")
+            cdp.call("Runtime.enable")
+            time.sleep(3.0)          # 等页面 boot() 把 status 拉完
+
+            got = cdp.js("""(() => ({
+              href: location.href,
+              title: document.title,
+              text: document.body.innerText.slice(0, 600),
+              invoke: typeof window.__MPVCB_INVOKE__,
+              topbar: !!document.querySelector('.topbar')
+            }))()""")
+            ck("页面从 Tauri 资源协议加载（不是空白页）",
+               bool(got.get("href")) and len((got.get("text") or "").strip()) > 80,
+               f"{got.get('href')} · 前 40 字 {(got.get('text') or '')[:40]!r}")
+            ck("注入桥在（window.__MPVCB_INVOKE__ 是函数）",
+               got.get("invoke") == "function", str(got.get("invoke")))
+            ck("顶栏渲染出来了", got.get("topbar") is True)
+
+            # 这条是全文的核心：页面 → 桥 → Rust 命令 → Python stdio
+            call = cdp.js("""(async () => {
+              const r = await window.__MPVCB_INVOKE__({path: 'status', method: 'GET', query: {}});
+              return {ok: r.ok, version: (r.data && r.data.version) || null,
+                      dirs: ((r.data && r.data.candidate_details) || []).length};
+            })()""")
+            ck("stdio 桥打通：直调 status 拿到后端版本",
+               call.get("ok") is True and call.get("version") == "0.1.0",
+               json.dumps(call, ensure_ascii=False))
+            ck("页面显示的目录来自后端探测（不是写死的）",
+               "portable_config" in (got.get("text") or ""), "正文含 portable_config")
+
+            bad = cdp.js("""(async () => {
+              const r = await window.__MPVCB_INVOKE__({path: '根本没有这个接口'});
+              return {ok: r.ok, error: r.error};
+            })()""")
+            ck("不存在的接口返回 ok=false + error（不是抛异常）",
+               bad.get("ok") is False and bool(bad.get("error")),
+               json.dumps(bad, ensure_ascii=False))
+
+            # 9 个页面都要能从打包进 exe 的同一份 static 里打开
+            pages = ["index.html", "basic.html", "advanced.html", "expert.html",
+                     "analyze.html", "keys.html", "downloads.html", "guide.html",
+                     "hell.html"]
+            base = got.get("href", "").rsplit("/", 1)[0]
+            page_bad, nav_err = [], ""
+            if not base.startswith("http"):
+                nav_err = f"拿不到页面基址：{got.get('href')!r}"
+                page_bad = pages
+            else:
+                for name in pages:
+                    cdp.call("Page.navigate", url=f"{base}/{name}")
+                    time.sleep(1.2)
+                    r = cdp.js("""(() => ({
+                      len: document.body.innerText.trim().length,
+                      topbar: !!document.querySelector('.topbar')
+                    }))()""")
+                    if r.get("len", 0) < 40 or not r.get("topbar"):
+                        page_bad.append(f"{name}(len={r.get('len')}, topbar={r.get('topbar')})")
+            ck("9 个页面在 Tauri 里都能打开且有内容", not page_bad,
+               nav_err or "；".join(page_bad))
+        finally:
+            if cdp is not None:
+                try:
+                    cdp.sock.close()
+                except Exception:
+                    pass
+
+            # ---- 3. 关窗：走 WM_CLOSE（优雅退出），不是 terminate ----
+            hit = request_close(proc.pid)
+            deadline = time.time() + 12
+            while time.time() < deadline and proc.poll() is None:
+                time.sleep(0.3)
+            ck("关窗请求送达（WM_CLOSE 发到了窗口）", hit > 0, f"命中 {hit} 个窗口")
+            ck("应用自己退出了（不是被强杀）", proc.poll() is not None,
+               f"exit={proc.poll()}")
+
+            # 后端必须跟着走：stdin 关了它会读到 EOF 自己退
+            left = []
+            deadline = time.time() + 15
+            while time.time() < deadline:
+                left = [p for p in stdio_backend_pids() if p not in before]
+                if not left:
+                    break
+                time.sleep(0.4)
+            ck("退出后没有孤儿后端进程", not left, f"还剩 {left}")
+
+            if proc.poll() is None:           # 兜底，别把测试进程留在机器上
+                proc.terminate()
+                try:
+                    proc.wait(timeout=10)
+                except Exception:
+                    proc.kill()
+
+        return report()
+
+
+    sys.exit(main())
+
+
+# ==========================================================================
 # packaged（原 check_electron_packaged.py）
 # ==========================================================================
 def cmd_packaged():
@@ -4234,6 +4575,7 @@ COMMANDS = {
     "presets": cmd_presets,
     "ui": cmd_ui,
     "electron": cmd_electron,
+    "tauri": cmd_tauri,
     "packaged": cmd_packaged,
     "pack": cmd_pack,
     "conflicts": cmd_conflicts,
