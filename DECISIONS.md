@@ -577,3 +577,52 @@
 * **影响面**：新增 `tauri/`（`package.json` + `src-tauri/`）；`tools/verify.py::cmd_tauri`；
   `tests/test_tauri_preview.py`；`docs/打包与发布.md` 与 `TASKS.md` 各加一段。
   **不改** `webui/static`、**不改** `electron/`、**不改** `core/`。
+* **⚠ 已被下一条覆盖（2026-11-17）**：用户改口要 Tauri 3.0.0-alpha.6 并删掉 Electron，
+  本条「Electron 原样保留、只做预览版」的结论作废，原文按「只增不改」留着。
+
+## 2026-11-17 外壳收口到 **Tauri 3.0.0-alpha.6**，Electron 整体移除；安装包产线暂停
+
+* **决策**：上一条（2026-11-16「只做预览版、Electron 原样保留」）被**同轮覆盖**。用户先问
+  「Tauri 是预览的吗」「我的意思是 Tauri3 吗」——这才暴露上一条里的「预览版」指的是**交付形态**
+  （不出安装包），不是「Tauri 3 预览」；实际锁的是 `tauri 2.12.6`。用户随后明确拍板：
+  **就用 `3.0.0-alpha.6`，并把 Electron 完全杀掉**。于是分两步落地：
+  ① 把版本顶到 Tauri 3（`tauri` / `tauri-runtime-wry` = `3.0.0-alpha.6`、`tauri-build` = `3.0.0-alpha.4`）；
+  ② 删掉 `electron/` 以及所有指向它的验证、测试、文档、CI、入口脚本。
+* **为什么接受 alpha**：Tauri 3 至今只有 alpha（`3.0.0-alpha.6` 是当前最新），没有稳定版可等；
+  用户的技术栈偏好是「用最新的」（`mem://preference/p1_AQBlMhLYkCE`）。代价是 API 会变、
+  上游可能改签名 —— 已用两条断言钉住（`verify.py tauri` 与 `tests/test_tauri_preview.py`
+  都要求版本**精确等于** `3.0.0-alpha.6`），升级时必然红，不会静默漂移。
+* **Tauri 3 的三个硬事实（每条都实跑撞过）**：
+  1. **运行时拆包**：`Builder::default()` 不再自带运行时，不配就启动即 panic
+     （`exit=101 / Runtime(RuntimeNotConfigured)`）；`features=["wry"]` 不认（tauri 没这个 feature）。
+     正解 = 加 `tauri-runtime-wry` 依赖 + `.runtime(tauri_runtime_wry::Wry::default())`。
+  2. **`tauri-build` 没有 alpha.6**，最新是 `3.0.0-alpha.4`，只能混搭（已在 `Cargo.toml` 注释里写明）。
+  3. **国内拉 alpha 依赖会撞 SSL**：`static.crates.io` 当日全面握手失败（curl / Invoke-WebRequest 均 35），
+     而 `crates.io` API 与几小时前拉 2.x 都正常；用 `src-tauri/.cargo/config.toml` 指 `rsproxy.cn`
+     才过。该目录已 gitignore（本地应急用，不入库；`mirrors.ustc.edu.cn` 实测 403）。
+* **移除范围（`electron/` 一个字节不留）**：目录删除（844.2 MB，图标先搬到 `tauri/src-tauri/icons/`）；
+  `verify.py` 删 `cmd_electron` / `cmd_packaged` / `check_electron_pack` 及注册，`cmd_all` 里
+  「Electron 检查 + Tauri 检查」合并成一项；`build.py icon` 改输出目录、`version` 改同步
+  `tauri.conf.json` + `Cargo.toml`；删 `tests/test_electron_exit.py`（4 项）；前端删死代码
+  （`api.js::initTitlebarBridge`、`style.css` 的 `html.in-electron` 规则）；`.ps1` / `.spec` /
+  `webui/*.py` 注释 / CI / README / docs 全部改口。测试总数 784 → **781**。
+* **代价（必须记住的一条）**：**这同时删掉了项目唯一的安装包产线**。Electron 时代
+  `electron-builder` 出的 `Setup.exe` 是「普通用户不用装 Python」的唯一路径；删掉之后
+  `bundle.active` 仍是 `false`、`cargo tauri build` 一次都没跑过，Releases 里暂时**没有可下载的安装包**，
+  交付形态只剩「从源码跑」与「自己 `cargo build`」。恢复要四步：开 bundle 与 targets、
+  把 PyInstaller 后端产物放进 `bundle.resources` 并改 `main.rs` 的查找路径、清旧 Electron 安装残留、
+  真跑一次并实机装一遍（**目前没有任何自动验证覆盖安装器**）。
+* **能力回退（不是遗漏，是待做）**：自绘标题栏（R-29 的三键 / 拖拽区 / 主题联动 / Snap）在 Tauri 下
+  **没有实现**，代码已随 Electron 删除，`docs/待做.md` 已把它重列为待做；原生菜单、单实例锁、
+  打包后的后端 sidecar 同样待补。系统标题栏接管窗口边框，页面顶栏失去拖拽区。
+* **被否决的替代方案**：
+  1. 留在 `tauri 2.12.6`（稳定线）等 3.0 正式版 —— 更稳，但用户明确要 3；
+  2. 保留 `electron/` 作为「回滚备份」—— 与「完全杀了」直接冲突，且两份外壳会立刻漂移；
+  3. 先开 Tauri 安装包再删 Electron —— 更安全，但当日本机拉不到 WiX/NSIS 网络条件不确定，
+     按用户原话先删、把安装包列成待做。
+* **回滚路径**：`git revert` 本次提交即可回到「Electron + Tauri 2 并列」的状态（历史提交 `7e374ad`
+  是最后一个含 `electron/` 的点）。
+* **历史文档的处理**：带日期的审计与纪要（`docs/接手报告.md`、`docs/踩过的坑.md`、
+  `docs/代码审计-2026-10-20.md`、`docs/架构审计-2026-10-20.md`）**保留 Electron 原文**，
+  作为当时的事实记录；活跃文档（README / AGENTS / TASKS / 既有约定 / 打包发布 / 待做 / 本文件）
+  全部改成 Tauri 口径。

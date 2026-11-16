@@ -3,7 +3,7 @@
 > **动手前读完这一页。** 面向任何接手本仓库的人或 AI。
 >
 > 纪律来源：作者的《用 AI 做项目：强制工程校验规范》**v1.20.0**。下面是它在**本项目**的
-> 落地版（工具链按本项目实际技术栈替换：Python 标准库 + Electron，不是 TS 栈）。
+> 落地版（工具链按本项目实际技术栈替换：Python 标准库 + Tauri（Rust 外壳），不是 TS 栈）。
 > 本文件是**目录**：只写命令入口、本项目红线与规范锚点，不复制规范正文。
 > 与原文冲突时以原文为准；本文件更严时以本文件为准。
 >
@@ -14,8 +14,8 @@
 ## 0. 这是什么
 
 Windows 上的 mpv 配置工具（GPL-3.0）：不播放视频，只负责把 `mpv.conf` 写对。
-`core/` 是与界面无关的逻辑，`webui/` 网页界面，`electron/` 桌面外壳。
-**只用 Python 标准库**（无第三方依赖）；Node 只在打包 Electron 时使用。
+`core/` 是与界面无关的逻辑，`webui/` 网页界面，`tauri/` 桌面外壳（Rust + 系统 WebView2）。
+**Python 侧只用标准库**（无第三方依赖）；Rust 只在外壳里用（`cargo build` 不需要 Node）。
 
 ## 1. 三个必须记住的命令
 
@@ -37,7 +37,7 @@ python tools\build.py version       # 改过 core\schema.py 的 VERSION 之后
 每次 `push` / PR，CI 在 **Windows runner** 上跑 `python tools/verify.py --offline`
 （`.github/workflows/verify.yml`，`shell: pwsh`）。三点别改错：
 
-* **必须 Windows**：顶栏实机检查要 Edge/Chrome、Electron 检查要 `electron.exe`。换 Linux 上
+* **必须 Windows**：顶栏实机检查要 Edge/Chrome、Tauri 检查要 `cargo build` 出的 exe。换 Linux 上
   这两项会退化成「跳过」——跳过不算失败，于是少跑两层却照样绿灯，那是假通过。
 * **必须 `--offline`**：外链检查验证的是上游站点可达，与代码改动无关。它没被豁免，只是
   **换时间跑**——每周日单独跑一次含联网的全量（`links` job），同样阻断。
@@ -139,8 +139,9 @@ LF 写成 CRLF，然后 `git diff` 全是行尾噪音、`verify.py docs` 的逐�
 
 ## 5. 既有约定
 
-`tools/` 只允许 4 个文件、门禁入口在 `.githooks`、`electron/renderer/` 是构建产物、
-传输层必须走 `API.xxx()` —— 六条结构性约束见 `docs/既有约定.md`。**改动前必读。**
+`tools/` 只允许 4 个文件、门禁入口在 `.githooks`、前端只有 `webui/static` 一份
+（`tauri.conf.json` 的 `frontendDist` 直接指过去，不许复制副本）、传输层必须走 `API.xxx()`
+—— 六条结构性约束见 `docs/既有约定.md`。**改动前必读。**
 
 ## 6. 接手时先看哪里
 
