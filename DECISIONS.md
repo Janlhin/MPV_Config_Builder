@@ -626,3 +626,55 @@
   `docs/代码审计-2026-10-20.md`、`docs/架构审计-2026-10-20.md`）**保留 Electron 原文**，
   作为当时的事实记录；活跃文档（README / AGENTS / TASKS / 既有约定 / 打包发布 / 待做 / 本文件）
   全部改成 Tauri 口径。
+
+## 2026-11-17 根目录整改：9 个白名单外条目搬进子目录（不登记为例外）
+
+* **决策**：用户当场拍板 —— **搬走**，而不是「登记为例外」或「先登记、以后再说」。
+  依据是规范 v1.23.0 的根目录白名单（只允许五个文档 + 包管理/构建配置 + 版本与忽略 +
+  协作平台目录 + 法务文件；散文类文件一律不进根目录）。
+* **搬迁映射**：
+  * `入门指南.md` / `MPV_Shader搭配说明书.md` / `致谢与许可.md` / `产品规划与路线图.md`
+    → `docs/`（界面四份文档，`webui/server.py::DOCS` 与 `guide.html` 只认文件名，路径前缀在
+    `DOCS_DIR` 里加一次）；
+  * `NOTICE.txt` → `docs/NOTICE.txt`（与用户文档同目录；`LICENSE` 的指向、打包清单、
+    `verify.py::REQUIRED_LEGAL` 同步）；
+  * `README.zh-CN.md` → `docs/README.zh-CN.md`（英文 README 里加链接；GitHub 不再自动把它
+    识别成第二语言，这是已知代价）；
+  * `index.html` → `docs/index.html`（GitHub Pages 部署前由 `pages.yml` 复制回仓库根，
+    产物在 `.gitignore` 里；仓库根不再有跳转页）；
+  * `_mpv_options_raw.txt` → `data/_mpv_options_raw.txt`（与选项库同目录，`RAW_PATH`
+    与 `_resolve_raw_path` 的兼容搜索同步，`source_mpv` 字段改口径）；
+  * `启动.ps1` → `scripts/启动.ps1`（新增 `scripts/`；脚本自己改成
+    `Set-Location (Split-Path $PSScriptRoot -Parent)`，README 两版与相关文档同步）。
+* **被否决的替代方案**：
+  1. 全部登记为例外 —— 风险最低，但等于把「白名单」改成「备忘录」，下次还会长回来；
+  2. 只搬界面文档、留下 NOTICE / 中文 README / 启动器 —— 搬一半，根目录照样不合规；
+  3. 先登记、搬迁排期 —— 用户明确否掉了这种折中。
+* **理由**：白名单要能机器比对（`verify.py layout` 与 `git ls-files`），才能长期守住；
+  例外一多，校验器就只能放水。搬迁一次、链路改一次，比每次新增都要争论便宜。
+* **代价**：GitHub 语言识别失去中文 README；Pages 多一步「部署时复制跳转页」；
+  启动器路径变深，README 的「右键运行」文案全部改口；打包命令从 `--add-data "*.md;."`
+  改为 `--add-data "docs;docs"`（只带界面四份 + NOTICE，不把开发者文档塞进包里）。
+* **回滚路径**：`git revert` 搬迁提交即可（历史里所有文件路径都还在）。
+
+## 2026-11-17 门禁补齐：根目录白名单、版本同源、commit-msg
+
+* **决策**：把规范 v1.23.0 中「可机器判定」的三件事做成 `verify.py` 子命令，并接进钩子：
+  * `layout` —— `git ls-files -z` 的顶层条目 ⊆（五文档 + `LICENSE` + 点文件 + 已声明目录），
+    同时校验 README「## Layout」声明了每个目录（声明是数据源）；
+  * `stack` —— `.python-version` 与 CI 的 `python-version` 同源，README 技术栈表写出版本文件、
+    Python 版本与 `Cargo.toml` 里的 Tauri 版本；
+  * `commitmsg` —— 首行 Conventional Commits（`Merge`/`Revert` 放行），暂存改动 >400 行只告警。
+    `.githooks/commit-msg` 是 LF 的 `sh` 薄壳（Git for Windows 用 `sh` 跑钩子，文件名无扩展名，
+    PowerShell `-File` 不接受），判断全在 `verify.py`。
+* **同时登记的事实**：Pwsh 基线升到 **7.4+**；「启动层」写进 `AGENTS.md` §1.3；
+  度量看板 / 校验矩阵 / 豁免登记落成 `docs/度量与门禁.md`（豁免项带到期复核）。
+* **被否决的替代方案**：
+  1. 用 husky / lint-staged 做提交门禁 —— 引入 Node 依赖，违背零依赖基线；
+  2. 只写文档不写检查 —— 「写了没人守」正是这次整改要治的病；
+  3. 把 400 行做成硬拦截 —— 规范是告警；机械性变更（外壳迁移 -5644 行）会被误伤。
+* **理由**：这三项都是秒级、确定性、无需联网的检查，放进 `precommit` 不会让人想
+  `--no-verify`；慢检查（`docs`、全量单测）仍留在推送前。
+* **代价**：`precommit` 从 3 项变 5 项（仍 <1 秒）；提交信息格式从「自觉」变成「强制」，
+  旧习惯写法会被挡回。
+* **回滚路径**：删 `.githooks/commit-msg` 与 `COMMANDS` 里的三项即可，文件本身不改历史。
