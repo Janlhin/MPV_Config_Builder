@@ -18,6 +18,9 @@ check_electron_packaged / check_pack / compare_conflicts），每个都重复一
 
     all        发布前自检：一次跑完所有「发之前必须过」的检查
     precommit  提交门禁：秒级检查，脏提交进不了历史（.githooks/pre-commit 调它）
+    commitmsg  提交信息门禁：Conventional Commits + 400 行提示（.githooks/commit-msg 调它）
+    layout     根目录白名单（git ls-files 顶层条目 + README 目录声明）
+    stack      技术栈与运行时版本登记（版本文件 / CI / README 同源）
     docs       文档里的数字与实测是否一致
     i18n       i18n 键集合 / 占位符（静态）+ 真浏览器切换与刷新保持（动态）
     status     实机验证 9 页共用的状态栏、离线横幅与右键菜单
@@ -142,7 +145,7 @@ def cmd_all():
     sys.stdout.reconfigure(encoding="utf-8")
 
     # 界面上能在线打开的文档（webui/server.py 的 DOCS 白名单）+ 发行包该带的
-    # 2026-11-17 起界面文档在 docs/（根目录只留五个文档，见 README「目录结构」）
+    # 2026-11-17 起它们都在 docs/（根目录只留五个文档，见 README「目录结构」）
     REQUIRED_DOCS = [
         "docs/入门指南.md", "docs/MPV_Shader搭配说明书.md", "docs/致谢与许可.md",
         "docs/产品规划与路线图.md",
@@ -232,7 +235,7 @@ def cmd_all():
         光检查存在会漏掉最糟的情况：`LICENSE` 是个空文件、或者被人换成了别的东西 ——
         那样"带上了"却仍然不合规。所以这里额外验两件事：
           · `LICENSE` 确实是 **GPL-3.0 全文**（认标题、版本、结尾段，以及 0–17 条）；
-          · `docs/NOTICE.txt` 里写了本项目自身的许可与那几个第三方来源。
+          · `NOTICE.txt` 里写了本项目自身的许可与那几个第三方来源。
         """
         lic = ROOT / "LICENSE"
         if not lic.is_file():
@@ -3940,6 +3943,8 @@ def cmd_precommit():
       2. 暂存的文本文件行尾必须是 LF（`.bat` / `.cmd` / `.ps1` 除外，它们要 CRLF）
       3. 脚本基线：仓库无 `.bat`/`.cmd`；`.ps1` 必须 UTF-8 带 BOM + CRLF
          （规则见 `script_baseline_problems`，2026-10-14 起）
+      4. 根目录白名单 + README 目录声明（`cmd_layout`，2026-11-17 起）
+      5. 技术栈版本登记同源（`cmd_stack`，2026-11-17 起）
 
     用法（仓库根目录）：
         python tools/verify.py precommit
@@ -4001,6 +4006,14 @@ def cmd_precommit():
         print(f"  ✅ 脚本基线（无 .bat/.cmd，.ps1 带 BOM+CRLF）："
               f".ps1 {sb_stat['ps1']} 个")
 
+    # 4. 根目录白名单（秒级：只读 git ls-files 与 README）
+    if cmd_layout() != 0:
+        bad.append("根目录布局")
+
+    # 5. 技术栈版本登记（秒级：读三个文本文件）
+    if cmd_stack() != 0:
+        bad.append("版本登记")
+
     if bad:
         print(f"\n❌ 不许提交：{'、'.join(bad)} 没过。"
               f"（用 --no-verify 绕过去不算通过，那是把门禁关掉）")
@@ -4009,9 +4022,209 @@ def cmd_precommit():
     return 0
 
 
+# ==========================================================================
+# layout（根目录白名单 + README 目录声明）
+# ==========================================================================
+#: 允许出现在仓库根的散文类文档（只有这五份）
+ROOT_DOCS = ("README.md", "AGENTS.md", "DECISIONS.md", "TASKS.md", "MANIFEST.md")
+#: 允许出现在仓库根的单个文件（点文件 / 许可证 / 运行时版本文件）
+ROOT_FILES = {".gitattributes", ".gitignore", ".python-version", "LICENSE"}
+#: 允许出现在仓库根的目录（代码、数据、文档、协作平台配置）
+ROOT_DIRS = {
+    "core", "data", "docs", "packaging", "scripts", "tauri", "tests", "tools",
+    "webui", ".github", ".githooks",
+}
+
+
+def cmd_layout():
+    """根目录白名单：`git ls-files` 的顶层条目必须都在声明范围内。
+
+    为什么要有它：规则要求「除五个文档外，根目录不放任何散文类文件」，
+    新增条目要先询问。靠人记是记不住的 —— 2026-11-17 一次搬迁前，
+    根目录同时躺着 4 份界面文档、NOTICE、中文 README、跳转页、原始数据、
+    启动器共 9 个白名单外条目。这里把它变成可机器比对的一步。
+
+    判两件事：
+      1. 顶层条目 ⊆（五文档 + 允许的单文件 + 允许的目录）
+      2. README 的「## Layout」段确实声明了每个允许的目录
+         （声明是校验的数据源；目录不在 README 里 = 文档与代码不一致）
+
+    用法（仓库根目录）：
+        python tools/verify.py layout
+    """
+    bad = []
+    # -z + NUL 分隔：路径里的中文不会被 core.quotepath 转义成 `"docs/...`
+    p = subprocess.run(["git", "ls-files", "-z"], cwd=str(ROOT), capture_output=True)
+    if p.returncode != 0:
+        print("  ❌ 读不到 git ls-files（不在 git 仓库里？）")
+        return 1
+    tops = sorted({entry.split("/")[0]
+                   for entry in p.stdout.decode("utf-8").split("\0") if entry.strip()})
+    allowed = set(ROOT_DOCS) | ROOT_FILES | ROOT_DIRS
+    unknown = [t for t in tops if t not in allowed]
+    if unknown:
+        bad.append("白名单外条目：" + "、".join(unknown))
+    for t in unknown:
+        print(f"  ❌ 根目录有白名单外条目：{t}（搬进子目录，或先在 DECISIONS 登记并获得批准）")
+
+    # README 的目录声明（数据源）——每个允许的目录都必须被写出来
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    m = re.search(r"^## Layout\n(.*?)(?=^## )", readme, re.S | re.M)
+    block = m.group(1) if m else ""
+    missing = [d for d in sorted(ROOT_DIRS) if f"{d}/" not in block]
+    if not block:
+        bad.append("README 缺「## Layout」段")
+    elif missing:
+        bad.append("README 目录声明缺：" + "、".join(missing))
+    for d in missing:
+        print(f"  ❌ README「## Layout」没声明目录：{d}/")
+
+    print(f"  顶层条目 {len(tops)} 个，白名单 {len(allowed)} 项")
+    if bad:
+        print("❌ 根目录布局不合规：" + "；".join(bad))
+        return 1
+    print("✅ 根目录布局通过（顶层条目全在白名单内，README 已声明每个目录）")
+    return 0
+
+
+# ==========================================================================
+# stack（技术栈与运行时版本登记的一致性）
+# ==========================================================================
+def cmd_stack():
+    """版本登记必须与代码/CI 同源，不能各写各的。
+
+    规则要求运行时版本写进版本文件、CI 与本地同源，并在 README 登记
+    「语言与版本 / 框架主版本 / 包管理器与锁 / 版本文件路径」。
+    这里验三件事：
+      1. `.python-version` 存在，且与 CI 里所有 `python-version:` 一致
+      2. README 的「Stack and runtime versions」段写出版本文件路径与版本号
+      3. `tauri/src-tauri/Cargo.toml` 里的 tauri 版本出现在 README（框架主版本登记）
+
+    用法（仓库根目录）：
+        python tools/verify.py stack
+    """
+    bad = []
+
+    vf = ROOT / ".python-version"
+    version = vf.read_text(encoding="utf-8").strip() if vf.is_file() else ""
+    if not version:
+        bad.append("缺 .python-version（运行时版本必须写进版本文件）")
+    ci_versions = []
+    for wf in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for m in re.finditer(r"python-version:\s*'?([0-9.]+)'?", wf.read_text(encoding="utf-8")):
+            ci_versions.append((wf.name, m.group(1)))
+    for name, v in ci_versions:
+        if v != version:
+            bad.append(f"{name} 的 python-version={v} 与 .python-version={version} 不一致")
+    if not ci_versions:
+        bad.append("CI 里没声明 python-version（本地与 CI 必须同源）")
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    m = re.search(r"^## Stack and runtime versions\n(.*?)(?=^## )", readme, re.S | re.M)
+    block = m.group(1) if m else ""
+    if not block:
+        bad.append("README 缺「Stack and runtime versions」段")
+    else:
+        if version and version not in block:
+            bad.append(f"README 技术栈表没写 Python {version}")
+        if ".python-version" not in block:
+            bad.append("README 技术栈表没写版本文件路径 .python-version")
+
+    cargo = (ROOT / "tauri" / "src-tauri" / "Cargo.toml").read_text(encoding="utf-8")
+    tm = re.search(r'\ntauri\s*=\s*\{(.*?)\}', cargo, re.S)
+    tauri_ver = ""
+    if tm:
+        vm = re.search(r'version\s*=\s*"([^"]+)"', tm.group(1))
+        tauri_ver = vm.group(1) if vm else ""
+    if tauri_ver and tauri_ver not in block:
+        bad.append(f"README 技术栈表没写 Tauri {tauri_ver}（Cargo.toml 里的实际版本）")
+
+    print(f"  Python {version or '（缺）'}；CI {len(ci_versions)} 处声明；"
+          f"Tauri {tauri_ver or '（没解析到）'}")
+    if bad:
+        print("❌ 版本登记不一致：" + "；".join(bad))
+        return 1
+    print("✅ 技术栈与运行时版本登记一致（版本文件 / CI / README 同源）")
+    return 0
+
+
+# ==========================================================================
+# commitmsg（提交信息门禁，.githooks/commit-msg 调它）
+# ==========================================================================
+#: Conventional Commits 允许的类型（本项目用得上的子集）
+_COMMIT_TYPES = ("feat", "fix", "docs", "style", "refactor", "perf", "test",
+                 "build", "ci", "chore", "revert")
+_COMMIT_RE = re.compile(
+    r"^(%s)(\([^()\s]+\))?!?: [^\s].*$" % "|".join(_COMMIT_TYPES))
+
+
+def cmd_commitmsg():
+    """提交信息门禁：Conventional Commits + 单提交体量提示。
+
+    为什么放在**钩子**而不是 CI：Git 只在本地拦得住「随手写的提交信息」，
+    CI 看到时已经进了历史；规则把提交门禁定为 L2 层，正是这个位置。
+
+    判什么：
+      1. 首行符合 `type(scope): 摘要`（`Merge`/`Revert` 放行）
+      2. 暂存改动超过 400 行只**提示**不拦截（规则是「超限告警」，
+         不是禁提交；拆不拆由人判断，别让门禁替人做决定）
+
+    用法（由钩子调用）：
+        python tools/verify.py commitmsg .git/COMMIT_EDITMSG
+    """
+    if not sys.argv[1:]:
+        print("❌ 用法：python tools/verify.py commitmsg <提交信息文件>")
+        return 2
+    path = Path(sys.argv[1])
+    if not path.is_file():
+        print(f"❌ 读不到提交信息文件：{path}")
+        return 2
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    subject = ""
+    for line in lines:
+        if line.startswith("#"):
+            continue
+        if line.strip():
+            subject = line.strip()
+            break
+
+    if not subject:
+        print("❌ 提交信息是空的（首行写 type(scope): 摘要）")
+        return 1
+    if subject.startswith(("Merge ", "Revert ", 'Revert "')):
+        print(f"✅ 放行（合并/回滚提交）：{subject}")
+        return 0
+    if not _COMMIT_RE.match(subject):
+        print("❌ 提交信息不符合 Conventional Commits：")
+        print(f"   {subject}")
+        print("   应写成：type(scope): 摘要 —— type ∈ "
+              + " / ".join(_COMMIT_TYPES))
+        print("   例：feat(webui): 地狱模式支持键名补全")
+        return 1
+
+    # 体量提示（不阻断）：暂存区 added+deleted 行数
+    p = subprocess.run(["git", "diff", "--cached", "--numstat"],
+                       cwd=str(ROOT), capture_output=True)
+    total = 0
+    if p.returncode == 0:
+        for line in p.stdout.decode("utf-8", "replace").splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 2:
+                for n in parts[:2]:
+                    total += int(n) if n.isdigit() else 0
+    if total > 400:
+        print(f"⚠ 本次暂存改动 {total} 行（规范建议单提交 ≤400 行）——"
+              f"能拆就拆，拆不动请在提交信息正文里写清理由。")
+    print(f"✅ 提交信息合规：{subject}")
+    return 0
+
+
 COMMANDS = {
     "all": cmd_all,
     "precommit": cmd_precommit,
+    "commitmsg": cmd_commitmsg,
+    "layout": cmd_layout,
+    "stack": cmd_stack,
     "docs": cmd_docs,
     "topnav": cmd_topnav,
     "i18n": cmd_i18n,

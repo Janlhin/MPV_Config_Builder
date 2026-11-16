@@ -123,7 +123,26 @@ CI runs the same gate on every push/PR (Windows runner):
 
 Packaging steps: [docs/打包与发布.md](docs/打包与发布.md) (Chinese).
 
+## Stack and runtime versions
+
+The gate (`verify.py layout`) checks the declared directories below against
+`git ls-files`, and `verify.py stack` compares `.python-version` with CI.
+
+| | Version / file | Notes |
+|---|---|---|
+| Language (backend + tools) | **Python 3.13** | `.python-version`; CI uses the same value |
+| Package manager / lock | **none** (stdlib only) | no `requirements.txt`, no virtualenv |
+| Desktop shell | **Tauri 3.0.0-alpha.6** | `tauri/src-tauri/Cargo.toml`, `Cargo.lock` is the lock |
+| Shell entry | **PowerShell 7.4+** | `.ps1` files only; `.cmd` / `.bat` are forbidden |
+| Browser / UI | system **WebView2** | no Node.js, no npm build step |
+
+The desktop shell is intentionally pinned to Tauri 3.0.0-alpha.6 (pre-release);
+upgrade only through a `chore(deps):` commit that records the decision.
+
 ## Layout
+
+Top-level directories and what they are for (declared here because the gate
+compares this list with what actually exists):
 
 ```
 core/          UI-agnostic logic (26 modules)
@@ -139,12 +158,25 @@ packaging/     PyInstaller recipe (standalone backend exe)
 scripts/       source-run entry (`启动.ps1`) — the only launcher
 tests/         unit tests
 tools/         build.py (generate) / verify.py (verify) / uidriver.py (browser driver)
-.github/       CI: push / PR runs the pre-release gate on Windows
 docs/          user docs (the four documents the UI renders, both READMEs, NOTICE.txt)
                + field-tested conclusions (pitfalls) + packaging & release
 data/          bundled data (options DB / keybindings / commands / raw mpv dump)
-AGENTS.md      house rules for working in this repo — read it before changing code
+.github/       CI: push / PR runs the pre-release gate on Windows
+.githooks/     local commit gates (pre-commit, commit-msg) — thin `sh` shells
 ```
+
+The root holds **only** the five documents (`README.md`, `AGENTS.md`,
+`DECISIONS.md`, `TASKS.md`, `MANIFEST.md`), the license, dotfiles and these
+directories; prose files belong under `docs/`. Anything new at the root has to
+be approved first, and `verify.py layout` fails otherwise.
+
+## Commits
+
+[Conventional Commits](https://www.conventionalcommits.org/) are enforced by
+`.githooks/commit-msg` (`verify.py commitmsg`): one intent per commit, refactors
+kept apart from behaviour changes, and commits over 400 lines are flagged.
+CI validates the **tip commit** of a branch rather than every commit on the
+default branch (the local hook covers the rest).
 
 ## License
 

@@ -447,3 +447,22 @@
 - **未裁决时的默认行为**：~~**不动工**~~（已被裁决覆盖）
 - **状态**：**已决（A）**
 - **解决方法与解决时间**：2026-11-08 06:44 用户裁决 A（前端静态化）。切片一已落地：api.js 静态分类层（https 非本机即静态 + 本机探测兜底）、expert 全量库只读浏览（静态 JSON 客户端过滤）、guide 原文回退、index 降级横幅、根级跳转页、pages.yml 工作流（仓库根部署，数据零复制）。**剩余**：basic/hell/keys/downloads/analyze 四页深度降级；**Pages 开桶只能用户做**——仓库 Settings→Pages 选 GitHub Actions 源（私有仓库需开通计费），启用后 pages.yml 自动变绿并发布站点。CI 侧已全绿（fea5453）
+
+---
+
+## 2026-11-17 · 根目录整改与门禁补齐（本次改动）
+
+| # | 项 | 状态 | 说明 |
+|---|---|---|---|
+| R-01 | 9 个白名单外条目搬进子目录 | **已完成** | 见 `DECISIONS.md` 同条：4 份界面文档 / NOTICE / 中文 README / 跳转页 → `docs/`，原始选项 → `data/`，启动器 → `scripts/`；链路（`paths.py` / `server.py` / `options_db.py` / spec / Pages / 测试 / 文档）全同步 |
+| R-02 | `verify.py layout`（根目录白名单 + README 目录声明） | **已完成** | 与 `git ls-files -z` 比对；新目录不加进 README「## Layout」就判红 |
+| R-03 | `verify.py stack`（版本同源） | **已完成** | 新增 `.python-version` = 3.13，与 CI 两处 `python-version` 一致；README 技术栈表写 Python / Tauri / 版本文件 |
+| R-04 | `commit-msg` 门禁 | **已完成** | `.githooks/commit-msg`（LF sh 薄壳）→ `verify.py commitmsg`：Conventional Commits；>400 行告警 |
+| R-05 | 度量看板 / 校验矩阵 / 豁免登记 | **已完成** | `docs/度量与门禁.md`；豁免 8 项，带到期复核（2026-12-31 / 2027-05-17） |
+| R-06 | `AGENTS.md` 升 v1.23.0 | **已完成** | 补「启动层」§1.3、Pwsh 7.4+、根目录白名单 §2.9、commit-msg；压缩到 ≤150 行 |
+
+**本轮未验证 / 未决**：
+- 全量 `verify.py --offline` 在本轮改动后**尚未复跑**（测试 781 项、`docs` 已单跑绿）。
+- `pages.yml` 新增的「部署前复制 docs/index.html 到仓库根」只在本地静态检查过；CI 未真实运行（凭据缺 `workflow` scope，同 T1/T2）。
+- `scripts/启动.ps1` **没有加 `#requires -Version 7.4`**：加了会让「右键使用 PowerShell 运行」（Windows PowerShell 5.1）直接失败。规则要求 Pwsh 7.4+ 与版本同源，**是否强制 7.4 待用户裁决**（选项：加 `#requires` 并改 README 文案 / 保持 5.1 兼容并登记为豁免）。
+- 覆盖率采集、AI 代码审查、`cargo audit` 均未接入，已在 `docs/度量与门禁.md` 登记豁免。
