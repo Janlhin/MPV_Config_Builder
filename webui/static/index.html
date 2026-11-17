@@ -139,6 +139,8 @@
 <script src="i18n-zh2en.js"></script>
 <script src="api.js"></script>
 <script>
+// `last` / `failed` 必须留在 boot 外：600ms 后的首次引导 `obOpen()` 也要读它们。
+let last = null, failed = false;
 async function boot() {
   document.querySelectorAll('[data-theme-toggle]').forEach(b => {
     b.onclick = () => {
@@ -154,7 +156,6 @@ async function boot() {
 
   // 目标路径 / 后端未启动 这两处是 JS 动态写的，DOM 属性刷不到，
   // 所以监听 i18n:change 手动重画 —— 否则切了语言这两处还是中文。
-  let last = null, failed = false;
   function paintTarget() {
     const el = document.getElementById('targetLabel');
     if (!el) return;
