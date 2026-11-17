@@ -184,6 +184,75 @@ class TestLoad(unittest.TestCase):
         for gid in [g[0] for g in uosc.GROUPS]:
             self.assertTrue(any(m["group"] == gid for m in uosc.META.values()), gid)
 
+    def test_missing_file_with_explicit_path_points_there(self):
+        tmp = tempfile.mkdtemp(prefix="mpvcb-uosc-")
+        p = Path(tmp) / "portable_config" / "script-opts" / "uosc.conf"
+        data = uosc.load(tmp, path=str(p))
+        self.assertFalse(data["ok"])
+        self.assertEqual(data["path"], str(p))
+
+
+class TestDefaultFile(unittest.TestCase):
+    def test_template_only_writes_valued_defaults(self):
+        text, kept = uosc.default_text()
+        expected = [k for k, m in uosc.META.items() if m["default"] != ""]
+        self.assertEqual(sorted(kept), sorted(expected))
+        self.assertIn("MPV Config Builder", text)
+        rows, _ = uosc.parse(text)
+        kv = [r for r in rows if r["kind"] == "kv"]
+        self.assertEqual(len(kv), len(expected))
+        self.assertTrue(all(r.get("known") and r["value"] != "" for r in kv))
+
+    def test_create_refuses_to_overwrite(self):
+        tmp = tempfile.mkdtemp(prefix="mpvcb-uosc-")
+        p = Path(tmp) / "script-opts" / "uosc.conf"
+        first = uosc.create(p, newline="\n")
+        self.assertTrue(first["ok"], first)
+        self.assertTrue(p.is_file())
+        raw = p.read_bytes()
+        self.assertNotIn(b"\r\n", raw)          # newline="\n" 时不该自己变 CRLF
+        second = uosc.create(p, newline="\n")
+        self.assertFalse(second["ok"])
+        self.assertEqual(p.read_bytes(), raw)   # 第二次没动文件
+        data = uosc.load(tmp)
+        self.assertTrue(data["ok"], data)
+        self.assertEqual(data["stats"]["unknown"], 0)
+
+    def test_create_makes_missing_dirs_and_crlf(self):
+        tmp = tempfile.mkdtemp(prefix="mpvcb-uosc-")
+        p = Path(tmp) / "script-opts" / "uosc.conf"
+        res = uosc.create(p, newline="\r\n")
+        self.assertTrue(res["ok"], res)
+        self.assertTrue(p.parent.is_dir())
+        self.assertIn(b"\r\n", p.read_bytes())
+
+
+class TestCreateApi(unittest.TestCase):
+    def test_create_through_api_then_reject_second_and_outside(self):
+        from core.schema import load_settings, save_settings
+        from webui import server
+        tmp = tempfile.mkdtemp(prefix="mpvcb-uosc-api-")
+        before = load_settings() or {}
+        self.addCleanup(save_settings, before)
+
+        read = server.api_uosc({"target": tmp})
+        self.assertFalse(read["ok"])
+        self.assertFalse(read["exists"])
+        p = read["path"]
+        self.assertTrue(p.endswith("uosc.conf"))
+
+        res = server.api_uosc_save({"target": tmp, "path": p, "values": {}, "create": True})
+        self.assertTrue(res["ok"], res)
+        self.assertTrue(Path(p).is_file())
+
+        again = server.api_uosc_save({"target": tmp, "path": p, "values": {}, "create": True})
+        self.assertFalse(again["ok"])
+
+        outside = server.api_uosc_save({"path": r"C:\Windows\uosc.conf",
+                                        "values": {}, "create": True})
+        self.assertFalse(outside["ok"])
+        self.assertIn("安全限制", outside["detail"])
+
 
 class TestRoutes(unittest.TestCase):
     def test_uosc_routes_are_registered(self):
