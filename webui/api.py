@@ -86,6 +86,7 @@ ROUTES_QUERY = {
     "/api/vpy/list": "api_vpy_list",
     "/api/guide": "api_guide",
     "/api/keys": "api_keys",
+    "/api/uosc": "api_uosc",
     "/api/combos": "_route_combos",
     # ⚠ 这三条一度在搬运脚本里被**静默丢掉**（那条正则用非贪婪 `^\}` 匹配三张表，
     #   而上面两个 lambda 是跨行的、里面带 `}`，于是从那里开始整段没匹配干净）。
@@ -113,6 +114,7 @@ ROUTES_POST = {
     "/api/vpy/fuse": "api_vpy_fuse",
     "/api/keys/save": "api_keys_save",
     "/api/keys/promote": "api_keys_promote",
+    "/api/uosc/save": "api_uosc_save",
     "/api/download/start": "api_download_start",
     "/api/download/remove": "api_download_remove",
     "/api/download/check": "api_download_check",

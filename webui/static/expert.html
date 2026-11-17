@@ -126,6 +126,7 @@ function buildSections() {
     ...coreGroups.map(g => ({ id: 'g:' + g, icon: GROUP_ICONS[g] || '⚙️', name: g, items: byGroup(g, 'core') })),
     ...nativeGroups.map(g => ({ id: 'g:' + g, icon: GROUP_ICONS[g] || '⚙️', name: g, items: byGroup(g, 'native') })),
     { id: 'shader', icon: '✨', name: 'Shader 链', sub: 'glsl-shaders 顺序' },
+    { id: 'uosc', icon: '🎛️', name: 'uosc 设置', sub: '进度条 / 控制栏 / 顶栏的外观' },
     { id: 'tools', icon: '📦', name: '下载与安装', sub: '官方发布页与说明书' },
     { id: 'about', icon: 'ℹ️', name: '关于 / 致谢', sub: '数据来源与许可' }
   ];
@@ -255,6 +256,8 @@ const PANES = {
     </div>
     ${fusionPanelHtml()}`,
 
+  uosc: () => `<div id="uoscHost"><p class="note">读取中…</p></div>`,
+
   tools: () => `
     <div class="card">
       <h2>📦 下载</h2>
@@ -332,6 +335,7 @@ const WIRE = {
     };
   },
   backup: () => { loadBackups(); },
+  uosc: () => { loadUosc(); },
   shader: () => {
     const add = document.getElementById('shaderAdd');
     if (add) add.onclick = () => addShader(document.getElementById('shaderPick').value);
@@ -514,6 +518,141 @@ async function loadBackups() {
     toast((res.ok ? '✅ ' : '❌ ') + res.detail, res.ok ? 'ok' : 'err');
     if (res.ok) loadBackups();
   };
+}
+
+/* ---------------- uosc（script-opts/uosc.conf） ---------------- */
+
+let UOSC = null;
+
+async function loadUosc() {
+  const host = document.getElementById('uoscHost');
+  if (!host) return;
+  host.innerHTML = '<p class="note">读取中…</p>';
+  const r = await API.get('/api/uosc' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
+  if (!r.ok) {
+    host.innerHTML = `<div class="card"><h2>🎛️ uosc 设置</h2>
+      <p class="note danger">${esc(r.detail)}</p>
+      <p class="note">${esc(r.hint || '')}</p></div>`;
+    return;
+  }
+  UOSC = { data: r, gid: (r.groups.find(g => g.count) || { id: 'timeline' }).id, values: {} };
+  renderUosc();
+}
+
+function uoscRow(row) {
+  const key = esc(row.key);
+  const def = row.default ? `默认 <code>${esc(row.default)}</code>` : '默认（空）';
+  let ctrl;
+  if (!row.known) {
+    ctrl = `<code>${esc(row.value)}</code>
+      <small class="muted">本工具不认识这个键，保存时原样留着</small>`;
+  } else if (row.type === 'bool') {
+    ctrl = `<label class="uosc-switch">` +
+      `<input type="checkbox" data-uk="${key}" ${row.value === 'yes' ? 'checked' : ''}>` +
+      `<span>${row.value === 'yes' ? '开' : '关'}</span></label>`;
+  } else if (row.type === 'enum') {
+    ctrl = `<select data-uk="${key}">` + (row.choices || []).map(c =>
+      `<option ${c === row.value ? 'selected' : ''}>${esc(c)}</option>`).join('') + `</select>`;
+  } else if (row.type === 'number') {
+    ctrl = `<input type="number" step="any" data-uk="${key}" value="${esc(row.value)}">`;
+  } else {
+    ctrl = `<input type="text" data-uk="${key}" value="${esc(row.value)}" spellcheck="false">`;
+  }
+  return `<div class="uosc-row">
+    <div><code class="uosc-key">${key}</code>
+      <div class="uosc-zh">${esc(row.zh || '')}</div></div>
+    <div>${ctrl}<small class="muted">${def}</small></div></div>`;
+}
+
+function renderUosc() {
+  const host = document.getElementById('uoscHost');
+  const r = UOSC.data;
+  const gid = UOSC.gid;
+  const rows = r.rows.filter(x => x.kind === 'kv' && x.group === gid);
+  const group = r.groups.find(g => g.id === gid) || r.groups[0] || {};
+  host.innerHTML = `
+<style>
+#uoscHost .uosc-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+#uoscHost .uosc-chip{padding:4px 10px;border-radius:999px;border:1px solid rgba(128,128,128,.35);
+  background:transparent;cursor:pointer;font-size:12px}
+#uoscHost .uosc-chip.on{border-color:var(--accent,#4aa3ff);color:var(--accent,#4aa3ff)}
+#uoscHost .uosc-row{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;
+  padding:9px 0;border-top:1px solid rgba(128,128,128,.18)}
+#uoscHost .uosc-row:first-child{border-top:none}
+#uoscHost .uosc-key{font-size:12px}
+#uoscHost .uosc-zh{font-size:12px;opacity:.78;margin-top:3px;line-height:1.45}
+#uoscHost .uosc-row input,#uoscHost .uosc-row select{width:100%;padding:5px 7px}
+#uoscHost .uosc-switch{display:flex;align-items:center;gap:6px;font-size:13px}
+#uoscHost .uosc-switch input{width:auto}
+</style>
+<div class="card">
+  <h2>🎛️ uosc 设置 <span class="muted" style="font-weight:400;font-size:12px">
+    · ${r.stats.known} 项已收录${r.stats.unknown ? `，${r.stats.unknown} 项不认识` : ''}</span></h2>
+  <p class="note">这是 mpv 界面脚本 uosc 的设置文件，管的是<b>进度条 / 控制栏 / 顶栏 / 配色</b>，
+    不影响播放行为。文件：<code>${esc(r.path)}</code> · ${esc(r.encoding)} · ${esc(r.newline)}</p>
+  ${(r.warnings || []).map(w => `<p class="note danger">${esc(w)}</p>`).join('')}
+  <div class="uosc-chips">${r.groups.map(g =>
+    `<button class="uosc-chip${g.id === gid ? ' on' : ''}" data-ug="${esc(g.id)}">${esc(g.name)}
+      ${g.count ? `<b>${g.count}</b>` : ''}</button>`).join('')}</div>
+  <p class="note">${esc(group.desc || '')}</p>
+  <div class="actions">
+    <button class="btn" id="uoscReload">🔄 重新读取</button>
+    <button class="btn" id="uoscPreview">👁️ 预览改动</button>
+    <button class="btn primary" id="uoscSave">💾 保存</button>
+    <span class="note" id="uoscDirty">没有改动</span>
+  </div>
+  <pre class="conf" id="uoscPrev" style="display:none;max-height:30vh;margin-top:10px"></pre>
+  <div style="margin-top:10px">${rows.map(uoscRow).join('')
+    || '<p class="note">这一类里没有键。uosc.conf 里缺的键需要你自己加，软件不替你补。</p>'}</div>
+</div>`;
+  host.onclick = async e => {
+    const chip = e.target.closest('[data-ug]');
+    if (chip) {
+      UOSC.gid = chip.dataset.ug;
+      renderUosc();
+      return;
+    }
+    if (e.target.closest('#uoscReload')) { loadUosc(); return; }
+    if (e.target.closest('#uoscPreview')) { previewUosc(); return; }
+    if (e.target.closest('#uoscSave')) { saveUosc(); }
+  };
+  const mark = () => {
+    const n = Object.keys(UOSC.values).length;
+    const d = document.getElementById('uoscDirty');
+    if (d) d.textContent = n ? `未保存改动 ${n} 项` : '没有改动';
+  };
+  const onEdit = e => {
+    const el = e.target.closest('[data-uk]');
+    if (!el) return;
+    const k = el.dataset.uk;
+    UOSC.values[k] = el.type === 'checkbox' ? (el.checked ? 'yes' : 'no') : el.value;
+    mark();
+  };
+  host.oninput = onEdit;
+  host.onchange = onEdit;
+}
+
+async function previewUosc() {
+  const box = document.getElementById('uoscPrev');
+  const keys = Object.keys(UOSC.values);
+  if (!keys.length) { toast('还没有改动', 'err'); return; }
+  const r = await API.post('/api/uosc/save', {
+    path: UOSC.data.path, target: APP.target, values: UOSC.values, dry_run: true
+  });
+  if (!r.ok) { toast('❌ ' + r.detail, 'err'); return; }
+  box.style.display = '';
+  box.textContent = r.changes.map(c => `${c.key}: ${c.from || '（新增）'}  →  ${c.to}`).join('\n');
+  toast(`预览：${r.changes.length} 项会改`, 'ok');
+}
+
+async function saveUosc() {
+  const keys = Object.keys(UOSC.values);
+  if (!keys.length) { toast('还没有改动', 'err'); return; }
+  const r = await API.post('/api/uosc/save', {
+    path: UOSC.data.path, target: APP.target, values: UOSC.values
+  });
+  toast((r.ok ? '✅ ' : '❌ ') + r.detail, r.ok ? 'ok' : 'err');
+  if (r.ok) await loadUosc();
 }
 
 async function doScan() {
