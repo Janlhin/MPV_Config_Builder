@@ -287,11 +287,13 @@ def load(target, path=None):
     p, create_at = find_path(target)
     if path:
         p = Path(path)
+        create_at = p                       # 调用方给了具体位置，就以它为准
     if p is None or not p.is_file():
         return {
             "ok": False,
             "detail": f"目标目录里没有 {REL}。",
-            "hint": f"装过 uosc 的整合包才会有这个文件；也可以手动新建：{create_at}",
+            "hint": f"装过 uosc 的整合包才会有这个文件；点「新建一份默认 uosc.conf」可以由本工具造一份，"
+                    f"也可以手动新建在这个位置：{create_at}",
             "path": str(create_at),
             "exists": False,
             "groups": [{"id": g[0], "name": g[1], "desc": g[2], "count": 0} for g in GROUPS],
@@ -419,6 +421,49 @@ def apply_text(text, values):
     if trailing_nl or not text:
         new_text += "\n"
     return new_text, changes, errors
+
+
+def default_text():
+    """生成一份可用的起始文件：分组 + 中文说明 + 带默认值的键。
+
+    只写「有非空默认值」的键 —— 空默认表示「不设置」，写一行空值只会让文件更长。
+    文本用 `\\n` 拼，落盘时交给 textio 转成 CRLF。
+    """
+    lines = [
+        "# uosc 配置（由 MPV Config Builder 生成）",
+        "# 只列出带默认值的键，其余沿用 uosc 内置默认；想改哪个直接改值。",
+        "# 官方默认值来源：https://github.com/tomasklaen/uosc 的 src/uosc.conf",
+        "",
+    ]
+    kept = []
+    for gid, gname, gdesc in GROUPS:
+        block = [(k, t, d, zh) for (k, g, t, d, zh, _c) in OPTIONS
+                 if g == gid and d != ""]
+        if not block:
+            continue
+        lines.append(f"# ---- {gname}：{gdesc}")
+        for k, _t, d, zh in block:
+            lines.append(f"# {zh}")
+            lines.append(f"{k}={d}")
+            kept.append(k)
+        lines.append("")
+    return "\n".join(lines), kept
+
+
+def create(path, *, newline="\r\n"):
+    """新建一份默认 uosc.conf；已存在就拒绝，绝不覆盖。"""
+    p = Path(path)
+    if p.exists():
+        return {"ok": False, "detail": f"文件已存在：{p}，请直接编辑，别覆盖它"}
+    text, kept = default_text()
+    try:
+        textio.write(p, text, encoding="utf-8", bom=False, newline=newline,
+                     do_backup=False)
+    except OSError as e:
+        return {"ok": False, "detail": f"写不了 {p.name}：{e}"}
+    return {"ok": True,
+            "detail": f"已新建 {p}（写入 {len(kept)} 个默认键，其余沿用 uosc 内置默认）",
+            "path": str(p), "keys": len(kept), "newline": "CRLF" if newline == "\r\n" else "LF"}
 
 
 def save(path, values, *, encoding="utf-8", bom=False, newline="\n", dry_run=False):

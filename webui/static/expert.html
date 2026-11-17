@@ -530,9 +530,21 @@ async function loadUosc() {
   host.innerHTML = '<p class="note">读取中…</p>';
   const r = await API.get('/api/uosc' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
   if (!r.ok) {
+    const missing = r.exists === false;
     host.innerHTML = `<div class="card"><h2>🎛️ uosc 设置</h2>
-      <p class="note danger">${esc(r.detail)}</p>
-      <p class="note">${esc(r.hint || '')}</p></div>`;
+      <p class="note ${missing ? '' : 'danger'}">${esc(r.detail)}</p>
+      <p class="note">${esc(r.hint || '')}</p>
+      ${missing ? `<p class="note">新建只会写 74 个键里带默认值的那部分，其余继续沿用 uosc 内置默认；
+        文件里没有的键不会硬塞。</p>
+      <div class="actions"><button class="btn primary" id="uoscCreate">➕ 新建一份默认 uosc.conf</button></div>` : ''}
+    </div>`;
+    host.onclick = async e => {
+      if (!e.target.closest('#uoscCreate')) return;
+      const res = await API.post('/api/uosc/save',
+        { path: r.path, target: APP.target, values: {}, create: true });
+      toast((res.ok ? '✅ ' : '❌ ') + res.detail, res.ok ? 'ok' : 'err');
+      if (res.ok) loadUosc();
+    };
     return;
   }
   UOSC = { data: r, gid: (r.groups.find(g => g.count) || { id: 'timeline' }).id, values: {} };

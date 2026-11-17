@@ -854,6 +854,8 @@ def api_uosc_save(body):
         return {"ok": False,
                 "detail": "只允许写入目标配置目录里的文件（安全限制）。"}
     if not p.is_file():
+        if body.get("create"):
+            return uosc.create(p, newline=("\r\n" if os.name == "nt" else "\n"))
         return {"ok": False, "detail": f"找不到文件：{p}"}
     return uosc.save(p, values, dry_run=bool(body.get("dry_run")))
 
