@@ -338,6 +338,52 @@ def _strip_rst_inline(text):
     return text.strip(_LEAD_STRIP)
 
 
+_EXAMPLE_TITLE_RE = re.compile(
+    r"^\s*\.\.\s+admonition::\s*(?:Examples?|示例|例子)\s*$", re.I)
+
+
+def _extract_examples(lines, start, stop):
+    """从官方手册的「.. admonition:: Example」块里取出示例命令。
+
+    只收这一种写法：它的正文一定是选项用法（如 ``--profile=foo``），
+    正好可以在界面「完整说明」抽屉里原样展示。note / warning 等块不收。
+    """
+    out = []
+    i = start
+    while i < stop:
+        if not _EXAMPLE_TITLE_RE.match(lines[i]):
+            i += 1
+            continue
+        base = len(lines[i]) - len(lines[i].lstrip(" "))
+        block = []
+        j = i + 1
+        while j < stop:
+            ln = lines[j].rstrip()
+            if ln.strip():
+                indent = len(ln) - len(ln.lstrip(" "))
+                if indent <= base:
+                    break
+                block.append(ln[base + 4:] if len(ln) >= base + 4 else ln.strip())
+            else:
+                block.append("")
+            j += 1
+        text = "\n".join(block).strip().replace("``", "")
+        if text:
+            # RST 按 70 列硬折行；把折行接回去，只保留真正的条目边界（- 开头）
+            merged = []
+            for ln in text.split("\n"):
+                ln = ln.strip()
+                if not ln:
+                    continue
+                if ln.startswith("- ") or not merged:
+                    merged.append(ln)
+                else:
+                    merged[-1] += " " + ln
+            out.append("\n".join(merged))
+        i = max(j, i + 1)
+    return out
+
+
 def _collect_body(lines, start, stop):
     """收集 [start, stop) 之间的正文段落，跳过指令块（note/warning/示例）。"""
     paras = []
@@ -504,16 +550,20 @@ def _parse_rst_text(text):
                     break
                 end += 1
             desc = _join_zh(_collect_body(lines, i + 1, end))
+            exs = _extract_examples(lines, i + 1, end)
             for name, sig in tokens:
                 # 短别名（-V / -v）在 --list-options 里就是单横线，去掉前导横线即可
                 key = name[2:] if name.startswith("--") else name.lstrip("-")
                 entry = result.setdefault(
-                    key, {"zh_sig": "", "zh_desc": "", "group": group}
+                    key, {"zh_sig": "", "zh_desc": "", "group": group,
+                          "examples": []}
                 )
                 if sig and not entry["zh_sig"]:
                     entry["zh_sig"] = name + sig
                 if desc and not entry["zh_desc"]:
                     entry["zh_desc"] = desc
+                if exs and not entry["examples"]:
+                    entry["examples"] = exs
             i = end
     return result, group_order
 
@@ -545,13 +595,17 @@ def _parse_en_rst_text(text):
         body = [ln for ln in lines[i + 1:end]
                 if ln.strip() and not _DIRECTIVE_RE.match(ln)]
         desc = _join_zh(body) if body else ""
+        exs = _extract_examples(lines, i + 1, end)
         for name, sig in tokens:
             key = name[2:] if name.startswith("--") else name.lstrip("-")
-            entry = result.setdefault(key, {"zh_sig": "", "zh_desc": ""})
+            entry = result.setdefault(key, {"zh_sig": "", "zh_desc": "",
+                                           "examples": []})
             if sig and not entry["zh_sig"]:
                 entry["zh_sig"] = name + sig
             if desc and not entry["zh_desc"]:
                 entry["zh_desc"] = desc
+            if exs and not entry["examples"]:
+                entry["examples"] = exs
         i = end
     return result
 
@@ -625,6 +679,9 @@ def build_db(raw_txt_path=None, rst_path=None, en_rst_path=None):
             "zh_sig": zhs.get("zh_sig", "") or "",
             "zh_desc": zh_desc,
             "en_desc": en_desc,
+            # 官方手册里的 Example 块：抽屉里原样展示，中英各存一份
+            "zh_examples": list(zhs.get("examples") or []),
+            "en_examples": list((en_map.get(key, {}) or {}).get("examples") or []),
             # 便于排查的原始信息（raw 行的类型描述 + 方括号标记）
             "raw_sig": src.get("raw_sig", ""),
             "flags": list(src.get("flags", [])),
