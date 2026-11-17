@@ -70,9 +70,11 @@
 
       'status.targetEmpty': '未选择',
       'status.changes': '改动 {changes} 处',
-      'status.backendOn': '后端在线',
-      'status.backendOff': '后端没响应',
-      'status.backendUnknown': '后端状态未知',
+      'status.backendOn': '就绪',
+      'status.backendOff': '服务未响应',
+      'status.backendUnknown': '检查中…',
+      'analyze.emptyTitle': '还没有体检结果',
+      'analyze.emptyBody': '选上面一份配置，或把 mpv.conf 直接拖进来，结果会显示在这里。',
       'status.offline': '后端没有响应：界面还在，但读不到配置',
       'status.retry': '重试',
 
@@ -702,9 +704,11 @@
 
       'status.targetEmpty': 'Not selected',
       'status.changes': '{changes} changes',
-      'status.backendOn': 'Backend online',
-      'status.backendOff': 'Backend not responding',
-      'status.backendUnknown': 'Backend status unknown',
+      'status.backendOn': 'Ready',
+      'status.backendOff': 'Not responding',
+      'status.backendUnknown': 'Checking…',
+      'analyze.emptyTitle': 'No checkup yet',
+      'analyze.emptyBody': 'Pick a config above, or drop mpv.conf here — the report will appear here.',
       'status.offline': 'The backend is not responding: the UI still works, but your config cannot be read',
       'status.retry': 'Retry',
 
@@ -797,7 +801,7 @@
       'hell.sizeHintTab': '{lines} lines · {chars} chars · contains tabs',
 
       'basic.modeHintCreate': '🆕 Create from scratch: generate a fresh config. Unticking a step only means <b>that step is not written</b> — your existing files are never touched.',
-      'basic.modeHintEdit': '✏️ Edit existing config: click "Read existing config" below first. Merge writing only changes the keys you tick; everything else in the original file, comments included, is kept.',
+      'basic.modeHintEdit': '✏️ Edit existing config: click "Load config" below first. Merge writing only changes the keys you tick; everything else in the original file, comments included, is kept.',
       'basic.p1Sub': 'No mpv installed yet? One click installs a pre-configured mpv-lazy (that feature still lives in the legacy UI).',
       'basic.p2Note': 'This step is display-only for now and is not written into the config (presets do not yet distinguish resolution or refresh rate).',
 
@@ -994,10 +998,10 @@
 
       // ---------- state.js shared layer (advanced / expert option cards & preview) ----------
       'st.primaryApply': 'Apply changes',
-      'st.primaryGenerate': 'Generate config',
+      'st.primaryGenerate': 'Generate',
       'st.previewMerge': 'Merged full file',
       'st.previewCreate': 'Config to be generated',
-      'st.modeHintBlocked': '✏️ Edit existing config: click "📂 Read existing config" first, otherwise the main button stays disabled (so you never think you are reading a file when you are actually generating from nothing).',
+      'st.modeHintBlocked': '✏️ Edit existing config: click "📂 Load config" first, otherwise the main button stays disabled (so you never think you are reading a file when you are actually generating from nothing).',
       'st.modeHintEdit': '✏️ Edit existing config: only the keys you touched change; everything else in the original file, comments included, is kept. Unticking = <b>commenting out</b> that original line.',
       'st.readFirstTitle': 'Read the existing config first',
       'st.readOk': '✅ Read {name}: {summary}',
@@ -1025,8 +1029,8 @@
       'undo.action': '↩️ Undo this write',
       'undo.done': 'Undone — the version before undo was backed up too',
       'undo.fail': 'Undo failed: {d}',
-      'st.applyNeedRead': 'In "edit existing config" mode, click "📂 Read existing config" first',
-      'st.applyMergeNeedRead': 'Merge mode needs "Read existing config" first',
+      'st.applyNeedRead': 'In "edit existing config" mode, click "📂 Load config" first',
+      'st.applyMergeNeedRead': 'Merge mode needs "Load config" first',
       'st.scoreOverall': 'Overall',
       'st.scoreQuality': 'Clarity',
       'st.scoreSharp': 'Sharpness',

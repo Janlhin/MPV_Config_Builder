@@ -27,8 +27,11 @@
   --panel-2: #f7f9fe;
   --border: #dfe4f0;
   --text: #1a1f2b;
-  --muted: #6b7488;
-  --accent: #2f6fe4;
+  /* 2026-11-18 UX 走查：原 #6b7488 在 #eaeef7 上只有 4.03:1，
+     13.5px 的侧栏文字不达标；#5a6377 在两种浅底上都过 5:1。 */
+  --muted: #5a6377;
+  /* 原 #2f6fe4 在浅底上 4.3:1；#2a65d6 在 bg 与白底上都过 4.9:1。 */
+  --accent: #2a65d6;
   --accent-2: #6b4df6;
   --shadow: 0 8px 24px rgba(20, 30, 60, .10);
 }
@@ -90,6 +93,9 @@ a { color: var(--accent); text-decoration: none; }
   color: var(--text); font-size: 12px; min-width: 0; flex: 1 1 auto;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* 标签与「更改」按钮不许被压扁：只有路径允许省略号，否则 1090 宽度下
+   「目 标：」和「更 改」会被挤成竖排，顶栏高度跟着翻倍。 */
+.target > span, .target > .btn { flex: 0 0 auto; white-space: nowrap; }
 
 /* ---------- 顶栏常驻入口（U-1）----------
    体检 / 快捷键 / 下载中心。这三个入口以前只写在首页的卡片里，
@@ -227,7 +233,7 @@ h2 { font-size: 15px; margin: 0 0 10px; }
 .hint { color: var(--muted); font-size: 12.5px; margin: 6px 0 0 26px; }
 .expand-body b { color: var(--text); }
 .icon-btn {
-  width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
+  width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border);
   background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; line-height: 1;
 }
 .icon-btn:hover { color: var(--accent); border-color: var(--accent); }
@@ -245,7 +251,7 @@ input[type="text"], select, textarea {
 }
 input[type="text"], select { min-width: 120px; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
-input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
+input[type="checkbox"] { width: 24px; height: 24px; accent-color: var(--accent); }
 
 /* ---------- 候选值下拉（自绘，样式跟得上主题） ----------
    为什么不用 `<datalist>` / `<input list>`：那个气泡是**浏览器自己画的 UI**，
@@ -582,6 +588,17 @@ textarea.raw {
 }
 .modal .box h2 { margin-top: 0; }
 
+/* 体检页空状态：没有结果时别留一整页黑，给用户一句下一步做什么 */
+.empty-state { text-align: center; padding: 52px 20px; }
+.empty-state .empty-icon { margin: 0 0 6px; font-size: 40px; line-height: 1; }
+.empty-state h2 { margin: 0 0 6px; font-size: 17px; }
+.empty-state .note { margin: 0; }
+
+/* 窄屏：目标路径独占一行，不要跟导航和操作按钮挤在一行里被压成竖排。 */
+@media (max-width: 1260px) {
+  .topbar .target { order: 9; flex: 1 1 100%; width: 100%; max-width: none; }
+}
+
 /* 窄屏 */
 @media (max-width: 900px) {
   .sidebar { width: 100%; max-height: none; position: static; display: flex; gap: 6px; overflow-x: auto; }
@@ -589,7 +606,10 @@ textarea.raw {
   .shell { flex-direction: column; }
   .cols { grid-template-columns: 1fr; }
   .topbar { flex-wrap: wrap; }
-  .topbar .target { order: 9; width: 100%; }
+  /* 横排导航项不许被压扁，否则中文会被挤成一列竖字 */
+  .side-item { flex: 0 0 auto; white-space: nowrap; }
+  /* 目标路径与主题/语言同处第二行，避免 900 宽度下顶栏变成三层 */
+  .topbar .target { flex: 0 1 340px; width: 340px; max-width: 340px; }
 }
 
 /* ==========================================================================
@@ -633,7 +653,7 @@ body.has-statusbar { padding-bottom: 28px; }
 .statusbar .sb-keys {
   background: none; border: 0; cursor: pointer;
   color: var(--muted); font-size: 12px; font-family: inherit;
-  padding: 2px 6px; border-radius: 6px;
+  min-height: 24px; padding: 0 8px; border-radius: 6px;
 }
 .statusbar .sb-keys:hover { background: var(--panel-2); color: var(--text); }
 
