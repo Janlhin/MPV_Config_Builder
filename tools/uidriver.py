@@ -153,7 +153,12 @@ def connect(port, timeout_s=30):
                 tabs = json.load(f)
             page = next((t for t in tabs if t["type"] == "page"), None)
             if page:
-                return CDP(page["webSocketDebuggerUrl"])
+                c = CDP(page["webSocketDebuggerUrl"])
+                # 验证脚本不测首次引导：它是 600ms 后弹出的遮罩，会把所有
+                # 「初始状态」断言弄脏。每个新文档先标记已看过，生产行为不变。
+                c.call("Page.addScriptToEvaluateOnNewDocument", source=(
+                    "try{localStorage.setItem('mpvcb-onboarded','1')}catch(e){}"))
+                return c
         except Exception:
             pass
         time.sleep(0.5)
