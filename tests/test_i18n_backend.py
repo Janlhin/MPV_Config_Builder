@@ -122,5 +122,53 @@ class BackendEnglishOutputTest(unittest.TestCase):
             set_lang(None)
 
 
+class DetailTranslationTest(unittest.TestCase):
+    """T16：server.py 的 detail 中文串在 en 请求下必须变英文。
+
+    这些串有 80+ 处，没逐条改 T(zh, en)，而是在 dispatch 出口统一过 TD()。
+    所以这里既测 TD 的句型，也测「真的走 dispatch」的出口。
+    """
+
+    def setUp(self):
+        set_lang(None)
+
+    def tearDown(self):
+        set_lang(None)
+
+    def test_td_passthrough_in_chinese(self):
+        from core.i18n import TD
+        s = "目标目录不存在：C:\\某目录"
+        self.assertEqual(TD(s), s)
+
+    def test_td_fixed_sentence(self):
+        from core.i18n import TD
+        set_lang("en")
+        self.assertEqual(TD("准备中…"), "Preparing…")
+        self.assertEqual(TD("缺少 path 或 text"), "Missing path or text")
+
+    def test_td_dynamic_prefix_and_suffix(self):
+        from core.i18n import TD
+        set_lang("en")
+        self.assertEqual(
+            TD("已合并 3 处改动到 mpv.conf（已备份 mpv.conf.bak）"),
+            "Merged 3 changes into mpv.conf (backup: mpv.conf.bak)")
+
+    def test_td_keeps_user_path(self):
+        from core.i18n import TD
+        set_lang("en")
+        got = TD("找不到文件：C:\\用户\\mpv.conf")
+        self.assertTrue(got.startswith("File not found: "))
+        self.assertIn("C:\\用户\\mpv.conf", got)
+
+    def test_dispatch_translates_detail(self):
+        from webui import api
+        from webui.api import Request
+        r = api.dispatch(Request(path="/api/raw", method="GET",
+                                 query={"lang": "en"}))
+        detail = (r.payload or {}).get("detail") or ""
+        self.assertTrue(detail, str(r.payload))
+        self.assertNotRegex(detail, r"[\u4e00-\u9fff]", detail)
+
+
 if __name__ == "__main__":
     unittest.main()

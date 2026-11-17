@@ -16,6 +16,7 @@ webui/api.py 的 dispatch() **每个请求必设**（无参 = 回中文），同
 上一个请求不会把语言泄漏给下一个。中文是原文——zh 串同时充当键与兜底，
 en 缺失时宁可退回中文也不要留空。
 """
+import re
 import threading
 
 _local = threading.local()
@@ -34,3 +35,121 @@ def get_lang():
 def T(zh, en):
     """按当前语言取一条文案。两个参数都必须给全——半句翻译不如不翻。"""
     return en if get_lang() == "en" else zh
+
+
+# ---------------------------------------------------------------- 报错串
+# server.py 的 detail 有 80+ 处，逐条改成 T(zh, en) 会让每行都变长一倍。
+# 这里按「固定整句 + 动态前缀/后缀」集中翻译，一处维护；dispatch 出口统一过一遍。
+# 中文串仍然是键：新增文案忘了登记就原样输出中文，不会变成空白。
+
+_EXACT = {
+    "准备中…": "Preparing…",
+    "先选择 mpv 配置目录": "Choose an mpv config folder first",
+    "还没选择 mpv 配置目录，已取消写入":
+        "No mpv config folder selected; write cancelled",
+    "还没选择 mpv 配置目录": "No mpv config folder selected yet",
+    "还没选择要扫描的目录": "No folder selected to scan",
+    "目录不存在": "Directory does not exist",
+    "选项库是空的，先跑 tools/build.py options-db 生成":
+        "Option database is empty; run tools/build.py options-db first",
+    "只允许读写目标配置目录里的文件（安全限制）。":
+        "Only files inside the selected config folder can be read or written "
+        "(safety restriction).",
+    "只允许写入目标配置目录里的文件（安全限制）。":
+        "Only files inside the selected config folder can be written "
+        "(safety restriction).",
+    "文件超过 2MB，拒绝在界面里编辑":
+        "File is larger than 2 MB; refusing to edit it in the UI",
+    "缺少 path 或 text": "Missing path or text",
+    "缺少 path 或 rows": "Missing path or rows",
+    "缺少 rows（要保存的键位表内容）": "Missing rows (key table content to save)",
+    "缺少 path 或 values": "Missing path or values",
+    "缺少 tags（键 → 分组）": "Missing tags (key → group)",
+    "只能读写 uosc.conf": "Only uosc.conf can be read or written",
+    "只能写 uosc.conf": "Only uosc.conf can be written",
+    "输入几个字再搜（键名、中文说明、键位都行）":
+        "Type a few characters first (key, description, or binding)",
+    "既没有 path 也没有 text": "Neither path nor text was given",
+    "没有选择脚本": "No script selected",
+    "state 不是对象": "state is not an object",
+    "给这套预设起个名字吧": "Give this preset a name",
+    "没有给 id": "No id was given",
+    "没有给 path": "No path was given",
+    "内容太大（上限 2 MB）": "Content too large (2 MB limit)",
+    "没有给 path，也没有给 text": "Neither path nor text was given",
+    "一个选项都没勾，导出来是空的":
+        "No options selected; the export would be empty",
+    "没有内容和可补的注释（空文件或只有空白）":
+        "No content or comments to annotate",
+    "没有给 path，无法写回；请改用另存为":
+        "No path to write back to; use Save As instead",
+    "只允许回滚目标配置目录里的备份（安全限制）。":
+        "Only backups inside the selected config folder can be restored "
+        "(safety restriction).",
+    "这个文件名不像备份，拒绝操作": "This file name does not look like a backup",
+    "没有内容可分析": "Nothing to analyze",
+    "没有这个任务（服务可能重启过）":
+        "No such job (the service may have restarted)",
+}
+
+_RULES = [
+    # 动态句：前缀（保留路径 / 数量等变量）
+    (r"^已合并 (\d+) 处改动到 ", r"Merged \1 changes into "),
+    (r"^已记住 (\d+) 个参数的分组", r"Remembered grouping for \1 options"),
+    (r"^已用 (.+) 覆盖 ", r"Restored \1 over "),
+    (r"^已写回 ", r"Wrote back "),
+    (r"^已写入 ", r"Wrote "),
+    (r"^已保存 ", r"Saved "),
+    (r"^导出 (\d+) 个选项", r"Exported \1 options"),
+    (r"^找不到文件：", "File not found: "),
+    (r"^找不到脚本：", "Script not found: "),
+    (r"^找不到备份：", "Backup not found: "),
+    (r"^找不到文档文件：", "Document file not found: "),
+    (r"^没有这份文档：", "No such document: "),
+    (r"^目标目录不存在：", "Target folder does not exist: "),
+    (r"^没有 vs 目录：", "No vs folder: "),
+    (r"^读不到最新版本：", "Cannot fetch the latest version: "),
+    (r"^清单里没有这个条目：", "No such catalog item: "),
+    (r"^写入失败：", "Write failed: "),
+    (r"^处理失败：", "Processing failed: "),
+    (r"^读预设目录失败：", "Cannot read the preset folder: "),
+    (r"^保存失败：", "Save failed: "),
+    (r"^不是合法的 JSON：", "Invalid JSON: "),
+    (r"^读不了这个文件：", "Cannot read this file: "),
+    (r"^选项库读不了：", "Cannot read the option database: "),
+    (r"^回滚失败：", "Restore failed: "),
+    (r"^(.+) 已存在；勾选覆盖或改个名字再来",
+     r"\1 already exists; tick overwrite or pick another name"),
+    # 后缀（拼在成功句/失败句后面）
+    (r"（已备份 ([^）]+)）", r" (backup: \1)"),
+    (r"（原文件已备份）", " (original backed up)"),
+    (r"（当前版本另存为 ([^）]+)）", r" (current version kept as \1)"),
+    (r"，并在 mpv.conf 追加了 include 行",
+     ", and appended an include line to mpv.conf"),
+    (r"；本机缺少 shader：(.+)（已跳过）",
+     r"; missing shaders on this machine: \1 (skipped)"),
+    (r"；文件按原编码 (.+) 写回", r"; written back in original encoding \1"),
+    (r"；按原编码 (.+) 写回", r"; written back in original encoding \1"),
+    (r"；原文编码 (.+) 表示不了新内容，已按 UTF-8 写回",
+     r"; original encoding \1 cannot represent the new content, wrote as UTF-8"),
+]
+
+
+def TD(text):
+    """把 server.py 产出的 detail/error 中文串翻成当前语言。
+
+    只在 en 下动手；已经是英文或没登记的串原样返回。翻译是「一次性整形」，
+    不做子串替换，避免误切用户路径（路径里出现中文目录名很常见）。
+    """
+    if get_lang() != "en" or not isinstance(text, str) or not text:
+        return text
+    if text in _EXACT:
+        return _EXACT[text]
+    out = text
+    for pat, repl in _RULES:
+        out = re.sub(pat, repl, out, count=1)
+    return out
+
+
+__all__ = ["set_lang", "get_lang", "T", "TD"]
+

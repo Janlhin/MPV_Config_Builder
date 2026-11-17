@@ -40,6 +40,11 @@ function splitUrl(url) {
   return { path: s.slice(0, i), query };
 }
 
+/** 共用层文案：i18n.js 载入时走词条，没载入（老页面 / 单测）就用中文兜底。 */
+function TXT(key, fallback) {
+  return (typeof window !== 'undefined' && window.I18N) ? window.I18N.t(key) : fallback;
+}
+
 /** 走 stdio 通道发一条请求，返回跟 HTTP 一模一样的形状。 */
 async function invokeVia(method, url, body) {
   const { path, query } = splitUrl(url);
@@ -53,14 +58,15 @@ async function invokeVia(method, url, body) {
     });
   } catch (e) {
     // 通道本身坏了（后端进程死了、管道断了）—— 也得给页面一个能显示的错
-    return { ok: false, detail: '后端连接中断：' + (e && e.message ? e.message : e) };
+    return { ok: false, detail: TXT('api.connLost', '后端连接中断：')
+      + (e && e.message ? e.message : e) };
   }
   if (!res || typeof res !== 'object') {
-    return { ok: false, detail: '后端返回了无法识别的响应' };
+    return { ok: false, detail: TXT('api.badResponse', '后端返回了无法识别的响应') };
   }
   if (res.ok) return res.data;
   // 形状对齐：协议给的是 error，页面读的是 detail
-  return { ok: false, detail: res.error || '未知错误' };
+  return { ok: false, detail: res.error || TXT('api.unknownError', '未知错误') };
 }
 
 const API = {
@@ -364,7 +370,7 @@ function initTheme() {
 
 function promptTarget() {
   const cur = (APP && APP.target) || '';
-  const v = prompt('mpv 配置目录（一般是 portable_config）：', cur);
+  const v = prompt(TXT('pick.targetPrompt', 'mpv 配置目录（一般是 portable_config）：'), cur);
   if (v !== null) setTarget(v.trim());
 }
 
@@ -909,8 +915,8 @@ function initHotkeys() {
    不用去改 9 份 HTML。搜的是后端 /api/search，只读，不写任何文件。 */
 
 function copyText(text) {
-  const done = () => toast('已复制：' + text, 'ok');
-  const fail = () => toast('复制失败，请手动选中：' + text, 'err');
+  const done = () => toast(TXT('toast.copied', '已复制：') + text, 'ok');
+  const fail = () => toast(TXT('toast.copyFail', '复制失败，请手动选中：') + text, 'err');
   try {
     navigator.clipboard.writeText(text).then(done).catch(fail);
   } catch (e) {
@@ -921,16 +927,19 @@ function copyText(text) {
 async function runGlobalSearch(q) {
   const out = document.getElementById('gsearchOut');
   if (!out) return;
-  if (!q.trim()) { out.innerHTML = '<p class="note">输入关键词后回车。</p>'; return; }
-  out.innerHTML = '<p class="note">搜索中…</p>';
+  if (!q.trim()) {
+    out.innerHTML = `<p class="note">${esc(TXT('gs.hint', '输入关键词后回车。'))}</p>`;
+    return;
+  }
+  out.innerHTML = `<p class="note">${esc(TXT('gs.searching', '搜索中…'))}</p>`;
   const target = (window.APP && APP.target) || '';
   const url = '/api/search?q=' + encodeURIComponent(q)
     + (target ? '&target=' + encodeURIComponent(target) : '');
   const r = await API.get(url);
   if (!r.ok) { out.innerHTML = `<p class="note danger">${esc(r.detail)}</p>`; return; }
   if (!r.total) {
-    out.innerHTML = `<p class="note">没找到「${esc(q)}」。键名、中文名都能搜；
-      键位与脚本要先在页面里选过目标目录才会出现。</p>`;
+    out.innerHTML = `<p class="note">${esc(TXT('gs.empty',
+      '没找到匹配项。键名、中文名都能搜；键位与脚本要先在页面里选过目标目录才会出现。'))}</p>`;
     return;
   }
   out.innerHTML = r.groups.map(g => `<div class="gsearch-group">
@@ -938,7 +947,7 @@ async function runGlobalSearch(q) {
     ${g.items.map(it => `<button class="gsearch-item" data-copy="${esc(it.copy)}">
       <code>${esc(it.key)}</code>
       <span>${esc(it.title)}</span>
-      <small>${esc(it.page_label)} · 点击复制</small>
+      <small>${esc(it.page_label)} · ${esc(TXT('gs.clickCopy', '点击复制'))}</small>
     </button>`).join('')}
   </div>`).join('');
 }
@@ -954,13 +963,13 @@ function openGlobalSearch() {
     mask = document.createElement('div');
     mask.id = 'gsearchMask';
     mask.className = 'gsearch-mask';
-    mask.innerHTML = `<div class="gsearch-box" role="dialog" aria-label="全站搜索">
+    mask.innerHTML = `<div class="gsearch-box" role="dialog" aria-label="${esc(TXT('gs.title', '全站搜索'))}">
       <div class="gsearch-head">
         <input id="gsearchInput" type="search" spellcheck="false"
-          placeholder="搜配置项 / uosc / 键位 / 脚本，回车开始">
-        <button class="btn small" id="gsearchClose" type="button">关闭</button>
+          placeholder="${esc(TXT('gs.placeholder', '搜配置项 / uosc / 键位 / 脚本，回车开始'))}">
+        <button class="btn small" id="gsearchClose" type="button">${esc(TXT('gs.close', '关闭'))}</button>
       </div>
-      <div id="gsearchOut" class="gsearch-results"><p class="note">输入关键词后回车。</p></div>
+      <div id="gsearchOut" class="gsearch-results"><p class="note">${esc(TXT('gs.hint', '输入关键词后回车。'))}</p></div>
     </div>`;
     document.body.appendChild(mask);
     mask.addEventListener('click', e => {
@@ -985,7 +994,7 @@ function initGlobalSearch() {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'gsearch-btn';
-  btn.title = '全站搜索（Ctrl+K）：配置项 / uosc / 键位 / 脚本';
+  btn.title = TXT('gs.tip', '全站搜索（Ctrl+K）：配置项 / uosc / 键位 / 脚本');
   btn.setAttribute('aria-label', btn.title);
   btn.textContent = '🔎';
   // 挂在顶栏容器而不是 .topnav 列表里：搜索不是导航项，别影响「三入口」检查
@@ -1009,11 +1018,12 @@ function initTauriChrome() {
   if (bar) bar.setAttribute('data-tauri-drag-region', '');
   const controls = document.createElement('div');
   controls.className = 'win-controls';
+  const wm = k => esc(TXT('win.' + k, { menu: '菜单', min: '最小化', max: '最大化', close: '关闭' }[k]));
   controls.innerHTML =
-    '<button class="win-btn" data-win="menu" title="菜单" aria-label="菜单">☰</button>' +
-    '<button class="win-btn" data-win="min" title="最小化" aria-label="最小化">—</button>' +
-    '<button class="win-btn" data-win="max" title="最大化" aria-label="最大化">□</button>' +
-    '<button class="win-btn win-close" data-win="close" title="关闭" aria-label="关闭">✕</button>';
+    `<button class="win-btn" data-win="menu" title="${wm('menu')}" aria-label="${wm('menu')}">☰</button>` +
+    `<button class="win-btn" data-win="min" title="${wm('min')}" aria-label="${wm('min')}">—</button>` +
+    `<button class="win-btn" data-win="max" title="${wm('max')}" aria-label="${wm('max')}">□</button>` +
+    `<button class="win-btn win-close" data-win="close" title="${wm('close')}" aria-label="${wm('close')}">✕</button>`;
   controls.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-win]');
     if (!btn) return;
