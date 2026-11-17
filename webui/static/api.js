@@ -1031,7 +1031,11 @@ function initTauriChrome() {
   if (!internals || typeof internals.invoke !== 'function') return;
   document.documentElement.classList.add('tauri-shell');
   const bar = document.querySelector('.topbar');
-  if (bar) bar.setAttribute('data-tauri-drag-region', '');
+  // Tauri 3 的拖拽区默认只认「直接点在自己身上」；顶栏里全是品牌名、路径、
+  // 按钮这些子元素，点在它们身上会被当成普通内容，窗口纹丝不动。
+  // `deep` 让整棵子树都能拖，同时 drag.js 会主动放过 BUTTON/A 等可点击元素，
+  // 所以窗口按钮和导航仍能正常点。
+  if (bar) bar.setAttribute('data-tauri-drag-region', 'deep');
   const controls = document.createElement('div');
   controls.className = 'win-controls';
   const wm = k => esc(TXT('win.' + k, { menu: '菜单', min: '最小化', max: '最大化', close: '关闭' }[k]));

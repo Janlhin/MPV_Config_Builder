@@ -3398,10 +3398,18 @@ def cmd_tauri():
            bool(m) and m.group(1) == "3.0.0-alpha.6", m.group(1) if m else "没找到")
 
         caps = json.loads(CAPS.read_text(encoding="utf-8"))
-        ck("capabilities 只开 core:default，且窗口名对得上",
-           caps.get("permissions") == ["core:default"]
+        perms = caps.get("permissions") or []
+        ck("capabilities 窗口名对得上，且开了自绘标题栏拖拽权限",
+           "core:default" in perms
+           and "core:window:allow-start-dragging" in perms
            and caps.get("windows") == ["main"],
-           f"windows={caps.get('windows')} permissions={caps.get('permissions')}")
+           f"windows={caps.get('windows')} permissions={perms}")
+
+        # 拖拽区必须声明成 deep：默认裸属性只认「直接点在顶栏自己身上」，
+        # 点品牌名/路径/工具组这些子元素时 Tauri 不会启动拖拽（实测拖不动）。
+        api = (ROOT / "webui" / "static" / "api.js").read_text(encoding="utf-8")
+        ck("自绘标题栏是 deep 拖拽区（顶栏子元素上也能拖）",
+           "data-tauri-drag-region', 'deep'" in api)
 
         src = MAINRS.read_text(encoding="utf-8")
         # 注释里专门写着「别把窗口改成加载本机 HTTP 端口」，那句必然带违规字面量 ——
@@ -3481,14 +3489,37 @@ def cmd_tauri():
             ck("注入桥在（window.__MPVCB_INVOKE__ 是函数）",
                got.get("invoke") == "function", str(got.get("invoke")))
             ck("顶栏渲染出来了", got.get("topbar") is True)
+            # 拖拽不能只查「属性在不在」——裸属性点在子元素上根本不拖。
+            # 这里对着顶栏里的真实子元素派发一次 mousedown，确认 drag.js 把这
+            # 条路径判成了拖拽区（preventDefault 就是它盖的章）。
+            # 注：注入脚本里的 __TAURI_INTERNALS__.invoke 是不可写的，
+            # 没法换桩去截命令；命令名由 Tauri 自带 drag.js 固定为
+            # plugin:window|start_dragging，权限那一半由上面的 capabilities 断言守。
             chrome = cdp.js("""(() => {
               const bar = document.querySelector('.topbar');
+              const child = bar && (bar.querySelector('.target code')
+                                    || bar.querySelector('.brand')
+                                    || bar.firstElementChild);
+              if (!bar || !child) return {n: 0, drag: false, prevented: false,
+                                          child: 'missing'};
+              let prevented = false;
+              try {
+                prevented = !child.dispatchEvent(new MouseEvent('mousedown', {
+                  button: 0, detail: 1, bubbles: true, cancelable: true, composed: true
+                }));
+              } catch (e) {
+                return {n: 0, drag: false, prevented: false, child: 'dispatch: ' + e};
+              }
               return {n: document.querySelectorAll('.win-btn').length,
-                      drag: !!(bar && bar.hasAttribute('data-tauri-drag-region'))};
+                      drag: bar.getAttribute('data-tauri-drag-region'),
+                      prevented, child: child.tagName + '.' + child.className};
             })()""")
             ck("自绘标题栏：4 个窗口按钮都在（菜单/最小化/最大化/关闭）",
                chrome.get("n") == 4, str(chrome.get("n")))
-            ck("顶栏是拖拽区（无边框窗口还能拖动）", chrome.get("drag") is True)
+            ck("顶栏子元素上按下就判成拖拽区（不是只有空白处能拖）",
+               chrome.get("drag") == "deep" and chrome.get("prevented") is True,
+               f"{chrome.get('child')} drag={chrome.get('drag')} "
+               f"prevented={chrome.get('prevented')}")
 
             # 这条是全文的核心：页面 → 桥 → Rust 命令 → Python stdio
             call = cdp.js("""(async () => {
