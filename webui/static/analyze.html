@@ -274,11 +274,15 @@ function renderReport(r) {
       <p class="note" style="margin-top:6px">
         ${r.detail.unknown.map(([k, v, no]) => `<code>第${no}行 ${esc(k)}=${esc(v)}</code>`).join('<br>')}</p>
     </details>` : ''}
-    ${r.detail.duplicates.length ? `
+    ${(r.detail.duplicate_groups || []).length ? `
     <details style="margin-top:10px"><summary class="note warn-text" style="cursor:pointer">
-      ⚠ 重复的选项（${r.detail.duplicates.length}）—— mpv 以后出现的为准</summary>
-      <p class="note" style="margin-top:6px">
-        ${r.detail.duplicates.map(([k, a, b]) => `<code>${esc(k)}：第 ${a} 行与第 ${b} 行</code>`).join('<br>')}</p>
+      ⚠ 重复的选项（${(r.detail.duplicate_groups || []).length} 个键）—— mpv 以后出现的为准</summary>
+      <div class="chips" style="margin-top:8px">
+        ${(r.detail.duplicate_groups || []).map(g =>
+          `<span class="chip warn" title="出现在第 ${g.lines.join('、')} 行">
+            <code>${esc(g.key)}</code><b>×${g.count}</b></span>`).join('')}
+      </div>
+      <p class="note" style="margin-top:6px">每行都写了一遍同一个键；想保留最后一条，把前面的删掉或注释掉。</p>
     </details>` : ''}
   </div>`;
 }

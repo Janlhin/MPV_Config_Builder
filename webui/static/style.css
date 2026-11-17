@@ -323,6 +323,7 @@ input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent);
   border: 1px solid var(--border); color: var(--muted); cursor: pointer;
 }
 .chip.on { background: var(--panel-2); color: var(--text); border-color: var(--accent); }
+.chip.warn { border-color: var(--warn); color: var(--warn); }
 
 /* ---------- 预览 ---------- */
 pre.conf {
