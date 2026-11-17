@@ -101,7 +101,11 @@ class ConfigTest(unittest.TestCase):
 
     def test_capability_scope_is_minimal(self):
         caps = json.loads(CAPS.read_text(encoding="utf-8"))
-        self.assertEqual(caps["permissions"], ["core:default"])
+        # core:default 不含 start_dragging；自绘标题栏要拖动必须单独开这一条。
+        self.assertEqual(
+            caps["permissions"],
+            ["core:default", "core:window:allow-start-dragging"],
+        )
         self.assertEqual(caps["windows"], ["main"])
 
 

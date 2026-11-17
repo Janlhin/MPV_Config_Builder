@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "预览外壳只需要核心默认能力；页面里的调用走自建命令 mpvcb_invoke",
+  "description": "预览外壳只需要核心默认能力；页面里的调用走自建命令 mpvcb_invoke。start_dragging 不在 core:default 里，自绘标题栏拖动必须单独开。",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "core:window:allow-start-dragging"]
 }
