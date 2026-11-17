@@ -467,15 +467,22 @@ function paintStatusbar() {
   const t = SB.bar.querySelector('.sb-target');
   const c = SB.bar.querySelector('.sb-changes');
   const s = SB.bar.querySelector('.sb-backend .sb-text');
-  if (t) { t.textContent = SB.target ? SB.target : SBT('status.targetEmpty', '未选择'); t.title = SB.target || ''; }
+  // 状态栏只给「够用」的末两级目录（如 mpv-lazy\portable_config），
+  // 完整路径放 title。整条 C:\Program Files\... 是给开发者看的，不是给用户看的。
+  const tailPath = (p) => {
+    p = String(p || '').replace(/[\\/]+$/, '');
+    const parts = p.split(/[\\/]/).filter(Boolean);
+    return parts.length > 2 ? parts.slice(-2).join('\\') : p;
+  };
+  if (t) { t.textContent = SB.target ? tailPath(SB.target) : SBT('status.targetEmpty', '未选择'); t.title = SB.target || ''; }
   if (c) {
     c.textContent = (SB.changes === null || SB.changes === undefined)
       ? '' : SBT('status.changes', '改动 ' + SB.changes + ' 处', { changes: SB.changes });
   }
   if (s) {
-    s.textContent = SB.alive === false ? SBT('status.backendOff', '后端没响应')
-      : SB.alive === true ? SBT('status.backendOn', '后端在线')
-      : SBT('status.backendUnknown', '后端状态未知');
+    s.textContent = SB.alive === false ? SBT('status.backendOff', '服务未响应')
+      : SB.alive === true ? SBT('status.backendOn', '就绪')
+      : SBT('status.backendUnknown', '检查中…');
   }
   const kb = SB.bar.querySelector('.sb-keys');
   if (kb) {
