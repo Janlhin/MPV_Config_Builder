@@ -396,7 +396,19 @@ function initLangToggle() {
   const b = document.createElement('button');
   b.className = 'btn small';
   b.setAttribute('data-lang-toggle', '');
-  bar.appendChild(b);
+
+  // 主题与语言是一组「工具」：窄窗口必须一起换行、一起靠右，
+  // 不能只把语言按钮甩到下一行最左边（用户截图的「孤儿按钮」）。
+  let tools = bar.querySelector('.topbar-tools');
+  if (!tools) {
+    tools = document.createElement('div');
+    tools.className = 'topbar-tools';
+  }
+  const theme = bar.querySelector('[data-theme-toggle]');
+  if (theme) tools.appendChild(theme);
+  tools.appendChild(b);
+  bar.appendChild(tools);
+
   window.I18N.bindToggle();
 }
 
