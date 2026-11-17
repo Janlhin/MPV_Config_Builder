@@ -119,6 +119,7 @@ def build_report(path=None, text=None, name=None):
             "unknown": analysis["unknown"],
             "blanks": analysis.get("blanks") or [],
             "duplicates": analysis["duplicates"],
+            "duplicate_groups": analysis.get("duplicate_groups") or [],
         },
     }
 

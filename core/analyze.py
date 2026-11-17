@@ -72,11 +72,13 @@ def analyze_config_text(text):
     blanks = []                   # 值留空的占位行（`vo=` 这种）
     seen = {}
     duplicates = []
+    dup_lines = {}                # 键 → 出现过的所有行号（给界面画 ×N 用）
     active = []
     values = {}
 
     for no, k, v in parsed:
         lk = k.lower()
+        dup_lines.setdefault(lk, []).append(no)
         if lk in seen:
             duplicates.append((k, seen[lk], no))
         else:
@@ -188,6 +190,10 @@ def analyze_config_text(text):
 
     suggestions.append("评分是启发式指标，不代表实际 FPS 或 Render Time；最终应以 MPV stats、GPU Render Time、dropped frames 实测为准。")
 
+    dup_groups = [{"key": next((k for k, f, s in duplicates if k.lower() == lk), lk),
+                   "lines": nos, "count": len(nos)}
+                  for lk, nos in dup_lines.items() if len(nos) > 1]
+
     return {
         "line_count": len(lines),
         "comment_count": comment_count,
@@ -199,6 +205,7 @@ def analyze_config_text(text):
         "unknown": unknown,
         "blanks": blanks,
         "duplicates": duplicates,
+        "duplicate_groups": dup_groups,
         "active": active,
         "includes": includes,
         "profiles": profiles,

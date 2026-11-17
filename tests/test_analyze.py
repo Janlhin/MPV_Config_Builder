@@ -25,6 +25,15 @@ class TestAnalyze(unittest.TestCase):
     def test_duplicates_detected(self):
         r = analyze_config_text("scale=bilinear\nscale=spline36\n")
         self.assertEqual(len(r["duplicates"]), 1)
+        self.assertEqual(r["duplicate_groups"][0]["key"], "scale")
+        self.assertEqual(r["duplicate_groups"][0]["lines"], [1, 2])
+
+    def test_duplicate_count_covers_all_occurrences(self):
+        r = analyze_config_text("scale=bilinear\nvo=gpu\nscale=spline36\nscale=ewa_lanczos\n")
+        g = r["duplicate_groups"][0]
+        self.assertEqual(g["key"], "scale")
+        self.assertEqual(g["count"], 3)
+        self.assertEqual(g["lines"], [1, 3, 4])
 
     def test_shader_lines_collected(self):
         r = analyze_config_text('glsl-shaders="a.glsl;b.glsl"\nvf=vapoursynth="x.vpy"\n')
