@@ -14,6 +14,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::collections::HashMap;
+use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
@@ -24,6 +25,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
+use tauri::menu::MenuBuilder;
+use tauri::Manager;
 
 /// 单条请求的上限。与 `main.js` 的 `call(req, timeoutMs = 120000)` 一致。
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
@@ -39,6 +42,8 @@ struct Backend {
 }
 
 static BACKEND: OnceLock<Backend> = OnceLock::new();
+/// 单实例锁：进程活多久就占多久，退出自动释放（Windows 文件句柄）。
+static INSTANCE_LOCK: OnceLock<File> = OnceLock::new();
 
 fn backend() -> &'static Backend {
     BACKEND.get_or_init(|| Backend {
@@ -84,20 +89,78 @@ fn repo_root() -> PathBuf {
 
 /* ------------------------------------------------------- 后端进程管理 */
 
-fn spawn_backend() -> Result<(), String> {
-    let root = repo_root();
-    let server = root.join("webui").join("server.py");
-    if !server.is_file() {
-        return Err(format!(
-            "找不到后端脚本：{}（可用 MPVCB_ROOT 指定仓库根）",
-            server.display()
-        ));
+/// 拿单实例锁。拿不到 = 已经有一个窗口在跑，第二个直接退出。
+fn acquire_instance_lock() -> bool {
+    let base = std::env::var("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| std::env::temp_dir());
+    let dir = base.join("MPVConfigBuilder");
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join("instance.lock");
+    let file = match OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(&path)
+    {
+        Ok(f) => f,
+        Err(_) => return true, // 锁文件都建不了就别拦用户
+    };
+    match file.try_lock() {
+        Ok(()) => {
+            let _ = INSTANCE_LOCK.set(file);
+            true
+        }
+        Err(_) => false,
     }
-    let python = std::env::var("MPVCB_PYTHON").unwrap_or_else(|_| "python".to_string());
-    let mut cmd = Command::new(&python);
-    cmd.arg(&server)
-        .arg("--stdio")
-        .current_dir(&root)
+}
+
+fn spawn_backend(app: &tauri::AppHandle) -> Result<(), String> {
+    let root = repo_root();
+    // 打包后：后端是和安装包一起装进来的 exe，优先用它；源码运行才回落到 python。
+    let bundled = std::env::var("MPVCB_BACKEND")
+        .ok()
+        .map(PathBuf::from)
+        .filter(|p| p.is_file())
+        .or_else(|| {
+            app.path()
+                .resource_dir()
+                .ok()
+                .map(|d| d.join("backend").join("MPVConfigBuilderBackend.exe"))
+                .filter(|p| p.is_file())
+        })
+        // 源码运行（cargo run / dev）：资源目录里没有，就去仓库的 dist 找
+        .or_else(|| {
+            let p = root
+                .join("dist")
+                .join("MPVConfigBuilderBackend")
+                .join("MPVConfigBuilderBackend.exe");
+            if p.is_file() {
+                Some(p)
+            } else {
+                None
+            }
+        });
+
+    let mut cmd = if let Some(exe) = bundled {
+        let mut c = Command::new(exe);
+        c.arg("--stdio");
+        c
+    } else {
+        let server = root.join("webui").join("server.py");
+        if !server.is_file() {
+            return Err(format!(
+                "找不到后端脚本：{}（可用 MPVCB_ROOT 指定仓库根）",
+                server.display()
+            ));
+        }
+        let python = std::env::var("MPVCB_PYTHON").unwrap_or_else(|_| "python".to_string());
+        let mut c = Command::new(&python);
+        c.arg(&server).arg("--stdio");
+        c
+    };
+
+    cmd.current_dir(&root)
         .env("PYTHONIOENCODING", "utf-8")
         .env("PYTHONUTF8", "1")
         .stdin(Stdio::piped())
@@ -110,9 +173,10 @@ fn spawn_backend() -> Result<(), String> {
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
 
+    let program = cmd.get_program().to_string_lossy().to_string();
     let mut child = cmd
         .spawn()
-        .map_err(|e| format!("启动后端失败（{python}）：{e}"))?;
+        .map_err(|e| format!("启动后端失败（{program}）：{e}"))?;
     let stdin = child.stdin.take();
     let stdout = child.stdout.take().ok_or_else(|| "拿不到后端 stdout".to_string())?;
     let stderr = child.stderr.take();
@@ -266,6 +330,36 @@ async fn mpvcb_invoke(req: Value) -> Value {
 }
 
 #[tauri::command]
+fn mpvcb_window(window: tauri::WebviewWindow, action: String) -> Result<(), String> {
+    match action.as_str() {
+        "min" => window.minimize().map_err(|e| e.to_string()),
+        "max" => {
+            if window.is_maximized().unwrap_or(false) {
+                window.unmaximize().map_err(|e| e.to_string())
+            } else {
+                window.maximize().map_err(|e| e.to_string())
+            }
+        }
+        "close" => window.close().map_err(|e| e.to_string()),
+        _ => Ok(()),
+    }
+}
+
+/// 标题栏 ☰ 打开原生菜单（自绘标题栏 + 原生菜单并存的办法：
+/// Windows 的无边框窗口没有菜单栏位置，改成弹出原生菜单）。
+#[tauri::command]
+fn mpvcb_menu(window: tauri::WebviewWindow) -> Result<(), String> {
+    let menu = MenuBuilder::new(&window)
+        .text("reload", "刷新")
+        .text("help", "快捷键帮助")
+        .separator()
+        .text("quit", "退出")
+        .build()
+        .map_err(|e| e.to_string())?;
+    window.popup_menu(&menu).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn mpvcb_info() -> Value {
     let be = backend();
     let dead = be.dead.lock().unwrap().clone();
@@ -278,16 +372,46 @@ fn mpvcb_info() -> Value {
 }
 
 fn main() {
+    if !acquire_instance_lock() {
+        eprintln!("[instance] 已经有一个 MPV Config Builder 在运行，本次启动退出");
+        return;
+    }
     let ctx = tauri::generate_context!();
     tauri::Builder::default()
         // v3 的运行时是显式选的（拆包成 tauri-runtime-wry）。不写这一行，
         // build 直接 RuntimeNotConfigured —— 不会走到 setup。
         .runtime(tauri_runtime_wry::Wry::default())
-        .invoke_handler(tauri::generate_handler![mpvcb_invoke, mpvcb_info])
+        .invoke_handler(tauri::generate_handler![
+            mpvcb_invoke,
+            mpvcb_info,
+            mpvcb_window,
+            mpvcb_menu
+        ])
         .setup(|app| {
-            if let Err(err) = spawn_backend() {
+            if let Err(err) = spawn_backend(app.handle()) {
                 eprintln!("[backend] 启动失败：{err}");
             }
+            // 原生菜单：无边框窗口没有菜单栏位置，由标题栏 ☰ 弹出；
+            // 事件统一在这里接，菜单项 ID 与 mpvcb_menu 里保持一致。
+            app.on_menu_event(|app, event| {
+                let id = event.id().0.as_str();
+                match id {
+                    "reload" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.eval("location.reload()");
+                        }
+                    }
+                    "help" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.eval(
+                                "document.dispatchEvent(new KeyboardEvent('keydown',{key:'?'}))",
+                            );
+                        }
+                    }
+                    "quit" => app.exit(0),
+                    _ => {}
+                }
+            });
             tauri::WebviewWindowBuilder::new(
                 app,
                 "main",
@@ -296,6 +420,7 @@ fn main() {
             .title("MPV Config Builder")
             .inner_size(1280.0, 860.0)
             .min_inner_size(900.0, 600.0)
+            .decorations(false)
             .center()
             .initialization_script(INIT_SCRIPT)
             .build()?;

@@ -3384,9 +3384,10 @@ def cmd_tauri():
            dist.endswith("webui/static")
            and (ROOT / "webui" / "static" / "index.html").is_file(), dist)
 
-        ck("预览版不出安装包（bundle.active = false）",
-           conf.get("bundle", {}).get("active") is False,
-           str(conf.get("bundle", {}).get("active")))
+        bundle = conf.get("bundle", {})
+        ck("安装包产线已开（bundle.active = true，后端目录打进资源）",
+           bundle.get("active") is True and "backend" in (bundle.get("resources") or []),
+           f"active={bundle.get('active')} resources={bundle.get('resources')}")
 
         ident = str(conf.get("identifier", ""))
         ck("identifier 填了、不是脚手架默认值", bool(ident) and "com.tauri" not in ident, ident)
@@ -3422,10 +3423,20 @@ def cmd_tauri():
         ck("没有写死的机器路径（盘符 / 用户名）",
            not any(s in src for s in ("C:\\Users", "D:\\Projects", "Janlhin")))
 
+        api_js = (ROOT / "webui" / "static" / "api.js").read_text(encoding="utf-8")
+        ck("无边框窗口 + 自绘标题栏（前端注入窗口按钮，浏览器版不受影响）",
+           ".decorations(false)" in code and "win-controls" in api_js
+           and "__TAURI_INTERNALS__" in api_js)
+        ck("原生菜单：标题栏 ☰ 弹出（不是网页自绘菜单）",
+           "fn mpvcb_menu" in src and "popup_menu" in src and "MenuBuilder" in src)
+        ck("单实例锁：拿不到锁就退出并保留已有窗口",
+           "acquire_instance_lock" in src and "try_lock" in src
+           and "INSTANCE_LOCK" in src)
+
         copied = [str(p.relative_to(TAURI)) for p in TAURI.rglob("*")
                   if p.is_file() and p.suffix.lower() in (".html", ".css", ".js")
                   and "target" not in p.parts and "node_modules" not in p.parts
-                  and "gen" not in p.parts]
+                  and "gen" not in p.parts and "backend" not in p.parts]
         ck("tauri/ 下没有第二份前端副本", not copied, "；".join(copied[:5]))
 
         ignore = (ROOT / ".gitignore").read_text(encoding="utf-8", errors="replace")
@@ -3470,18 +3481,33 @@ def cmd_tauri():
             ck("注入桥在（window.__MPVCB_INVOKE__ 是函数）",
                got.get("invoke") == "function", str(got.get("invoke")))
             ck("顶栏渲染出来了", got.get("topbar") is True)
+            chrome = cdp.js("""(() => {
+              const bar = document.querySelector('.topbar');
+              return {n: document.querySelectorAll('.win-btn').length,
+                      drag: !!(bar && bar.hasAttribute('data-tauri-drag-region'))};
+            })()""")
+            ck("自绘标题栏：4 个窗口按钮都在（菜单/最小化/最大化/关闭）",
+               chrome.get("n") == 4, str(chrome.get("n")))
+            ck("顶栏是拖拽区（无边框窗口还能拖动）", chrome.get("drag") is True)
 
             # 这条是全文的核心：页面 → 桥 → Rust 命令 → Python stdio
             call = cdp.js("""(async () => {
               const r = await window.__MPVCB_INVOKE__({path: 'status', method: 'GET', query: {}});
               return {ok: r.ok, version: (r.data && r.data.version) || null,
+                      target: (r.data && r.data.target) || '',
+                      lazy_pc: (r.data && r.data.lazy_pc) || '',
                       dirs: ((r.data && r.data.candidate_details) || []).length};
             })()""")
             ck("stdio 桥打通：直调 status 拿到后端版本",
                call.get("ok") is True and call.get("version") == "0.1.0",
                json.dumps(call, ensure_ascii=False))
+            # 目标路径在顶栏是按 shortPath 缩过的（前 14 + … + 后 24），
+            # 这里照着算一遍，页面要是写死了别的目录就对不上。
+            lp = call.get("lazy_pc") or ""
+            shown = lp if len(lp) <= 39 else lp[:14] + "…" + lp[-24:]
             ck("页面显示的目录来自后端探测（不是写死的）",
-               "portable_config" in (got.get("text") or ""), "正文含 portable_config")
+               bool(shown) and shown in (got.get("text") or ""),
+               f"target={call.get('target')!r} shown={shown!r}")
 
             bad = cdp.js("""(async () => {
               const r = await window.__MPVCB_INVOKE__({path: '根本没有这个接口'});

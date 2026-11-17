@@ -999,7 +999,33 @@ function initGlobalSearch() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+/* Tauri 窗口：无边框自绘标题栏 + 右侧窗口按钮。
+   浏览器里没有 __TAURI_INTERNALS__，这段是空转，不影响网页版。 */
+function initTauriChrome() {
+  const internals = window.__TAURI_INTERNALS__;
+  if (!internals || typeof internals.invoke !== 'function') return;
+  document.documentElement.classList.add('tauri-shell');
+  const bar = document.querySelector('.topbar');
+  if (bar) bar.setAttribute('data-tauri-drag-region', '');
+  const controls = document.createElement('div');
+  controls.className = 'win-controls';
+  controls.innerHTML =
+    '<button class="win-btn" data-win="menu" title="菜单" aria-label="菜单">☰</button>' +
+    '<button class="win-btn" data-win="min" title="最小化" aria-label="最小化">—</button>' +
+    '<button class="win-btn" data-win="max" title="最大化" aria-label="最大化">□</button>' +
+    '<button class="win-btn win-close" data-win="close" title="关闭" aria-label="关闭">✕</button>';
+  controls.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-win]');
+    if (!btn) return;
+    const action = btn.dataset.win;
+    if (action === 'menu') internals.invoke('mpvcb_menu').catch(() => {});
+    else internals.invoke('mpvcb_window', { action }).catch(() => {});
+  });
+  (bar || document.body).appendChild(controls);
+}
+
+function bootUI() {
+  initTauriChrome();
   initTopbarNav();
   initGlobalSearch();
   initTheme();
@@ -1008,6 +1034,14 @@ document.addEventListener('DOMContentLoaded', () => {
   initBackendWatch();
   initContextMenu();
   initHotkeys();
-});
+}
+
+/* 脚本如果是在 DOMContentLoaded 之后才执行（Tauri 资源加载快时会发生），
+   再挂监听就永远不会触发 —— 直接看 readyState 决定跑不跑。 */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootUI);
+} else {
+  bootUI();
+}
 
 
