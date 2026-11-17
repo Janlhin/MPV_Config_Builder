@@ -43,6 +43,7 @@
 </div>
 
 <div class="content">
+  <div class="card" id="docLangNote" hidden style="max-width:900px;margin:0 auto 12px;padding:10px 14px"></div>
   <div class="toc" id="toc" style="max-width:900px;margin:0 auto 12px"></div>
   <div class="card doc" id="doc">（正在读取…）</div>
 </div>
@@ -91,6 +92,18 @@ async function load(doc) {
   box.querySelectorAll('a[href^="http"]').forEach(a => { a.target = '_blank'; });
 }
 
+function updateLangNote() {
+  const el = document.getElementById('docLangNote');
+  if (!el) return;
+  const en = window.I18N && I18N.lang() === 'en';
+  el.hidden = !en;
+  if (en) el.textContent = I18N.t('guide.enNotice');
+}
+
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-lang-toggle]')) setTimeout(updateLangNote, 60);
+});
+updateLangNote();
 load(currentDoc());
 </script>
 </body>
