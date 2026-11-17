@@ -301,5 +301,21 @@ class TestJsonRoundTrip(unittest.TestCase):
         self.assertEqual(empty, {"options": {}, "groups": [], "meta": {}})
 
 
+class ExampleBlocksTest(unittest.TestCase):
+    """官方手册的 ``.. admonition:: Example`` 要能进库并在界面上展示。"""
+
+    def test_official_examples_are_stored_both_languages(self):
+        db = load_db()
+        self.assertTrue(db["options"]["alang"].get("zh_examples"),
+                        "中文手册里 alang 有示例，解析时不能丢")
+        self.assertTrue(db["options"]["alang"].get("en_examples"),
+                        "官方英文手册里 alang 有示例，解析时不能丢")
+
+    def test_ui_item_exposes_examples(self):
+        from core.schema import db_ui_item
+        item = db_ui_item(load_db()["options"]["alang"])
+        self.assertTrue(item.get("examples"), "抽屉渲染需要 examples 字段")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

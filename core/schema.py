@@ -1258,11 +1258,13 @@ def db_ui_item(entry):
     if typ == "bool":
         values = ["yes", "no"]
     info = value_info(key, typ, values)
+    examples = entry.get("en_examples") if get_lang() == "en" else entry.get("zh_examples")
     return {
         "group": entry.get("group") or "其它",
         "key": key,
         "label": label,
         "desc": desc,
+        "examples": list(examples or []),
         "values": values,
         "type": typ,
         "kind": "db",

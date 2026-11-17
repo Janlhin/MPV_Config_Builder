@@ -1240,7 +1240,12 @@ function openDrawer(item) {
   if (sig) sig.textContent = `--${item.key}${item.type ? '=<' + item.type + '>' : ''}`;
   const body = d.querySelector('.body');
   if (body) {
+    const exs = item.examples || [];
     body.innerHTML = `<p class="muted">${esc(item.desc || I18N.t('st.noDesc'))}</p>`
+      + (exs.length
+        ? `<div class="sec"><h4>${I18N.t('st.examples')}</h4>`
+          + exs.map(x => `<pre class="ex">${esc(x)}</pre>`).join('') + '</div>'
+        : '')
       + ((item.values && item.values.length)
         ? `<div class="sec"><h4>${I18N.t('st.suggestValues')}</h4><p class="muted">${item.values.map(v => `<code>${esc(v)}</code>`).join('　')}</p></div>`
         : '');

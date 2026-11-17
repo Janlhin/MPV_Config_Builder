@@ -487,6 +487,11 @@ textarea.raw {
 
 /* 抽屉正文 / 底部按钮 */
 .drawer .body { font-size: 12.5px; }
+.drawer .body pre.ex {
+  margin: 0 0 8px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  font-family: Consolas, monospace; font-size: 12px; color: var(--fg);
+}
 .drawer .drawer-foot {
   position: sticky; bottom: 0; background: var(--panel);
   padding-top: 10px; margin-top: 14px; border-top: 1px solid var(--border);
