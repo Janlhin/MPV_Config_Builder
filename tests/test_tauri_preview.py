@@ -83,8 +83,12 @@ class ConfigTest(unittest.TestCase):
         self.assertTrue(dist.endswith("webui/static"), dist)
         self.assertTrue((ROOT / "webui" / "static" / "index.html").is_file())
 
-    def test_preview_does_not_bundle_installers(self):
-        self.assertIs(_conf()["bundle"]["active"], False)
+    def test_installer_pipeline_is_enabled(self):
+        """2026-11-17 起出安装包：bundle 开、后端目录打进资源、只走 NSIS。"""
+        bundle = _conf()["bundle"]
+        self.assertIs(bundle["active"], True)
+        self.assertIn("backend", bundle.get("resources") or [])
+        self.assertEqual(list(bundle.get("targets") or []), ["nsis"])
 
     def test_identifier_is_not_scaffold_default(self):
         ident = _conf()["identifier"]
@@ -158,7 +162,7 @@ class SingleSourceTest(unittest.TestCase):
         copies = [str(p.relative_to(TAURI)) for p in TAURI.rglob("*")
                   if p.is_file() and p.suffix.lower() in (".html", ".css", ".js")
                   and "target" not in p.parts and "node_modules" not in p.parts
-                  and "gen" not in p.parts]
+                  and "gen" not in p.parts and "backend" not in p.parts]
         self.assertEqual(copies, [], f"tauri/ 下出现了前端副本：{copies}")
 
     def test_compile_outputs_are_ignored(self):
