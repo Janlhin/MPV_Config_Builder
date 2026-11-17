@@ -778,3 +778,6 @@ body { animation: page-in .12s ease-out; }
 .opt.dragging { opacity: .45; }
 .opt.tag-hidden { display: none !important; }
 .tagbadge { font-size: 11px; border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 1px 7px; margin-left: 6px; white-space: nowrap; }
+
+/* ---- 写后 12 秒撤销条 ---- */
+.undo-bar { position: fixed; right: 22px; bottom: 64px; z-index: 99; display: flex; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; box-shadow: var(--shadow); font-size: 13px; }

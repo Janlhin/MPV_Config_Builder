@@ -624,6 +624,7 @@ def _apply_config(body):
     if not target or not Path(target).is_dir():
         return {"ok": False, "detail": f"目标目录不存在：{target}"}
     mode = body.get("write_mode") or WRITE_MODE_INCLUDE
+    backs = []
     try:
         if mode == WRITE_MODE_MERGE:
             source = Path(str(body.get("source") or (Path(target) / "mpv.conf")))
@@ -633,6 +634,8 @@ def _apply_config(body):
             new_lines, changes = apply_state_to_lines(
                 raw.splitlines(), state.get("values") or {}, state.get("disable") or [])
             backup = write_lines(source, new_lines, newline, template=tf)
+            if backup:
+                backs.append(str(backup))
             detail = f"已合并 {len(changes)} 处改动到 {source.name}"
             if backup:
                 detail += f"（已备份 {backup.name}）"
@@ -645,9 +648,13 @@ def _apply_config(body):
             detail += "，并在 mpv.conf 追加了 include 行" if changed else f"，{msg}"
             if backup or main_backup:
                 detail += "（原文件已备份）"
+            for b in (backup, main_backup):
+                if b:
+                    backs.append(str(b))
     except OSError as e:
         return {"ok": False, "detail": f"写入失败：{e}"}
-    return {"ok": True, "detail": detail, "mode": mode, "target": str(target)}
+    return {"ok": True, "detail": detail, "mode": mode, "target": str(target),
+            "backups": backs}
 
 
 def api_config_preview(body):

@@ -484,6 +484,7 @@ async function applyConfig(btn) {
   const r = await API.post('/api/config/apply', payload());
   toast((r.ok ? '✅ ' : '❌ ') + r.detail, r.ok ? 'ok' : 'err');
   if (r.ok) {
+    offerUndo(r.backups);
     if (window.MPVCB && MPVCB.ack) MPVCB.ack(btn);
     doPreview();
   }
