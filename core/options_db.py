@@ -291,7 +291,7 @@ _BARE_ONLY_RE = re.compile(
 )
 # 定义行尾部的括号补充说明，如 ``--vd-lavc-fast`` （MPEG-1/2和H.264独占）
 _TRAIL_NOTE_RE = re.compile(
-    r"[\s(（]+[^()（）]*?(?:独占|只读|已废弃|deprecated|仅|alias|别名)[^()（）]*[)）]\s*$"
+    r"[\s(（]+[^()（）]*?(?:独占|只读|已废弃|deprecated|仅|alias|别名|only)[^()（）]*[)）]\s*$"
 )
 # 同上，但容忍中英文括号混用
 _TRAIL_NOTE_MIXED_RE = re.compile(
@@ -407,6 +407,8 @@ def _def_line_tokens(line):
     容错点：手册里个别行有笔误（如 `` `--screen-name=<string>``` `` 少了一个反引号），
     以及 ``--a``, ``--b`` 这种第二个选项不带反引号的写法。
     """
+    # 英文手册常在定义行尾写 (default: 0) / (MPEG-1/2 only)，先剥掉再判断
+    line = re.sub(r"\s*\((?:default|Default|defaults to)[^()]*\)\s*$", "", line)
     line = _TRAIL_NOTE_RE.sub("", line)
     # 中英文括号混用时上面的正则可能不匹配，再补一刀
     m_note = _TRAIL_NOTE_MIXED_RE.search(line)
@@ -425,6 +427,19 @@ def _def_line_tokens(line):
         tokens = _collect_tokens(line, _OPT_TOKEN_LOOSE_RE)
     if not tokens:
         return None
+
+    # 同一个反引号里塞了两个选项：``--vd-queue-enable=<yes|no>, --ad-queue-enable``
+    # 正则会把后半截吃进签名里，这里拆回来。
+    fixed = []
+    for name, sig in tokens:
+        while sig and ", --" in sig:
+            before, after = sig.split(", --", 1)
+            fixed.append((name, before))
+            tail = after.split("=", 1)
+            name = "--" + tail[0]
+            sig = ("=" + tail[1]) if len(tail) > 1 else None
+        fixed.append((name, sig))
+    tokens = fixed
 
     # 去掉反引号片段后，剩下的只能是"裸选项 / 短别名 / 标点空白"
     outside = line
@@ -503,6 +518,44 @@ def _parse_rst_text(text):
     return result, group_order
 
 
+def _parse_en_rst_text(text):
+    """解析官方英文手册：只看定义行 + 其后的缩进正文，不依赖章节层级。
+
+    官方手册把选项拆在 options.rst / vo.rst / ao.rst 等多个文件里，嵌套标题比
+    中文译本深；复用 ``_parse_rst_text`` 的「按同级标题切块」会漏掉 vo-kitty-*、
+    ad-queue-enable 这类挂在子节里的选项。英文正文本身只靠缩进区分，所以这里
+    按行扫：定义行之后、下一个定义行或顶格文字之前，都算它的说明。
+    """
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    result = {}
+    i = 0
+    while i < len(lines):
+        tokens = _def_line_tokens(lines[i])
+        if not tokens:
+            i += 1
+            continue
+        end = i + 1
+        while end < len(lines):
+            ln = lines[end]
+            if _def_line_tokens(ln):
+                break
+            if ln.strip() and not ln.startswith((" ", "\t")):
+                break                       # 顶格的标题 / 新段落
+            end += 1
+        body = [ln for ln in lines[i + 1:end]
+                if ln.strip() and not _DIRECTIVE_RE.match(ln)]
+        desc = _join_zh(body) if body else ""
+        for name, sig in tokens:
+            key = name[2:] if name.startswith("--") else name.lstrip("-")
+            entry = result.setdefault(key, {"zh_sig": "", "zh_desc": ""})
+            if sig and not entry["zh_sig"]:
+                entry["zh_sig"] = name + sig
+            if desc and not entry["zh_desc"]:
+                entry["zh_desc"] = desc
+        i = end
+    return result
+
+
 # --------------------------------------------------------------------------
 # 3) 合并
 # --------------------------------------------------------------------------
@@ -525,7 +578,17 @@ def build_db(raw_txt_path=None, rst_path=None, en_rst_path=None):
     # 实测 723/726 命中（3 条是官方已更名的别名，回退中文）
     en_map = {}
     if en_file is not None:
-        en_map, _en_groups = _parse_rst_text(en_file.read_text(encoding="utf-8-sig"))
+        # 官方手册是拆开写的：通用选项在 options.rst，ao/vo/vf/af 等各自在本页。
+        # 只读 options.rst 会漏掉 vo-image-*、ao-null-* 这一类（约 100 条）。
+        en_map = _parse_en_rst_text(en_file.read_text(encoding="utf-8-sig"))
+        for extra in ("ao.rst", "vo.rst", "vf.rst", "af.rst",
+                      "input.rst", "lua.rst", "osc.rst", "encode.rst"):
+            p = en_file.parent / extra
+            if not p.is_file():
+                continue
+            part = _parse_en_rst_text(p.read_text(encoding="utf-8-sig"))
+            for k, v in part.items():
+                en_map.setdefault(k, v)
 
     options = {}
     with_zh = 0
@@ -539,6 +602,14 @@ def build_db(raw_txt_path=None, rst_path=None, en_rst_path=None):
         if zh_desc:
             with_zh += 1
         en_desc = (en_map.get(key, {}).get("zh_desc") or "") if en_map else ""
+        if not en_desc and src.get("type") == "Alias":
+            # 别名本来就不单列一段说明；官方 --list-options 已给出 "alias for X"
+            sig = src.get("raw_sig") or ""
+            if sig.startswith("alias for "):
+                en_desc = "Alias for ``--" + sig[len("alias for "):].strip() + "``"
+            elif sig.startswith("alias [deprecated] for "):
+                en_desc = ("Deprecated alias for ``--"
+                           + sig[len("alias [deprecated] for "):].strip() + "``")
         if en_desc:
             with_en += 1
         used.add(group)
