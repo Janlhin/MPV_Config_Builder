@@ -868,8 +868,104 @@ function initHotkeys() {
   if (kb) kb.onclick = function () { toggleHotkeyHelp(); };
 }
 
+/* ---------- 全站搜索（配置项 / uosc / 键位 / 脚本）----------
+
+   9 个页面都能用：入口按钮和弹层在这里定义一次，由 api.js 注入，
+   不用去改 9 份 HTML。搜的是后端 /api/search，只读，不写任何文件。 */
+
+function copyText(text) {
+  const done = () => toast('已复制：' + text, 'ok');
+  const fail = () => toast('复制失败，请手动选中：' + text, 'err');
+  try {
+    navigator.clipboard.writeText(text).then(done).catch(fail);
+  } catch (e) {
+    fail();
+  }
+}
+
+async function runGlobalSearch(q) {
+  const out = document.getElementById('gsearchOut');
+  if (!out) return;
+  if (!q.trim()) { out.innerHTML = '<p class="note">输入关键词后回车。</p>'; return; }
+  out.innerHTML = '<p class="note">搜索中…</p>';
+  const target = (window.APP && APP.target) || '';
+  const url = '/api/search?q=' + encodeURIComponent(q)
+    + (target ? '&target=' + encodeURIComponent(target) : '');
+  const r = await API.get(url);
+  if (!r.ok) { out.innerHTML = `<p class="note danger">${esc(r.detail)}</p>`; return; }
+  if (!r.total) {
+    out.innerHTML = `<p class="note">没找到「${esc(q)}」。键名、中文名都能搜；
+      键位与脚本要先在页面里选过目标目录才会出现。</p>`;
+    return;
+  }
+  out.innerHTML = r.groups.map(g => `<div class="gsearch-group">
+    <div class="gsearch-gname">${esc(g.name)}</div>
+    ${g.items.map(it => `<button class="gsearch-item" data-copy="${esc(it.copy)}">
+      <code>${esc(it.key)}</code>
+      <span>${esc(it.title)}</span>
+      <small>${esc(it.page_label)} · 点击复制</small>
+    </button>`).join('')}
+  </div>`).join('');
+}
+
+function closeGlobalSearch() {
+  const mask = document.getElementById('gsearchMask');
+  if (mask) mask.style.display = 'none';
+}
+
+function openGlobalSearch() {
+  let mask = document.getElementById('gsearchMask');
+  if (!mask) {
+    mask = document.createElement('div');
+    mask.id = 'gsearchMask';
+    mask.className = 'gsearch-mask';
+    mask.innerHTML = `<div class="gsearch-box" role="dialog" aria-label="全站搜索">
+      <div class="gsearch-head">
+        <input id="gsearchInput" type="search" spellcheck="false"
+          placeholder="搜配置项 / uosc / 键位 / 脚本，回车开始">
+        <button class="btn small" id="gsearchClose" type="button">关闭</button>
+      </div>
+      <div id="gsearchOut" class="gsearch-results"><p class="note">输入关键词后回车。</p></div>
+    </div>`;
+    document.body.appendChild(mask);
+    mask.addEventListener('click', e => {
+      if (e.target === mask || e.target.closest('#gsearchClose')) { closeGlobalSearch(); return; }
+      const it = e.target.closest('[data-copy]');
+      if (it && it.dataset.copy) copyText(it.dataset.copy);
+    });
+    mask.querySelector('#gsearchInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') runGlobalSearch(e.target.value);
+      if (e.key === 'Escape') closeGlobalSearch();
+    });
+  }
+  mask.style.display = 'flex';
+  const inp = mask.querySelector('#gsearchInput');
+  inp.value = '';
+  setTimeout(() => inp.focus(), 0);
+}
+
+function initGlobalSearch() {
+  const bar = document.querySelector('.topbar');
+  if (!bar || bar.querySelector('.gsearch-btn')) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'gsearch-btn';
+  btn.title = '全站搜索（Ctrl+K）：配置项 / uosc / 键位 / 脚本';
+  btn.setAttribute('aria-label', btn.title);
+  btn.textContent = '🔎';
+  (bar.querySelector('.topnav') || bar).appendChild(btn);
+  btn.onclick = openGlobalSearch;
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      openGlobalSearch();
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initTopbarNav();
+  initGlobalSearch();
   initTheme();
   initLangToggle();
   initStatusbar();
