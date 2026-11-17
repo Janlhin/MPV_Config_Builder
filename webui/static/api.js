@@ -187,6 +187,41 @@ function toast(msg, kind) {
   }, kind === 'err' ? 6000 : 2600);
 }
 
+/** 写完之后 12 秒内一键撤回（R-28）。
+    只对「刚刚这一次写入」生效：拿后端返回的备份路径调 /api/restore。
+    撤回本身也会先备份当前版本，所以撤错了还能再回来 —— 不是把文件删了。 */
+function offerUndo(backs, seconds) {
+  if (!backs || !backs.length) return;
+  seconds = seconds || 12;
+  let bar = document.getElementById('undoBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'undoBar';
+    bar.className = 'undo-bar';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `<span>${I18N.t('undo.hint', { n: seconds })}</span>
+    <button type="button" class="btn small" data-role="undo">${I18N.t('undo.action')}</button>`;
+  let left = seconds;
+  const tick = setInterval(() => {
+    left -= 1;
+    const s = bar.querySelector('span');
+    if (s) s.textContent = I18N.t('undo.hint', { n: Math.max(0, left) });
+    if (left <= 0) stop();
+  }, 1000);
+  function stop() { clearInterval(tick); bar.remove(); }
+  bar.onclick = async e => {
+    if (!e.target.closest('[data-role="undo"]')) return;
+    stop();
+    let bad = '';
+    for (const p of backs) {
+      const r = await API.post('/api/restore', { path: p });
+      if (!r.ok) bad = r.detail || p;
+    }
+    toast(bad ? I18N.t('undo.fail', { d: bad }) : '✅ ' + I18N.t('undo.done'), bad ? 'err' : 'ok');
+  };
+}
+
 /** 长路径中间省略，但保住盘符和结尾；鼠标悬停看全路径 */
 function shortPath(p, head, tail) {
   p = String(p == null ? '' : p);
