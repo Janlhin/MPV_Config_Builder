@@ -57,10 +57,11 @@ a { color: var(--accent); text-decoration: none; }
 
 /* ---------- 顶栏 ---------- */
 .topbar {
-  display: flex; align-items: center; gap: 12px;
-  /* 加了常驻入口（U-1）之后窄窗口放不下了。允许换行比把 .target 压瘪好：
-     .target 被压扁时路径会被省略成「C:\Pro…」看不出是哪个目录。 */
-  flex-wrap: wrap;
+  display: flex; align-items: center;
+  /* 顶栏常驻入口变多后，窄窗口允许换行；换行后的第二行靠右对齐，
+     不要像以前那样从最左边重新排，留下一条「孤儿按钮」的空白带。 */
+  flex-wrap: wrap; justify-content: flex-end;
+  column-gap: 10px; row-gap: 8px;
   padding: 10px 16px;
   background: var(--bg-soft);
   border-bottom: 1px solid var(--border);
@@ -78,10 +79,14 @@ a { color: var(--accent); text-decoration: none; }
   display: flex; align-items: center; gap: 8px;
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 10px; padding: 5px 10px; color: var(--muted); font-size: 12px;
-  max-width: min(48vw, 470px);
+  /* 这一条是顶栏重叠的根因：没有 min-width 时，flex 会把整个 .target
+     压到接近 0，里面的路径却照样画出来，于是盖在左侧品牌名上。
+     给一个能容纳「标签 + 路径 + 更改」的最小宽度，再让长路径自己省略。 */
+  flex: 0 1 auto; min-width: 190px;
+  max-width: min(40vw, 400px); overflow: hidden;
 }
 .target code {
-  color: var(--text); font-size: 12px; min-width: 0;
+  color: var(--text); font-size: 12px; min-width: 0; flex: 1 1 auto;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
