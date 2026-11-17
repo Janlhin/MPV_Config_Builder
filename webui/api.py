@@ -41,7 +41,7 @@ stdio 直接接后端，不开端口）就只能重写。
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Union
 
-from core.i18n import set_lang as _set_lang
+from core.i18n import set_lang as _set_lang, TD as _TD
 
 
 @dataclass
@@ -183,7 +183,25 @@ def _resolve(name):
 
 def _error(e):
     """异常 → 500。只给类名与消息，**不泄 traceback**（NFR-4）。"""
-    return Response(500, {"ok": False, "detail": f"{type(e).__name__}: {e}"})
+    return _resp(500, {"ok": False, "detail": f"{type(e).__name__}: {e}"})
+
+
+def _translate(payload):
+    """detail / error 字段统一过 TD（只在 en 下真的翻）。"""
+    if isinstance(payload, dict):
+        return {k: (_TD(v) if k in ("detail", "error") and isinstance(v, str)
+                    else _translate(v))
+                for k, v in payload.items()}
+    if isinstance(payload, list):
+        return [_translate(x) for x in payload]
+    return payload
+
+
+def _resp(status, payload, json=True):
+    """出口统一整形：en 请求下的报错串在这里翻成英文。"""
+    if json and payload is not None:
+        payload = _translate(payload)
+    return Response(status, payload, json=json)
 
 
 def dispatch(req):
@@ -210,33 +228,33 @@ def dispatch(req):
         name = ROUTES_GET.get(path)
         if name:
             try:
-                return Response(200, _resolve(name)())
+                return _resp(200, _resolve(name)())
             except Exception as e:                       # noqa: BLE001
                 return _error(e)
         name = ROUTES_QUERY.get(path)
         if name:
             try:
-                return Response(200, _resolve(name)(dict(req.query or {})))
+                return _resp(200, _resolve(name)(dict(req.query or {})))
             except Exception as e:                       # noqa: BLE001
                 return _error(e)
         # 未命中的 GET：这里只回"不是我的"，**静态文件由适配器负责**
-        return Response(404, NOT_FOUND_TEXT, json=False)
+        return _resp(404, NOT_FOUND_TEXT, json=False)
 
     if method == "POST":
         name = ROUTES_POST.get(path)
         if not name:
             # 重构前就是这个词，现有测试盯着它
-            return Response(404, dict(UNKNOWN_API))
+            return _resp(404, dict(UNKNOWN_API))
         # ⚠ 重构前 body 解析失败会落到 {} 然后**照常调用**处理函数（不是 400）。
         # 这个宽容行为要保留 —— 适配器解析失败时传 None，这里补成 {}。
         body = req.body if req.body is not None else {}
         try:
-            return Response(200, _resolve(name)(body))
+            return _resp(200, _resolve(name)(body))
         except Exception as e:                           # noqa: BLE001
             return _error(e)
 
     # HEAD / PUT / … 一律当作"没有这个资源"
-    return Response(404, NOT_FOUND_TEXT, json=False)
+    return _resp(404, NOT_FOUND_TEXT, json=False)
 
 
 __all__ = ["Request", "Response", "dispatch", "install_route_helpers",
