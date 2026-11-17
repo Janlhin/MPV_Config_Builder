@@ -59,7 +59,9 @@
     // 进阶页：预设/扫描结果里的标识符与计数
     'files', 'g', 'id', 'pc',
     // 快捷键页：行数/键位/命令/文件名
-    'as', 'binds', 'shown', 'cmd'];
+    'as', 'binds', 'shown', 'cmd',
+    // 2026-11-17 全量英文化：库统计的筛选说明、回滚确认的目标路径
+    'q', 'hit', 'scope', 'zh', 'target'];
 
   var DICT = {
     'zh-CN': {
@@ -88,6 +90,14 @@
       'gs.close': '关闭',
       'gs.clickCopy': '点击复制',
       'guide.enNotice': '界面已切换成英文，但内置文档正文目前只有中文版本。',
+      'guide.brand': '文档',
+      'guide.switchMode': '切换模式',
+      'guide.loading': '正在读取…',
+      'guide.readFailed': '读取失败',
+      'doc.guide': '入门指南',
+      'doc.shaders': 'Shader 搭配说明书',
+      'doc.thanks': '致谢与许可',
+      'doc.roadmap': '产品说明',
       'gs.tip': '全站搜索（Ctrl+K）：配置项 / uosc / 键位 / 脚本',
       'win.menu': '菜单',
       'win.min': '最小化',
@@ -154,6 +164,7 @@
       'hell.dangerNote': '⚠ 不校验、不解释。唯一的保险是写入前自动生成的 <code>.bak-时间戳</code> 文件（想彻底裸写，自己把备份删掉即可）。',
       'hell.whoP': '有人不需要向导、不需要中文说明、不需要冲突检测 —— 他们要的就是一个直接编辑目标文件的文本框和一个不啰嗦的窗口。把这些人塞进完全体里天天点确认弹窗，反而更烦。',
       'hell.positionP': '所以这一页的定位是：<b>把所有护栏都拿掉的那一档</b>。',
+      'hell.banner': '🔥 <b>这里没有护栏</b>：不校验语法、不合并、不提示冲突、不做中文解释。\n    写坏了 mpv 打不开属于正常现象，请自己留好退路。',
       // 这三条是**运行时拼出来的**（行数 / 字符数 / 文件大小），只能走键位表 + 占位符。
       // 数字一律用花括号占位符引用、值由调用方传进来 —— 不在语言表里写死（§2.6 同款毛病）。
       // ⚠ 注释里别写「大括号 + 中文」当示例：`verify.py i18n` 扫占位符的正则是
@@ -582,7 +593,107 @@
       'combo.hdr_pass': '🌈 HDR',
       'combo.clean_deband': '🧹 去色带',
 
-      'index.footer': '所有页面都接的是真实后端：勾选 → 生成 mpv.conf → 写入前自动备份。完全体里是 <b>{optsTotal} 项 mpv 全量选项库</b>（搜索 / 24 分组 / 分页），另有自定义层与版本回滚。下载与一键安装目前只在旧版界面（双击 <code>启动.bat</code>）。'
+      'index.footer': '所有页面都接的是真实后端：勾选 → 生成 mpv.conf → 写入前自动备份。完全体里是 <b>{optsTotal} 项 mpv 全量选项库</b>（搜索 / 24 分组 / 分页），另有自定义层与版本回滚。下载与一键安装目前只在旧版界面（双击 <code>启动.bat</code>）。',
+
+      // ---------- 完全体页：侧栏 / 全量库 / 分组 / 抽屉 ----------
+      'nav.analyze': '配置体检',
+      'nav.analyzeTitle': '不用改任何东西，出一份体检报告',
+      'nav.keys': '快捷键',
+      'nav.keysTitle': '改 mpv 实际在用的键位表',
+      'nav.downloads': '下载中心',
+      'nav.downloadsTitle': '脚本 / 字体 / 一键装 mpv-lazy',
+      'nav.here': '你正在这一页',
+      'nav.aria': '常驻入口',
+
+      // ---------- 完全体各侧栏页 ----------
+      'ex.customTitle': '🧩 自定义层',
+      'ex.customNote': '这里写的内容会原样追加到配置末尾，不做校验。适合写 profile-*、[xxx] 小节，或数据库里暂时没有的键。',
+      'ex.customSave': '💾 存进配置',
+      'ex.customClear': '🗑️ 清空',
+      'ex.customLive': '修改实时反映在右侧预览',
+      'ex.singleTitle': '✍️ 单条写入',
+      'ex.keyPh': '键，如 glsl-shader-reload',
+      'ex.valPh': '值',
+      'ex.addParam': '写入参数区',
+      'ex.addNote': '这会把键值放进普通参数区（排好序、好读），和上面的自定义层不冲突。',
+      'ex.backupTitle': '🕘 自动备份',
+      'ex.backupNote': '每次写入前都会生成 <code>文件名.bak-时间戳</code>。点「回滚」会用备份覆盖当前文件，覆盖前还会把当前版本再备份一次。',
+      'ex.refresh': '🔄 刷新列表',
+      'ex.dir': '目录：',
+      'ex.notSet': '未设置',
+      'ex.loading': '读取中…',
+      'ex.noBackups': '还没有备份（第一次写入时才会生成）。',
+      'ex.originalFile': '原文件 {name} · {size} B',
+      'ex.rollback': '↩️ 回滚',
+      'ex.restoreConfirm': '用 {name} 覆盖 {target}？当前版本会再备份一次。',
+      'ex.clickRefresh': '（点刷新读一次）',
+      'ex.uoscMissing': '新建只会写 74 个键里带默认值的那部分，其余继续沿用 uosc 内置默认；文件里没有的键不会硬塞。',
+      'ex.uoscMissingDetail': '目标目录里没有 script-opts/uosc.conf。',
+      'ex.uoscMissingHint': '装过 uosc 的整合包才会有这个文件；点「新建一份默认 uosc.conf」可以由本工具造一份，也可以手动新建在这个位置：{path}',
+      'ex.uoscCreate': '➕ 新建一份默认 uosc.conf',
+      'ex.shaderTitle': '✨ glsl-shaders',
+      'ex.empty': '（空）',
+      'ex.noGlsl': '（本机没扫到 glsl）',
+      'ex.addTail': '➕ 加到链尾',
+      'ex.memcTitle': '🎞️ vf=vapoursynth（补帧 / 超分脚本）',
+      'ex.noVpy': '（本机没扫到 vpy）',
+      'ex.noMemc': '🚫 不挂',
+      'ex.current': '当前：',
+      'ex.none': '（无）',
+      'ex.dlTitle': '📦 下载',
+      'ex.dlNote': '本软件不打包任何第三方二进制，全部指向官方发布页。',
+      'ex.mpvOfficial': 'mpv 官方',
+      'ex.shaderGuide': 'shader 说明书',
+      'ex.manual': 'mpv 手册',
+      'ex.scanTitle': '🔍 扫描本机文件',
+      'ex.scanBtn': '扫描 shaders / vs',
+      'ex.notScanned': '（还没扫描）',
+      'ex.sourceTitle': 'ℹ️ 数据来源',
+      'ex.sourceNote': '<b>选项清单 / 默认值</b>：mpv 自带的 <code>--list-options</code>（本机 829 项）<br><b>中文说明</b>：mpv_doc-CN（社区翻译，GPL-3.0，已收录 726 条）<br><b>shader / vpy 列表</b>：从你自己的便携版目录实际扫描，不是固定清单<br><b>搭配建议</b>：hooke007 的《mpv shader 搭配说明书》',
+      'ex.openGuide': '📖 入门指南',
+      'ex.openShaderGuide': '✨ Shader 说明书',
+      'ex.creditsTitle': '🙏 致谢',
+      'ex.creditsNote': 'mpv 及其贡献者 · hooke007（mpv-lazy / mpv_PlayKit / shader 说明书）· Anime4K / FSRCNNX / RAVU / RIFE / MVTools / SVP 等算法作者 · mpv_doc-CN 翻译组 · 以及所有在论坛和 issue 里踩过坑的人。',
+      'ex.fullCredits': '🙏 完整致谢与许可',
+      'ex.roadmap': '🗺️ 产品说明（定位 / 四档模式 / 安全底线）',
+      'section.all': '全部选项',
+      'section.custom': '自定义选项',
+      'section.customSub': '数据库里没有的键，直接写',
+      'section.backup': '版本 / 回滚',
+      'section.backupSub': '每次写入前的自动备份都在这里',
+      'section.shader': 'Shader 链',
+      'section.shaderSub': 'glsl-shaders 顺序',
+      'section.uosc': 'uosc 设置',
+      'section.uoscSub': '进度条 / 控制栏 / 顶栏的外观',
+      'section.tools': '下载与安装',
+      'section.toolsSub': '官方发布页与说明书',
+      'section.about': '关于 / 致谢',
+      'section.aboutSub': '数据来源与许可',
+      'section.itemCount': '{n} 项',
+      'section.has': '有',
+      'db.all': '全部',
+      'db.searchPh': '🔍 搜全部 {n} 个选项：键名、中文名、中文说明都行，例如 deband / 色带 / 字幕颜色',
+      'db.clear': '清空',
+      'db.loadMore': '加载更多',
+      'db.leftN': '还剩 {n} 项',
+      'db.noMatch': '没有匹配的选项。',
+      'db.staticStat': '<b>{n}</b> 项 · 静态模式（只读）：写配置 / 建议值 / 候选值合并需本机运行后端',
+      'db.stat': '选项库共 <b>{total}</b> 项（有中文说明 {zh} 项）· {scope}命中 <b>{hit}</b> 项，已显示 {shown} 项',
+      'db.scopeSearch': '搜索「{q}」',
+      'db.scopeGroup': '分组「{g}」',
+      'db.scopeNone': '当前',
+      'profile.bar': '这份文件里有 <b>{n}</b> 个 profile（只在条件满足时生效）：',
+      'profile.load': '载入它的选项',
+      'tag.note': '🏷️ 我的分组：拖每行左侧的 ⠿ 到分组上，归属会记住',
+      'tag.common': '⭐ 常用',
+      'tag.quality': '🎨 画质',
+      'tag.performance': '⚡ 性能',
+      'tag.subtitles': '💬 字幕',
+      'tag.dragTitle': '拖到上面的「我的分组」',
+      'drawer.explain': '说明',
+      'drawer.closeHint': '点别处 / 再点一次 i / Esc / 右键 都能关',
+      'drawer.fill': '填入建议值',
+      'drawer.close': '关闭',
     },
 
     'en': {
@@ -611,6 +722,14 @@
       'gs.close': 'Close',
       'gs.clickCopy': 'Click to copy',
       'guide.enNotice': 'The interface is in English, but the bundled guide text is currently Chinese-only.',
+      'guide.brand': 'Documentation',
+      'guide.switchMode': 'Switch mode',
+      'guide.loading': 'Loading…',
+      'guide.readFailed': 'Failed to read',
+      'doc.guide': 'Getting started',
+      'doc.shaders': 'Shader pairing guide',
+      'doc.thanks': 'Credits and license',
+      'doc.roadmap': 'Product notes',
       'gs.tip': 'Site search (Ctrl+K): options / uosc / keybindings / scripts',
       'win.menu': 'Menu',
       'win.min': 'Minimise',
@@ -672,6 +791,7 @@
       'hell.dangerNote': '⚠ No validation, no explanation. The only safety net is the <code>.bak-timestamp</code> file written automatically before saving (delete the backup yourself if you want it truly raw).',
       'hell.whoP': 'Some people need no wizard, no Chinese explanations, no conflict detection — what they want is a text box straight onto the target file and a window that does not nag. Shoving them into Full mode to dismiss confirmation dialogs all day is far more annoying.',
       'hell.positionP': 'So this page is: <b>the tier with every guardrail removed</b>.',
+      'hell.banner': '🔥 <b>No guardrails here</b>: no syntax checks, no merging, no conflict warnings, no explanations.\n    If you break it and mpv will not open, that is expected — keep your own way back.',
       'hell.readOk': 'Read {size} B',
       'hell.sizeHint': '{lines} lines · {chars} chars',
       'hell.sizeHintTab': '{lines} lines · {chars} chars · contains tabs',
@@ -1069,11 +1189,116 @@
       'combo.hdr_pass': '🌈 HDR',
       'combo.clean_deband': '🧹 Debanding',
 
-      'index.footer': 'Every page talks to the real backend: tick → generate mpv.conf → auto-backup before writing. Full mode exposes the <b>{optsTotal}-option mpv library</b> (search / 24 groups / paging), plus a custom layer and version rollback. Downloads and one-click install are still only in the legacy UI (double-click <code>启动.bat</code>).'
+      'index.footer': 'Every page talks to the real backend: tick → generate mpv.conf → auto-backup before writing. Full mode exposes the <b>{optsTotal}-option mpv library</b> (search / 24 groups / paging), plus a custom layer and version rollback. Downloads and one-click install are still only in the legacy UI (double-click <code>启动.bat</code>).',
+
+      // ---------- Expert page: sidebar / library / groups / drawer ----------
+      'nav.analyze': 'Checkup',
+      'nav.analyzeTitle': 'Change nothing — just produce a health report',
+      'nav.keys': 'Shortcuts',
+      'nav.keysTitle': 'Edit the keymap mpv actually uses',
+      'nav.downloads': 'Downloads',
+      'nav.downloadsTitle': 'Scripts / fonts / one-click mpv-lazy install',
+      'nav.here': 'You are here',
+      'nav.aria': 'Persistent shortcuts',
+
+      // ---------- Expert secondary pages ----------
+      'ex.customTitle': '🧩 Custom layer',
+      'ex.customNote': 'This text is appended verbatim to the end of the config, with no validation. Use it for profile-* or [xxx] sections, or for keys the database does not have yet.',
+      'ex.customSave': '💾 Save to config',
+      'ex.customClear': '🗑️ Clear',
+      'ex.customLive': 'Edits show up in the preview on the right immediately',
+      'ex.singleTitle': '✍️ Write a single option',
+      'ex.keyPh': 'Key, e.g. glsl-shader-reload',
+      'ex.valPh': 'Value',
+      'ex.addParam': 'Write into the params section',
+      'ex.addNote': 'This puts the key/value into the normal params block (sorted, readable) and does not conflict with the custom layer above.',
+      'ex.backupTitle': '🕘 Automatic backups',
+      'ex.backupNote': 'Before every write a <code>filename.bak-timestamp</code> file is created. “Roll back” overwrites the current file with the backup, and backs up the current version first.',
+      'ex.refresh': '🔄 Refresh list',
+      'ex.dir': 'Directory:',
+      'ex.notSet': 'Not set',
+      'ex.clickRefresh': '(click refresh to load)',
+      'ex.loading': 'Loading…',
+      'ex.noBackups': 'No backups yet (one is created on the first write).',
+      'ex.originalFile': 'Original file {name} · {size} B',
+      'ex.rollback': '↩️ Roll back',
+      'ex.restoreConfirm': 'Overwrite {target} with {name}? The current version will be backed up first.',
+      'ex.uoscMissing': 'Creating a file writes only the 74 known keys that have defaults; everything else keeps uosc’s built-in default. Keys not in the file are never forced in.',
+      'ex.uoscMissingDetail': 'There is no script-opts/uosc.conf in the target directory.',
+      'ex.uoscMissingHint': 'Only bundles that ship uosc contain this file. Click "Create a default uosc.conf" to have this tool generate one, or create it manually here: {path}',
+      'ex.uoscCreate': '➕ Create a default uosc.conf',
+      'ex.shaderTitle': '✨ glsl-shaders',
+      'ex.empty': '(empty)',
+      'ex.noGlsl': '(no glsl found on this machine)',
+      'ex.addTail': '➕ Append to chain',
+      'ex.memcTitle': '🎞️ vf=vapoursynth (interpolation / upscaling scripts)',
+      'ex.noVpy': '(no vpy found on this machine)',
+      'ex.noMemc': '🚫 None',
+      'ex.current': 'Current:',
+      'ex.none': '(none)',
+      'ex.dlTitle': '📦 Downloads',
+      'ex.dlNote': 'This app bundles no third-party binaries; every link goes to the official release page.',
+      'ex.mpvOfficial': 'mpv official',
+      'ex.shaderGuide': 'shader guide',
+      'ex.manual': 'mpv manual',
+      'ex.scanTitle': '🔍 Scan local files',
+      'ex.scanBtn': 'Scan shaders / vs',
+      'ex.notScanned': '(not scanned yet)',
+      'ex.sourceTitle': 'ℹ️ Data sources',
+      'ex.sourceNote': '<b>Option list / defaults</b>: mpv’s own <code>--list-options</code> (829 options on this machine)<br><b>Descriptions</b>: mpv_doc-CN (community translation, GPL-3.0, 726 entries)<br><b>shader / vpy lists</b>: scanned from your own portable directory, not a fixed list<br><b>Pairing advice</b>: hooke007’s mpv shader pairing guide',
+      'ex.openGuide': '📖 Getting started',
+      'ex.openShaderGuide': '✨ Shader guide',
+      'ex.creditsTitle': '🙏 Credits',
+      'ex.creditsNote': 'mpv and its contributors · hooke007 (mpv-lazy / mpv_PlayKit / shader guide) · the authors of Anime4K / FSRCNNX / RAVU / RIFE / MVTools / SVP and other algorithms · the mpv_doc-CN translators · and everyone who hit the pitfalls in forums and issues.',
+      'ex.fullCredits': '🙏 Full credits and licenses',
+      'ex.roadmap': '🗺️ Product notes (positioning / four modes / safety floor)',
+      'section.all': 'All options',
+      'section.custom': 'Custom options',
+      'section.customSub': 'Keys the database does not have — write them directly',
+      'section.backup': 'Versions / rollback',
+      'section.backupSub': 'Every automatic backup made before a write',
+      'section.shader': 'Shader chain',
+      'section.shaderSub': 'glsl-shaders order',
+      'section.uosc': 'uosc settings',
+      'section.uoscSub': 'Progress bar / controls / top bar appearance',
+      'section.tools': 'Download and install',
+      'section.toolsSub': 'Official releases and manuals',
+      'section.about': 'About / credits',
+      'section.aboutSub': 'Data sources and licenses',
+      'section.itemCount': '{n} options',
+      'section.has': 'On',
+      'db.all': 'All',
+      'db.searchPh': '🔍 Search all {n} options by key, name or description — e.g. deband / banding / subtitle color',
+      'db.clear': 'Clear',
+      'db.loadMore': 'Load more',
+      'db.leftN': '{n} left',
+      'db.noMatch': 'No matching options.',
+      'db.staticStat': '<b>{n}</b> options · static mode (read-only): writing configs, suggested values and value merging need the local backend',
+      'db.stat': '<b>{total}</b> options in the library ({zh} with a description) · {scope} matched <b>{hit}</b>, showing {shown}',
+      'db.scopeSearch': 'search “{q}”',
+      'db.scopeGroup': 'group “{g}”',
+      'db.scopeNone': 'current',
+      'profile.bar': 'This file has <b>{n}</b> profiles (active only when their conditions match):',
+      'profile.load': 'Load its options',
+      'tag.note': '🏷️ My groups: drag the ⠿ handle on the left onto a group to remember it',
+      'tag.common': '⭐ Common',
+      'tag.quality': '🎨 Picture quality',
+      'tag.performance': '⚡ Performance',
+      'tag.subtitles': '💬 Subtitles',
+      'tag.dragTitle': 'Drag onto “My groups” above',
+      'drawer.explain': 'Details',
+      'drawer.closeHint': 'Click elsewhere / press i again / Esc / right-click to close',
+      'drawer.fill': 'Use suggested value',
+      'drawer.close': 'Close',
     }
   };
 
-  var current = DEFAULT_LANG;
+  var current = (function () {
+    try {
+      var s = localStorage.getItem('mpvcb-lang');
+      return (s === 'en' || s === 'zh-CN') ? s : DEFAULT_LANG;
+    } catch (e) { return DEFAULT_LANG; }
+  })();
 
   /** 取当前语言的翻译表（缺语言就退回默认语言，不会白屏） */
   function table(lang) {
@@ -1112,6 +1337,7 @@
   // 中文就再也回不来了。
 
   var ENTRIES = [];
+  var EXACT = {};
   var HAN = /[\u4e00-\u9fff]/;
   var _origText = new WeakMap();
   var _origAttr = new WeakMap();
@@ -1120,6 +1346,7 @@
 
   function loadDict() {
     var d = window.I18N_ZH2EN || {};
+    EXACT = d;
     ENTRIES = Object.keys(d).map(function (k) { return [k, d[k]]; });
     // 长的先替换：否则先替掉「文档」，就再也吃不到「文档 · MPV Config Builder」了
     ENTRIES.sort(function (a, b) { return b[0].length - a[0].length; });
@@ -1127,13 +1354,17 @@
 
   function zh2en(s) {
     if (!s || !HAN.test(s)) return s;
-    var out = s;
-    for (var i = 0; i < ENTRIES.length; i++) {
-      if (out.indexOf(ENTRIES[i][0]) >= 0) {
-        out = out.split(ENTRIES[i][0]).join(ENTRIES[i][1]);
-      }
+    // 只做整串精确匹配。早期版本会拿短词做子串替换，结果把
+    // 「均衡器」变成「Balanced器」、「文件」变成「File」——宁可留中文，
+    // 也不能把句子改坏。动态拼接串请改走 I18N.t(key)。
+    if (Object.prototype.hasOwnProperty.call(EXACT, s)) return EXACT[s];
+    var trimmed = s.trim();
+    if (trimmed !== s && Object.prototype.hasOwnProperty.call(EXACT, trimmed)) {
+      return s.replace(trimmed, EXACT[trimmed]);
     }
-    return out;
+    // 只做整串精确匹配。任何子串替换都会改写选项说明（「选择 MPV 视频输出
+    // 驱动」→「选择 MPV Video output驱动」这类混血句），宁可留中文等 key 补。
+    return s;
   }
 
   /** 刷文本节点与 placeholder / title。current 为中文时按原文还原。 */
@@ -1186,7 +1417,7 @@
    *   data-i18n-ph      → placeholder
    *   其余文本节点        → 走词条表兜底（见上）
    */
-  function apply(root) {
+  function apply(root, keysOnly) {
     var scope = root || document;
 
     scope.querySelectorAll('[data-i18n]').forEach(function (el) {
@@ -1208,7 +1439,7 @@
     });
 
     if (typeof window.I18N_ZH2EN === 'object' && ENTRIES.length === 0) loadDict();
-    walkDict(scope);
+    if (!keysOnly) walkDict(scope);   // 重渲染时只刷 data-i18n，别碰选项说明
 
     document.documentElement.lang = current;
   }

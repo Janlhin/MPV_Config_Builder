@@ -10,7 +10,7 @@
 
 <div class="topbar">
   <div class="brand">🧪 完全体 <small id="ver"></small></div>
-  <div class="target">目标：<code id="targetLabel">未设置</code>
+  <div class="target"><span data-i18n="topbar.target">目标：</span><code id="targetLabel">未设置</code>
     <button class="btn small ghost" id="pickDir">更改</button></div>
   <div class="spacer"></div>
   <a class="btn small" href="index.html">🔀 切换模式</a>
@@ -40,9 +40,9 @@
         <div class="card" id="previewCard">
           <h2>📋 <span id="previewTitle">实时生成的 mpv.conf</span></h2>
           <div class="dirbar" id="profileBar" style="display:none">
-            <span class="note">这份文件里有 <b id="profileCount">0</b> 个 profile（只在条件满足时生效）：</span>
+            <span class="note" id="profileBarText"></span>
             <select id="profileSel" style="flex:1"></select>
-            <button class="btn small" id="profileLoad">载入它的选项</button>
+            <button class="btn small" id="profileLoad" data-i18n="profile.load">载入它的选项</button>
           </div>
           <pre class="conf" id="preview">（正在加载…）</pre>
           <div id="diffBox" style="display:none"></div>
@@ -83,14 +83,14 @@
 </div>
 
 <aside class="drawer" id="drawer">
-  <h3>说明 <span class="key"></span></h3>
+  <h3><span data-i18n="drawer.explain">说明</span> <span class="key"></span></h3>
   <div class="sig"></div>
   <div class="body"></div>
   <div class="drawer-foot">
-    <p class="note">点别处 / 再点一次 i / Esc / 右键 都能关</p>
+    <p class="note" data-i18n="drawer.closeHint">点别处 / 再点一次 i / Esc / 右键 都能关</p>
     <div class="actions">
-      <button class="btn primary small" data-role="fill">填入建议值</button>
-      <button class="btn small ghost" onclick="closeDrawer()">关闭</button>
+      <button class="btn primary small" data-role="fill" data-i18n="drawer.fill">填入建议值</button>
+      <button class="btn small ghost" onclick="closeDrawer()" data-i18n="drawer.close">关闭</button>
     </div>
   </div>
 </aside>
@@ -121,15 +121,15 @@ function buildSections() {
   const nativeGroups = (APP.options.groups && APP.options.groups.length)
     ? APP.options.groups : [...new Set((APP.options.native || []).map(x => x.group))];
   SECTIONS = [
-    { id: 'all', icon: '📚', name: '全部选项', sub: '' },
-    { id: 'custom', icon: '🧩', name: '自定义选项', sub: '数据库里没有的键，直接写' },
-    { id: 'backup', icon: '🕘', name: '版本 / 回滚', sub: '每次写入前的自动备份都在这里' },
-    ...coreGroups.map(g => ({ id: 'g:' + g, icon: GROUP_ICONS[g] || '⚙️', name: g, items: byGroup(g, 'core') })),
-    ...nativeGroups.map(g => ({ id: 'g:' + g, icon: GROUP_ICONS[g] || '⚙️', name: g, items: byGroup(g, 'native') })),
-    { id: 'shader', icon: '✨', name: 'Shader 链', sub: 'glsl-shaders 顺序' },
-    { id: 'uosc', icon: '🎛️', name: 'uosc 设置', sub: '进度条 / 控制栏 / 顶栏的外观' },
-    { id: 'tools', icon: '📦', name: '下载与安装', sub: '官方发布页与说明书' },
-    { id: 'about', icon: 'ℹ️', name: '关于 / 致谢', sub: '数据来源与许可' }
+    { id: 'all', icon: '📚', name: I18N.t('section.all'), sub: '' },
+    { id: 'custom', icon: '🧩', name: I18N.t('section.custom'), sub: I18N.t('section.customSub') },
+    { id: 'backup', icon: '🕘', name: I18N.t('section.backup'), sub: I18N.t('section.backupSub') },
+    ...coreGroups.map(g => ({ id: 'g:' + g, icon: GROUP_ICONS[g] || '⚙️', name: groupLabel(g), items: byGroup(g, 'core') })),
+    ...nativeGroups.map(g => ({ id: 'g:' + g, icon: GROUP_ICONS[g] || '⚙️', name: groupLabel(g), items: byGroup(g, 'native') })),
+    { id: 'shader', icon: '✨', name: I18N.t('section.shader'), sub: I18N.t('section.shaderSub') },
+    { id: 'uosc', icon: '🎛️', name: I18N.t('section.uosc'), sub: I18N.t('section.uoscSub') },
+    { id: 'tools', icon: '📦', name: I18N.t('section.tools'), sub: I18N.t('section.toolsSub') },
+    { id: 'about', icon: 'ℹ️', name: I18N.t('section.about'), sub: I18N.t('section.aboutSub') }
   ];
 }
 
@@ -141,7 +141,7 @@ function renderSidebar() {
   document.getElementById('sidebar').innerHTML = SECTIONS.map(s => {
     let n = '';
     if (s.id === 'all') n = APP.dbCount || '';
-    else if (s.id === 'custom') n = APP.custom.trim() ? '有' : '';
+    else if (s.id === 'custom') n = APP.custom.trim() ? I18N.t('section.has') : '';
     else if (s.id === 'shader') n = APP.shaders.length || '';
     else if (s.items) n = s.items.filter(x => isOn(x.key)).length || '';
     return `<div class="side-item${s.id === cur ? ' active' : ''}" data-sec="${esc(s.id)}">
@@ -166,11 +166,12 @@ function render() {
   const host = document.getElementById('panes');
   if (sec.items) {
     host.innerHTML = `<div class="card"><h2>${sec.icon} ${esc(sec.name)}
-      <span class="muted" style="font-weight:400;font-size:12px"> · ${sec.items.length} 项</span></h2>
+      <span class="muted" style="font-weight:400;font-size:12px"> · ${I18N.t('section.itemCount', { n: sec.items.length })}</span></h2>
       <div id="optbox"></div></div>`;
     mountOptions(document.getElementById('optbox'), sec.items);
   } else {
     host.innerHTML = PANES[sec.id] ? PANES[sec.id]() : '';
+    if (window.I18N) I18N.apply(host, true);
     if (WIRE[sec.id]) WIRE[sec.id]();
   }
   const sel = document.getElementById('srcSelect');
@@ -183,54 +184,54 @@ function render() {
 const PANES = {
   all: () => `
     <div class="searchbar">
-      <input type="text" id="q" placeholder="🔍 搜全部 ${APP.dbCount || 829} 个选项：键名、中文名、中文说明都行，例如 deband / 色带 / 字幕颜色">
-      <button class="btn" id="qclear">清空</button>
+      <input type="text" id="q" placeholder="${esc(I18N.t('db.searchPh', { n: APP.dbCount || 829 }))}">
+      <button class="btn" id="qclear">${I18N.t('db.clear')}</button>
     </div>
     <div class="chips" id="chips"></div>
     <div id="tagBar"></div>
     <p class="note" id="dbStat" style="margin-bottom:10px"></p>
     <div id="listHost"></div>
     <div class="actions" id="moreBox" style="display:none">
-      <button class="btn" id="moreBtn">加载更多</button>
+      <button class="btn" id="moreBtn">${I18N.t('db.loadMore')}</button>
       <span class="note" id="moreNote"></span>
     </div>`,
 
   custom: () => `
     <div class="card">
-      <h2>🧩 自定义层</h2>
-      <p class="note">这里写的内容会原样追加到配置末尾，不做校验。
+      <h2 data-i18n="ex.customTitle">🧩 自定义层</h2>
+      <p class="note" data-i18n="ex.customNote">这里写的内容会原样追加到配置末尾，不做校验。
         适合写 <code>profile-*</code>、<code>[xxx]</code> 小节，或数据库里暂时没有的键。</p>
       <textarea class="raw" id="customBox" spellcheck="false"
         placeholder="profile-cond=not playlist&#10;[my-profile]&#10;scale=spline36">${esc(APP.custom)}</textarea>
       <div class="actions">
-        <button class="btn primary" id="customSave">💾 存进配置</button>
-        <button class="btn" id="customClear">🗑️ 清空</button>
-        <span class="note">修改实时反映在右侧预览</span>
+        <button class="btn primary" id="customSave" data-i18n="ex.customSave">💾 存进配置</button>
+        <button class="btn" id="customClear" data-i18n="ex.customClear">🗑️ 清空</button>
+        <span class="note" data-i18n="ex.customLive">修改实时反映在右侧预览</span>
       </div>
     </div>
     <div class="card">
-      <h2>✍️ 单条写入</h2>
+      <h2 data-i18n="ex.singleTitle">✍️ 单条写入</h2>
       <div class="row">
-        <input type="text" id="ck" placeholder="键，如 glsl-shader-reload" style="flex:1">
-        <input type="text" id="cv" placeholder="值" style="flex:1">
-        <button class="btn" id="cadd">写入参数区</button>
+        <input type="text" id="ck" data-i18n-ph="ex.keyPh" placeholder="键，如 glsl-shader-reload" style="flex:1">
+        <input type="text" id="cv" data-i18n-ph="ex.valPh" placeholder="值" style="flex:1">
+        <button class="btn" id="cadd" data-i18n="ex.addParam">写入参数区</button>
       </div>
-      <p class="note" style="margin-top:8px">这会把键值放进普通参数区（排好序、好读），和上面的自定义层不冲突。</p>
+      <p class="note" style="margin-top:8px" data-i18n="ex.addNote">这会把键值放进普通参数区（排好序、好读），和上面的自定义层不冲突。</p>
     </div>`,
 
   backup: () => `
     <div class="card">
-      <h2>🕘 自动备份</h2>
-      <p class="note">每次写入前都会生成 <code>文件名.bak-时间戳</code>。点「回滚」会用备份覆盖当前文件，
+      <h2 data-i18n="ex.backupTitle">🕘 自动备份</h2>
+      <p class="note" data-i18n-html="ex.backupNote">每次写入前都会生成 <code>文件名.bak-时间戳</code>。点「回滚」会用备份覆盖当前文件，
         覆盖前还会把当前版本再备份一次。</p>
-      <div class="actions"><button class="btn primary" id="bkLoad">🔄 刷新列表</button>
-        <span class="note">目录：<code>${esc(APP.target || '未设置')}</code></span></div>
-      <div id="bkList" style="margin-top:12px"><p class="note">（点刷新读一次）</p></div>
+      <div class="actions"><button class="btn primary" id="bkLoad" data-i18n="ex.refresh">🔄 刷新列表</button>
+        <span class="note"><span data-i18n="ex.dir">目录：</span><code>${esc(APP.target || I18N.t('ex.notSet'))}</code></span></div>
+      <div id="bkList" style="margin-top:12px"><p class="note" data-i18n="ex.clickRefresh">（点刷新读一次）</p></div>
     </div>`,
 
   shader: () => `
     <div class="card">
-      <h2>✨ glsl-shaders（${APP.shaders.length}）</h2>
+      <h2><span data-i18n="ex.shaderTitle">✨ glsl-shaders</span>（${APP.shaders.length}）</h2>
       <div class="chain">${APP.shaders.map((p, i) => `<div class="chain-item">
         <span class="idx">${i + 1}</span>
         <div style="min-width:0"><div>${esc(baseName(p))}</div><code>${esc(p)}</code></div>
@@ -238,23 +239,23 @@ const PANES = {
           <button class="btn small ghost" onclick="moveShader(${i},-1)">↑</button>
           <button class="btn small ghost" onclick="moveShader(${i},1)">↓</button>
           <button class="btn small danger" onclick="delShader(${i})">✕</button>
-        </div></div>`).join('') || '<div class="chain-empty">（空）</div>'}</div>
+        </div></div>`).join('') || `<div class="chain-empty">${I18N.t('ex.empty')}</div>`}</div>
       <div class="picker">
         <select id="shaderPick">${(APP.catalog.shaders || []).map(x =>
           `<option value="${esc(x.path)}">${esc(x.name)} · ${esc(x.path)}</option>`).join('')
-          || '<option value="">（本机没扫到 glsl）</option>'}</select>
-        <button class="btn primary" id="shaderAdd">➕ 加到链尾</button>
+          || `<option value="">${I18N.t('ex.noGlsl')}</option>`}</select>
+        <button class="btn primary" id="shaderAdd" data-i18n="ex.addTail">➕ 加到链尾</button>
       </div>
     </div>
     <div class="card">
-      <h2>🎞️ vf=vapoursynth（补帧 / 超分脚本）</h2>
+      <h2 data-i18n="ex.memcTitle">🎞️ vf=vapoursynth（补帧 / 超分脚本）</h2>
       <div class="radio-list" id="memcList">${(APP.catalog.memc || []).map((x, i) =>
         `<div class="radio-item${APP.memc === x.path ? ' on' : ''}" data-memc="${i}">
           <input type="radio" ${APP.memc === x.path ? 'checked' : ''}>
           <div style="min-width:0"><div>${esc(x.name)}</div><small>${esc(x.path)}</small></div>
-        </div>`).join('') || '<div class="chain-empty">（本机没扫到 vpy）</div>'}</div>
-      <div class="actions"><button class="btn" onclick="setMemc('')">🚫 不挂</button>
-        <span class="note">当前：<code>${esc(APP.memc || '（无）')}</code></span></div>
+        </div>`).join('') || `<div class="chain-empty">${I18N.t('ex.noVpy')}</div>`}</div>
+      <div class="actions"><button class="btn" onclick="setMemc('')" data-i18n="ex.noMemc">🚫 不挂</button>
+        <span class="note"><span data-i18n="ex.current">当前：</span><code>${esc(APP.memc || I18N.t('ex.none'))}</code></span></div>
     </div>
     ${fusionPanelHtml()}`,
 
@@ -262,43 +263,43 @@ const PANES = {
 
   tools: () => `
     <div class="card">
-      <h2>📦 下载</h2>
-      <p class="note">本软件不打包任何第三方二进制，全部指向官方发布页。</p>
+      <h2 data-i18n="ex.dlTitle">📦 下载</h2>
+      <p class="note" data-i18n="ex.dlNote">本软件不打包任何第三方二进制，全部指向官方发布页。</p>
       <div class="quick" style="margin-top:10px">
         <a class="btn" target="_blank" href="https://github.com/hooke007/mpv_PlayKit/releases">📥 mpv-lazy</a>
         <a class="btn" target="_blank" href="https://github.com/stax76/mpv.net/releases">📥 mpv.net</a>
-        <a class="btn" target="_blank" href="https://github.com/mpv-player/mpv/releases">📥 mpv 官方</a>
-        <a class="btn" target="_blank" href="https://hooke007.github.io/unofficial/mpv_shaders.html">📖 shader 说明书</a>
-        <a class="btn" target="_blank" href="https://mpv.io/manual/master/">📚 mpv 手册</a>
+        <a class="btn" target="_blank" href="https://github.com/mpv-player/mpv/releases">📥 <span data-i18n="ex.mpvOfficial">mpv 官方</span></a>
+        <a class="btn" target="_blank" href="https://hooke007.github.io/unofficial/mpv_shaders.html">📖 <span data-i18n="ex.shaderGuide">shader 说明书</span></a>
+        <a class="btn" target="_blank" href="https://mpv.io/manual/master/">📚 <span data-i18n="ex.manual">mpv 手册</span></a>
       </div>
     </div>
     <div class="card">
-      <h2>🔍 扫描本机文件</h2>
-      <div class="actions"><button class="btn primary" id="scanBtn">扫描 shaders / vs</button></div>
-      <pre class="conf" id="scanOut" style="margin-top:12px;max-height:32vh">（还没扫描）</pre>
+      <h2 data-i18n="ex.scanTitle">🔍 扫描本机文件</h2>
+      <div class="actions"><button class="btn primary" id="scanBtn" data-i18n="ex.scanBtn">扫描 shaders / vs</button></div>
+      <pre class="conf" id="scanOut" style="margin-top:12px;max-height:32vh" data-i18n="ex.notScanned">（还没扫描）</pre>
     </div>`,
 
   about: () => `
     <div class="card">
-      <h2>ℹ️ 数据来源</h2>
-      <p class="note">
+      <h2 data-i18n="ex.sourceTitle">ℹ️ 数据来源</h2>
+      <p class="note" data-i18n-html="ex.sourceNote">
         <b>选项清单 / 默认值</b>：mpv 自带的 <code>--list-options</code>（本机 829 项）<br>
         <b>中文说明</b>：mpv_doc-CN（社区翻译，GPL-3.0，已收录 726 条）<br>
         <b>shader / vpy 列表</b>：从你自己的便携版目录实际扫描，不是固定清单<br>
         <b>搭配建议</b>：hooke007 的《mpv shader 搭配说明书》</p>
       <div class="quick" style="margin-top:10px">
-        <a class="btn" href="guide.html?doc=guide">📖 入门指南</a>
-        <a class="btn" href="guide.html?doc=shaders">✨ Shader 说明书</a>
+        <a class="btn" href="guide.html?doc=guide" data-i18n="ex.openGuide">📖 入门指南</a>
+        <a class="btn" href="guide.html?doc=shaders" data-i18n="ex.openShaderGuide">✨ Shader 说明书</a>
       </div>
     </div>
     <div class="card">
-      <h2>🙏 致谢</h2>
-      <p class="note">mpv 及其贡献者 · hooke007（mpv-lazy / mpv_PlayKit / shader 说明书）·
+      <h2 data-i18n="ex.creditsTitle">🙏 致谢</h2>
+      <p class="note" data-i18n="ex.creditsNote">mpv 及其贡献者 · hooke007（mpv-lazy / mpv_PlayKit / shader 说明书）·
         Anime4K / FSRCNNX / RAVU / RIFE / MVTools / SVP 等算法作者 · mpv_doc-CN 翻译组 ·
         以及所有在论坛和 issue 里踩过坑的人。</p>
       <div class="quick" style="margin-top:10px">
-        <a class="btn" href="guide.html?doc=thanks">🙏 完整致谢与许可</a>
-        <a class="btn" href="guide.html?doc=roadmap">🗺️ 产品说明（定位 / 四档模式 / 安全底线）</a>
+        <a class="btn" href="guide.html?doc=thanks" data-i18n="ex.fullCredits">🙏 完整致谢与许可</a>
+        <a class="btn" href="guide.html?doc=roadmap" data-i18n="ex.roadmap">🗺️ 产品说明（定位 / 四档模式 / 安全底线）</a>
       </div>
     </div>`
 };
@@ -367,13 +368,31 @@ const DB_GROUP_ICONS = {
   '视频同步': '🔄', '杂项': '🧩', '其它': '📎'
 };
 
+const DB_GROUP_EN = {
+  '视频输出': 'Video output', '缩放': 'Scaling', '补帧': 'Interpolation',
+  '字幕样式': 'Subtitle style', '性能 / 缓存': 'Performance / cache',
+  '画质细节': 'Picture detail', '色彩 / HDR': 'Color / HDR', '行为 / 界面': 'Behavior / UI',
+  '字幕明细': 'Subtitle details', '音频明细': 'Audio details', '截图 / 其它': 'Screenshots / misc',
+  '轨道选择': 'Track selection', '播放控制': 'Playback control', '程序行为': 'Program behavior',
+  '稍后观看': 'Watch later', '观看历史': 'Watch history', '视频': 'Video', '音频': 'Audio',
+  '字幕': 'Subtitles', '窗口': 'Window', '光盘设备': 'Disc devices', '均衡器': 'Equalizer',
+  '解复用器': 'Demuxer', '输入': 'Input', 'OSD': 'OSD', '屏幕截图': 'Screenshots',
+  '软件缩放器': 'Software scaler', '音频重采样器': 'Audio resampler', '终端': 'Terminal',
+  '缓存': 'Cache', '网络': 'Network', 'GPU渲染选项': 'GPU render options',
+  '视频同步': 'Video sync', '杂项': 'Miscellaneous', '其它': 'Other'
+};
+
+function groupLabel(g) {
+  return (I18N.lang() === 'en' && DB_GROUP_EN[g]) ? DB_GROUP_EN[g] : g;
+}
+
 function renderChips() {
   const box = document.getElementById('chips');
   if (!box) return;
   const groups = APP.dbGroups || [];
-  box.innerHTML = `<span class="chip${DB.group ? '' : ' on'}" data-g="">全部</span>`
+  box.innerHTML = `<span class="chip${DB.group ? '' : ' on'}" data-g="">${I18N.t('db.all')}</span>`
     + groups.map(g => `<span class="chip${DB.group === g ? ' on' : ''}" data-g="${esc(g)}">`
-      + `${DB_GROUP_ICONS[g] || '⚙️'} ${esc(g)}</span>`).join('');
+      + `${DB_GROUP_ICONS[g] || '⚙️'} ${esc(groupLabel(g))}</span>`).join('');
   box.onclick = e => {
     const c = e.target.closest('.chip');
     if (!c) return;
@@ -447,10 +466,10 @@ async function loadDb(reset) {
   const groups = {};
   DB.items.forEach(x => (groups[x.group] = groups[x.group] || []).push(x));
   host.innerHTML = Object.keys(groups).map(g =>
-    `<div class="card"><h2>${DB_GROUP_ICONS[g] || '⚙️'} ${esc(g)}
-      <span class="muted" style="font-weight:400;font-size:12px"> · ${groups[g].length} 项</span></h2>
+    `<div class="card"><h2>${DB_GROUP_ICONS[g] || '⚙️'} ${esc(groupLabel(g))}
+      <span class="muted" style="font-weight:400;font-size:12px"> · ${I18N.t('section.itemCount', { n: groups[g].length })}</span></h2>
       <div data-mount="${esc(g)}"></div></div>`).join('')
-    || '<div class="card"><p class="note">没有匹配的选项。</p></div>';
+    || `<div class="card"><p class="note">${I18N.t('db.noMatch')}</p></div>`;
   Object.keys(groups).forEach(g => {
     const box = host.querySelector(`[data-mount="${CSS.escape(g)}"]`);
     if (box) mountOptions(box, groups[g]);
@@ -465,16 +484,16 @@ function renderStaticDb(all, stat) {
   const groups = {};
   all.forEach(x => (groups[x.group] = groups[x.group] || []).push(x));
   host.innerHTML = Object.keys(groups).map(g =>
-    `<div class="card"><h2>${DB_GROUP_ICONS[g] || '⚙️'} ${esc(g)}
-      <span class="muted" style="font-weight:400;font-size:12px"> · ${groups[g].length} 项</span></h2>
+    `<div class="card"><h2>${DB_GROUP_ICONS[g] || '⚙️'} ${esc(groupLabel(g))}
+      <span class="muted" style="font-weight:400;font-size:12px"> · ${I18N.t('section.itemCount', { n: groups[g].length })}</span></h2>
       <div data-mount="${esc(g)}"></div></div>`).join('')
-    || '<div class="card"><p class="note">没有匹配的选项。</p></div>';
+    || `<div class="card"><p class="note">${I18N.t('db.noMatch')}</p></div>`;
   Object.keys(groups).forEach(g => {
     const box = host.querySelector(`[data-mount="${CSS.escape(g)}"]`);
     if (box) mountOptions(box, groups[g]);
   });
   if (stat) {
-    stat.innerHTML = `<b>${all.length}</b> 项 · 静态模式（只读）：写配置 / 建议值 / 候选值合并需本机运行后端`;
+    stat.innerHTML = I18N.t('db.staticStat', { n: all.length });
   }
   const more = document.getElementById('moreBox');
   if (more) more.style.display = 'none';
@@ -483,15 +502,17 @@ function renderStaticDb(all, stat) {
 
   const meta = r.meta || {};
   if (stat) {
-    stat.innerHTML = `选项库共 <b>${meta.count || r.total}</b> 项`
-      + `（有中文说明 ${meta.with_zh || 0} 项）· 当前${DB.q ? `搜索「${esc(DB.q)}」` : ''}`
-      + `${DB.group ? `分组「${esc(DB.group)}」` : ''}命中 <b>${r.total}</b> 项，已显示 ${DB.items.length} 项`;
+    const scope = DB.q ? I18N.t('db.scopeSearch', { q: esc(DB.q) })
+      : DB.group ? I18N.t('db.scopeGroup', { g: esc(groupLabel(DB.group)) })
+      : I18N.t('db.scopeNone');
+    stat.innerHTML = I18N.t('db.stat', { total: meta.count || r.total,
+      zh: meta.with_zh || 0, scope: scope, hit: r.total, shown: DB.items.length });
   }
   const more = document.getElementById('moreBox');
   if (more) {
     more.style.display = DB.items.length < DB.total ? '' : 'none';
     const note = document.getElementById('moreNote');
-    if (note) note.textContent = `还剩 ${Math.max(0, DB.total - DB.items.length)} 项`;
+    if (note) note.textContent = I18N.t('db.leftN', { n: Math.max(0, DB.total - DB.items.length) });
   }
   // 补上被丢掉的那次刷新（搜索防抖期间连打字的场景）
   const queued = DB.queued;
@@ -505,17 +526,17 @@ function renderStaticDb(all, stat) {
    点分组名可只看该组；点名里的数字是组内参数个数。 */
 
 const TAG_GROUPS = [
-  { id: 'common', name: '⭐ 常用' },
-  { id: 'quality', name: '🎨 画质' },
-  { id: 'performance', name: '⚡ 性能' },
-  { id: 'subtitle', name: '💬 字幕' }
+  { id: 'common', nameKey: 'tag.common' },
+  { id: 'quality', nameKey: 'tag.quality' },
+  { id: 'performance', nameKey: 'tag.performance' },
+  { id: 'subtitle', nameKey: 'tag.subtitles' }
 ];
 let TAGS = {};
 let TAG_FILTER = '';
 
 function tagName(id) {
   const g = TAG_GROUPS.find(x => x.id === id);
-  return g ? g.name : '';
+  return g ? I18N.t(g.nameKey) : '';
 }
 
 async function loadTags() {
@@ -529,10 +550,10 @@ function renderTagBar() {
   const counts = {};
   Object.values(TAGS).forEach(v => { counts[v] = (counts[v] || 0) + 1; });
   bar.innerHTML = `<div class="tagbar-line">
-    <span class="note">🏷️ 我的分组：拖每行左侧的 ⠿ 到分组上，归属会记住</span>
-    <button class="tagdrop${TAG_FILTER ? '' : ' on'}" data-tag="" type="button">全部</button>
+    <span class="note">${I18N.t('tag.note')}</span>
+    <button class="tagdrop${TAG_FILTER ? '' : ' on'}" data-tag="" type="button">${I18N.t('db.all')}</button>
     ${TAG_GROUPS.map(g => `<button class="tagdrop${TAG_FILTER === g.id ? ' on' : ''}"
-      data-tag="${g.id}" type="button">${g.name}${counts[g.id] ? ` <b>${counts[g.id]}</b>` : ''}</button>`).join('')}
+      data-tag="${g.id}" type="button">${I18N.t(g.nameKey)}${counts[g.id] ? ` <b>${counts[g.id]}</b>` : ''}</button>`).join('')}
   </div>`;
   bar.onclick = e => {
     const b = e.target.closest('[data-tag]');
@@ -570,7 +591,7 @@ function decorateTags() {
       handle.className = 'tagdrag';
       handle.draggable = true;
       handle.textContent = '⠿';
-      handle.title = '拖到上面的「我的分组」';
+      handle.title = I18N.t('tag.dragTitle');
       const head = row.querySelector('.opt-head');
       if (head) head.insertBefore(handle, head.firstChild);
       handle.addEventListener('dragstart', e => {
@@ -601,20 +622,21 @@ function decorateTags() {
 async function loadBackups() {
   const box = document.getElementById('bkList');
   if (!box) return;
-  box.innerHTML = '<p class="note">读取中…</p>';
+  box.innerHTML = '<p class="note">' + I18N.t('ex.loading') + '</p>';
   const r = await API.get('/api/backups' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
   if (!r.ok) { box.innerHTML = `<p class="note danger">${esc(r.detail)}</p>`; return; }
-  if (!r.backups.length) { box.innerHTML = '<p class="note">还没有备份（第一次写入时才会生成）。</p>'; return; }
+  if (!r.backups.length) { box.innerHTML = '<p class="note">' + I18N.t('ex.noBackups') + '</p>'; return; }
   box.innerHTML = r.backups.map((b, i) => `<div class="chain-item">
       <div style="min-width:0"><div>${esc(b.name)}</div>
-        <code>原文件 ${esc(b.orig)} · ${b.size} B</code></div>
-      <div class="right"><button class="btn small" data-bk="${i}">↩️ 回滚</button></div>
+        <code>${I18N.t('ex.originalFile', { name: esc(b.orig), size: b.size })}</code></div>
+      <div class="right"><button class="btn small" data-bk="${i}" data-i18n="ex.rollback">↩️ 回滚</button></div>
     </div>`).join('');
+  if (window.I18N) I18N.apply(box, true);
   box.onclick = async e => {
     const b = e.target.closest('[data-bk]');
     if (!b) return;
     const item = r.backups[+b.dataset.bk];
-    if (!confirm(`用 ${item.name} 覆盖 ${item.orig}？当前版本会再备份一次。`)) return;
+    if (!confirm(I18N.t('ex.restoreConfirm', { name: item.name, target: item.orig }))) return;
     const res = await API.post('/api/restore', { path: item.path, target: APP.target });
     toast((res.ok ? '✅ ' : '❌ ') + res.detail, res.ok ? 'ok' : 'err');
     if (res.ok) loadBackups();
@@ -628,17 +650,20 @@ let UOSC = null;
 async function loadUosc() {
   const host = document.getElementById('uoscHost');
   if (!host) return;
-  host.innerHTML = '<p class="note">读取中…</p>';
+  host.innerHTML = '<p class="note">' + I18N.t('ex.loading') + '</p>';
   const r = await API.get('/api/uosc' + (APP.target ? '?target=' + encodeURIComponent(APP.target) : ''));
   if (!r.ok) {
     const missing = r.exists === false;
-    host.innerHTML = `<div class="card"><h2>🎛️ uosc 设置</h2>
-      <p class="note ${missing ? '' : 'danger'}">${esc(r.detail)}</p>
-      <p class="note">${esc(r.hint || '')}</p>
-      ${missing ? `<p class="note">新建只会写 74 个键里带默认值的那部分，其余继续沿用 uosc 内置默认；
-        文件里没有的键不会硬塞。</p>
-      <div class="actions"><button class="btn primary" id="uoscCreate">➕ 新建一份默认 uosc.conf</button></div>` : ''}
+    const en = I18N.lang() === 'en';
+    const detail = missing && en ? I18N.t('ex.uoscMissingDetail') : r.detail;
+    const hint = missing && en ? I18N.t('ex.uoscMissingHint', { path: r.path || '' }) : (r.hint || '');
+    host.innerHTML = `<div class="card"><h2 data-i18n="section.uosc">🎛️ uosc 设置</h2>
+      <p class="note ${missing ? '' : 'danger'}">${esc(detail)}</p>
+      <p class="note">${esc(hint)}</p>
+      ${missing ? `<p class="note">${I18N.t('ex.uoscMissing')}</p>
+      <div class="actions"><button class="btn primary" id="uoscCreate" data-i18n="ex.uoscCreate">➕ 新建一份默认 uosc.conf</button></div>` : ''}
     </div>`;
+    if (window.I18N) I18N.apply(host, true);
     host.onclick = async e => {
       if (!e.target.closest('#uoscCreate')) return;
       const res = await API.post('/api/uosc/save',

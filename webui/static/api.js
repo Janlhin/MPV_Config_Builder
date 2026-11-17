@@ -95,7 +95,8 @@ const API = {
   // 全量选项库的分页查询（expert 页的搜索/翻页）
   dbOptions: (p) => API.get('/api/db/options?' + new URLSearchParams(p || {}).toString()),
   // 在线渲染仓库里的文档（guide 页）
-  guide: (doc) => API.get('/api/guide?doc=' + encodeURIComponent(doc || '')),
+  guide: (doc) => API.get('/api/guide?doc=' + encodeURIComponent(doc || '') +
+    '&lang=' + encodeURIComponent((window.I18N && I18N.lang()) || 'zh-CN')),
   // 用户自己的预设（磁盘上存的）—— 和上面那 6 套内置的不是一回事
   userPresets: () => API.get('/api/userpresets'),
   userPresetSave: (b) => API.post('/api/presets/save', b),
@@ -108,7 +109,8 @@ const API = {
     + (target ? '?target=' + encodeURIComponent(target) : '')
     + (mirror ? (target ? '&' : '?') + 'mirror=' + encodeURIComponent(mirror) : '')),
   installStart: (b) => API.post('/api/install/lazy', b),
-  options: () => API.get('/api/options'),
+  options: () => API.get('/api/options?lang=' + encodeURIComponent(
+    (window.I18N && I18N.lang && I18N.lang()) || 'zh-CN')),
   basicPreview: (b) => API.post('/api/basic/preview', b),
   basicApply: (b) => API.post('/api/basic/apply', b),
   scan: (dir) => API.post('/api/scan', { dir }),
@@ -286,15 +288,15 @@ function initThemeBtn() {
 
 const TOPBAR_LINKS = [
   {
-    href: 'analyze.html', icon: '🩺', label: '配置体检', title: '不用改任何东西，出一份体检报告',
+    href: 'analyze.html', icon: '🩺', labelKey: 'nav.analyze', titleKey: 'nav.analyzeTitle',
     isHere: () => document.body.dataset.page === 'analyze'
   },
   {
-    href: 'keys.html', icon: '⌨️', label: '快捷键', title: '改 mpv 实际在用的键位表',
+    href: 'keys.html', icon: '⌨️', labelKey: 'nav.keys', titleKey: 'nav.keysTitle',
     isHere: () => document.body.dataset.page === 'keys'
   },
   {
-    href: 'downloads.html', icon: '📦', label: '下载中心', title: '脚本 / 字体 / 一键装 mpv-lazy',
+    href: 'downloads.html', icon: '📦', labelKey: 'nav.downloads', titleKey: 'nav.downloadsTitle',
     isHere: () => document.body.dataset.page === 'downloads'
   }
 ];
@@ -317,7 +319,7 @@ function initTopbarNav() {
   const wrap = document.createElement('div');
   wrap.className = 'topnav';
   wrap.setAttribute('role', 'navigation');
-  wrap.setAttribute('aria-label', '常驻入口');
+  wrap.setAttribute('aria-label', I18N.t('nav.aria'));
 
   TOPBAR_LINKS.forEach(item => {
     const here = isHere(item);
@@ -329,19 +331,21 @@ function initTopbarNav() {
       // ⚠ 不要加 btn/small 类：它们是按钮样式，权重 (0,2,0) 会压过 .topnav-cur，
       // 结果当前页那条变成「圆角按钮框 + 下划线」两套视觉打架（实测踩过）
       span.className = 'topnav-cur';
-      span.title = '你正在这一页';
+      span.title = I18N.t('nav.here');
+      span.setAttribute('data-i18n-title', 'nav.here');
       span.setAttribute('aria-current', 'page');
       span.innerHTML = `<span class="topnav-ico" aria-hidden="true">${item.icon}</span>`
-        + `<span>${item.label}</span><span class="topnav-dot" aria-hidden="true">✓</span>`;
+        + `<span data-i18n="${item.labelKey}">${I18N.t(item.labelKey)}</span><span class="topnav-dot" aria-hidden="true">✓</span>`;
       wrap.appendChild(span);
       return;
     }
     const a = document.createElement('a');
     a.className = 'topnav-link';        // 同上：不加 btn 类
     a.href = item.href;
-    a.title = item.title;
+    a.title = I18N.t(item.titleKey);
+    a.setAttribute('data-i18n-title', item.titleKey);
     a.innerHTML = `<span class="topnav-ico" aria-hidden="true">${item.icon}</span>`
-      + `<span>${item.label}</span>`;
+      + `<span data-i18n="${item.labelKey}">${I18N.t(item.labelKey)}</span>`;
     wrap.appendChild(a);
   });
 

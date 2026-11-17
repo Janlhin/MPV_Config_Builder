@@ -314,8 +314,10 @@ function renderLoadInfo(r) {
     if (!r || !APP.profiles.length) { bar.style.display = 'none'; }
     else {
       bar.style.display = '';
-      const cnt = document.getElementById('profileCount');
-      if (cnt) cnt.textContent = APP.profiles.length;
+      const cnt = document.getElementById('profileBarText');
+      if (cnt) cnt.innerHTML = I18N.t('profile.bar', { n: APP.profiles.length });
+      const pl = document.getElementById('profileLoad');
+      if (pl) pl.textContent = I18N.t('profile.load');
       const sel = document.getElementById('profileSel');
       if (sel) {
         sel.innerHTML = APP.profiles.map((p, i) =>
