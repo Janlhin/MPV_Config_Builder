@@ -873,6 +873,34 @@ def api_search(params):
     return global_search.search(target, q)
 
 
+TAG_GROUPS = ("common", "quality", "performance", "subtitle")
+
+
+def api_tags(params):
+    """读「我的分组」：参数键 → 分组 id。存设置文件，跨会话保留。"""
+    s = load_settings() or {}
+    tags = s.get("tags") if isinstance(s.get("tags"), dict) else {}
+    return {"ok": True, "tags": tags,
+            "groups": [{"id": g} for g in TAG_GROUPS], "count": len(tags)}
+
+
+def api_tags_set(body):
+    """写「我的分组」：只收 4 个合法分组 + 键名不超过 64 字，脏数据一律丢掉。"""
+    tags = body.get("tags")
+    if not isinstance(tags, dict):
+        return {"ok": False, "detail": "缺少 tags（键 → 分组）"}
+    clean = {}
+    for k, v in list(tags.items())[:400]:
+        if isinstance(k, str) and isinstance(v, str) and k and len(k) <= 64 \
+                and v in TAG_GROUPS:
+            clean[k] = v
+    s = load_settings() or {}
+    s["tags"] = clean
+    save_settings(s)
+    return {"ok": True, "tags": clean, "count": len(clean),
+            "detail": f"已记住 {len(clean)} 个参数的分组"}
+
+
 def api_report(body):
     """配置体检报告：完整版分析（上传文本或指定文件都行）。"""
     path = str(body.get("path", "") or "").strip()

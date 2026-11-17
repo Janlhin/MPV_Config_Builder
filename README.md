@@ -94,6 +94,8 @@ conflicts / a six-axis score.
 - **Keybinding editor**: edits your `input-user.conf`; mpv-lazy's own file is not touched
 - **Global search** (`Ctrl+K`): options, uosc settings, keybindings and scripts in one
   result list, grouped by source
+- **My groups**: drag a parameter's handle onto 常用 / 画质 / 性能 / 字幕; the
+  assignment is remembered in settings (display only — write order is unchanged)
 
 ## Why you can trust it with your config
 

@@ -85,6 +85,7 @@ python webui\server.py
 - **你自己的预设**：存下来、导出、发给别人（存在 `%LOCALAPPDATA%`，不进安装目录）
 - **快捷键编辑**：改的是你自己的 `input-user.conf`，mpv-lazy 自带的那个文件一个字节都不动
 - **全站搜索（Ctrl+K）**：配置项 / uosc 设置 / 键位 / 脚本一次搜完，按来源分组，点一下复制键名
+- **我的分组**：拖参数行首的 ⠿ 到「常用 / 画质 / 性能 / 字幕」，归属记进设置文件（只影响归类显示，不改写盘顺序）
 
 ## 为什么值得信任它改你的配置
 
@@ -128,7 +129,7 @@ runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Tauri 检查要 `c
 ```
 core/          与界面无关的逻辑（29 个模块）
 webui/         网页界面
-  server.py      本地服务 + JSON API（46 个接口，只用标准库）
+  server.py      本地服务 + JSON API（48 个接口，只用标准库）
                加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Tauri 外壳用）
   api.py         与传输无关的分发层（HTTP 与 stdio 共用）
   stdio.py       stdio 传输：stdout 只走协议，日志一律 stderr
