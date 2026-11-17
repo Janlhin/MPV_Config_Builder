@@ -80,6 +80,7 @@ python webui\server.py
 - **多脚本融合**：把反交错 + 降噪 + 超分 + 补帧合成一个 `.vpy`
 - **一键装 mpv-lazy**：从官方 release 取最新版，自动**选对包**（完整包 vs 无 VapourSynth 的精简包）、逐卷下载、校验、解压
 - **下载中心**：脚本 / 字体 / 整包（如 uosc）一键装，装过什么能看能卸
+- **uosc 设置编辑器**：`script-opts/uosc.conf` 的 74 个已知键分 9 类可视化编辑，注释与不认识的键原样保留，写前备份
 - **配置无损写回**：认得出 UTF-8 / GBK / Big5，按**原编码**写回，只动全局区不碰 `[profile]` 小节
 - **你自己的预设**：存下来、导出、发给别人（存在 `%LOCALAPPDATA%`，不进安装目录）
 - **快捷键编辑**：改的是你自己的 `input-user.conf`，mpv-lazy 自带的那个文件一个字节都不动
@@ -124,9 +125,9 @@ runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Tauri 检查要 `c
 ## 目录结构
 
 ```
-core/          与界面无关的逻辑（26 个模块）
+core/          与界面无关的逻辑（28 个模块）
 webui/         网页界面
-  server.py      本地服务 + JSON API（43 个接口，只用标准库）
+  server.py      本地服务 + JSON API（45 个接口，只用标准库）
                加 --stdio 就不开端口，改用一行一条 JSON 的协议（给 Tauri 外壳用）
   api.py         与传输无关的分发层（HTTP 与 stdio 共用）
   stdio.py       stdio 传输：stdout 只走协议，日志一律 stderr

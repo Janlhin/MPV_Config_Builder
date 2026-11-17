@@ -86,6 +86,8 @@ conflicts / a six-axis score.
 - **One-click mpv-lazy install**: picks the right package (full vs no-VapourSynth),
   downloads volumes, verifies, extracts
 - **Download centre**: scripts / fonts / bundles (e.g. uosc) with install records and uninstall
+- **uosc settings editor**: `script-opts/uosc.conf` — 74 known keys in 9 categories,
+  comments and unknown keys left byte-for-byte, backup before every write
 - **Lossless config writing**: recognizes UTF-8 / GBK / Big5, writes back in the
   original encoding, only touches the global section, never `[profile]` sections
 - **Your own presets**: save, export, share (stored in `%LOCALAPPDATA%`, not the install dir)

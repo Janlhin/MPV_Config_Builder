@@ -81,6 +81,7 @@ from core.combos import COMBOS, resolve_combo              # noqa: E402
 from core.hardware import detect_all                       # noqa: E402
 from core.score import score_active, overall_score, grade_of   # noqa: E402
 from core import dlcenter                                  # noqa: E402
+from core import uosc                                       # noqa: E402
 
 
 # ------------------------------------------------- 日志层（M5-E-1）
@@ -808,6 +809,53 @@ def api_keys_promote(body):
         return {"ok": False, "detail": "缺少 rows（要保存的键位表内容）"}
     name = str(body.get("name") or "").strip() or None
     return promote_to_user_file(target, rows, **({"name": name} if name else {}))
+
+
+def api_uosc(params):
+    """uosc.conf（`script-opts/` 下）：读出键值 + 分类 + 中文说明。
+
+    只认 `uosc.conf` 这一个文件名、且必须在目标配置目录里 —— 它可不是
+    「任意文本编辑器」，别让它变成读写任意文件的通道。
+    """
+    path = str(params.get("path", "") or "").strip()
+    target = _resolve_target({"target": params.get("target", "")})
+    if path:
+        p = Path(path)
+        if p.name.lower() != "uosc.conf":
+            return {"ok": False, "detail": "只能读写 uosc.conf"}
+        if not _inside(p, _allowed_write_roots()):
+            return {"ok": False,
+                    "detail": "只允许读写目标配置目录里的文件（安全限制）。"}
+        base = p.parent.parent if p.parent.name.lower() == "script-opts" else p.parent
+        data = uosc.load(base, path=str(p))
+    else:
+        if not target:
+            return {"ok": False,
+                    "detail": _LAST_TARGET_ERROR or "还没选择 mpv 配置目录"}
+        data = uosc.load(target)
+    data["target"] = str(target) if target else ""
+    data["meta"] = uosc.preview_keys()
+    return data
+
+
+def api_uosc_save(body):
+    """写 uosc.conf：只改提交上来的键，注释与未知键原样保留。
+
+    `dry_run=true` 只回新文本（界面上先给人看一眼），不落盘、不备份。
+    """
+    path = str(body.get("path", "") or "").strip()
+    values = body.get("values")
+    if not path or not isinstance(values, dict):
+        return {"ok": False, "detail": "缺少 path 或 values"}
+    p = Path(path)
+    if p.name.lower() != "uosc.conf":
+        return {"ok": False, "detail": "只能写 uosc.conf"}
+    if not _inside(p, _allowed_write_roots()):
+        return {"ok": False,
+                "detail": "只允许写入目标配置目录里的文件（安全限制）。"}
+    if not p.is_file():
+        return {"ok": False, "detail": f"找不到文件：{p}"}
+    return uosc.save(p, values, dry_run=bool(body.get("dry_run")))
 
 
 def api_report(body):
