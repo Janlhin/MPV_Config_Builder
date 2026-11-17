@@ -80,8 +80,9 @@ from core.keys import (                                      # noqa: E402
 from core.combos import COMBOS, resolve_combo              # noqa: E402
 from core.hardware import detect_all                       # noqa: E402
 from core.score import score_active, overall_score, grade_of   # noqa: E402
-from core import dlcenter                                  # noqa: E402
-from core import uosc                                       # noqa: E402
+from core import dlcenter                                    # noqa: E402
+from core import search as global_search                     # noqa: E402
+from core import uosc                                        # noqa: E402
 
 
 # ------------------------------------------------- 日志层（M5-E-1）
@@ -858,6 +859,18 @@ def api_uosc_save(body):
             return uosc.create(p, newline=("\r\n" if os.name == "nt" else "\n"))
         return {"ok": False, "detail": f"找不到文件：{p}"}
     return uosc.save(p, values, dry_run=bool(body.get("dry_run")))
+
+
+def api_search(params):
+    """统一搜索：配置项 / uosc / 键位 / 脚本，一次搜完。
+
+    只读：不写任何文件。target 给了才搜键位和脚本，没给就只搜静态两项。
+    """
+    q = str(params.get("q", "") or params.get("keyword", "") or "").strip()
+    target = _resolve_target({"target": params.get("target", "")})
+    if not q:
+        return {"ok": False, "detail": "输入几个字再搜（键名、中文说明、键位都行）"}
+    return global_search.search(target, q)
 
 
 def api_report(body):

@@ -751,3 +751,19 @@ body { animation: page-in .12s ease-out; }
   /* 回执在 reduced-motion 下保留 600ms 静态亮绿（无动画也是一种反馈） */
   .btn.ack-ok::after { animation: none; opacity: 1; transform: none; }
 }
+
+/* ---- 全站搜索（api.js 注入，9 页共用）---- */
+.gsearch-btn { background: transparent; border: 1px solid var(--line, rgba(128,128,128,.35)); color: var(--text); border-radius: 8px; padding: 4px 8px; cursor: pointer; font-size: 14px; line-height: 1; }
+.gsearch-btn:hover { border-color: var(--accent); }
+.gsearch-mask { position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,.5); display: none; align-items: flex-start; justify-content: center; padding: 8vh 16px; }
+.gsearch-box { width: min(720px, 100%); max-height: 78vh; display: flex; flex-direction: column; background: var(--panel); color: var(--text); border: 1px solid var(--line, rgba(128,128,128,.3)); border-radius: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.35); overflow: hidden; }
+.gsearch-head { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line, rgba(128,128,128,.25)); }
+.gsearch-head input { flex: 1; padding: 8px 10px; }
+.gsearch-results { overflow: auto; padding: 10px 12px 14px; }
+.gsearch-group { margin-top: 10px; }
+.gsearch-gname { font-size: 12px; opacity: .8; margin: 6px 0; }
+.gsearch-item { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto; gap: 8px; width: 100%; text-align: left; background: transparent; border: none; border-top: 1px solid rgba(128,128,128,.15); padding: 8px 4px; color: var(--text); cursor: pointer; align-items: baseline; }
+.gsearch-item:hover { background: var(--panel-2, rgba(128,128,128,.08)); }
+.gsearch-item code { font-size: 12px; }
+.gsearch-item span { font-size: 12px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gsearch-item small { font-size: 11px; opacity: .55; white-space: nowrap; }

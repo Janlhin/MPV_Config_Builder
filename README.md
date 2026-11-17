@@ -92,6 +92,8 @@ conflicts / a six-axis score.
   original encoding, only touches the global section, never `[profile]` sections
 - **Your own presets**: save, export, share (stored in `%LOCALAPPDATA%`, not the install dir)
 - **Keybinding editor**: edits your `input-user.conf`; mpv-lazy's own file is not touched
+- **Global search** (`Ctrl+K`): options, uosc settings, keybindings and scripts in one
+  result list, grouped by source
 
 ## Why you can trust it with your config
 
