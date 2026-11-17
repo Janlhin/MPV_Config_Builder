@@ -13,8 +13,13 @@
     }
   },
   "bundle": {
-    "active": false,
-    "targets": "all",
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "resources": [
+      "backend"
+    ],
     "icon": [
       "icons/icon.ico",
       "icons/icon.png"

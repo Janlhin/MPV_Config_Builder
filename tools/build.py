@@ -20,6 +20,8 @@ make_icon / sync_version / fix_bat / gen_conflicts_golden），每个都重复�
                     （--check 只检查不改，CI / 测试用）
     golden          重新生成 tests/data/conflicts_golden.json（冲突检测快照）
                     （--check 只比对不写盘）
+    backend         用 PyInstaller 把 Python 后端打成 dist/MPVConfigBuilderBackend/
+                    （给 Tauri 安装包当后端 exe，需要本解释器已装 pyinstaller）
 
 其中 options-db / keybindings 需要本机有 mpv 或能联网，跑不动时脚本会自己说。
 """
@@ -721,6 +723,41 @@ def cmd_golden():
     return 0
 
 
+def cmd_backend():
+    """把 Python 后端打成 onedir（dist/MPVConfigBuilderBackend/），给 Tauri 安装包当后端。
+
+    PyInstaller 必须装在本解释器里（python -m pip install pyinstaller）。
+    Python 3.14+ 目前还没有 PyInstaller 支持，构建机上请用 3.12 / 3.13。
+    """
+    import subprocess
+
+    try:
+        import PyInstaller  # noqa: F401
+    except ImportError:
+        print("[缺失] 当前解释器没有 PyInstaller，先跑：python -m pip install pyinstaller")
+        return 1
+
+    spec = ROOT / "packaging" / "backend.spec"
+    if not spec.is_file():
+        print(f"[缺失] {spec}")
+        return 1
+
+    cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", str(spec)]
+    print("[构建] " + " ".join(cmd))
+    rc = subprocess.call(cmd, cwd=str(ROOT))
+    if rc != 0:
+        print(f"[失败] PyInstaller 退出码 {rc}")
+        return rc
+
+    exe = ROOT / "dist" / "MPVConfigBuilderBackend" / "MPVConfigBuilderBackend.exe"
+    if not exe.is_file():
+        print(f"[失败] 没看到产物 {exe}")
+        return 1
+    size = sum(p.stat().st_size for p in exe.parent.rglob("*") if p.is_file())
+    print(f"[完成] {exe.parent}  ({size / 1048576:.1f} MB)")
+    return 0
+
+
 COMMANDS = {
     "options-db": cmd_options_db,
     "keybindings": cmd_keybindings,
@@ -728,6 +765,7 @@ COMMANDS = {
     "ps1": cmd_ps1,
     "version": cmd_version,
     "golden": cmd_golden,
+    "backend": cmd_backend,
 }
 
 

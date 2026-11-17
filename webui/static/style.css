@@ -781,3 +781,12 @@ body { animation: page-in .12s ease-out; }
 
 /* ---- 写后 12 秒撤销条 ---- */
 .undo-bar { position: fixed; right: 22px; bottom: 64px; z-index: 99; display: flex; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; box-shadow: var(--shadow); font-size: 13px; }
+
+/* ---- Tauri 无边框窗口：自绘标题栏按钮 ----
+   只在 .tauri-shell 下生效；网页版看不到这些按钮。 */
+.tauri-shell .topbar { padding-right: 190px; }
+.win-controls { position: fixed; top: 0; right: 0; z-index: 100; display: flex; height: 44px; align-items: stretch; }
+.win-btn { width: 44px; border: 0; background: transparent; color: var(--text); font-size: 15px; line-height: 1; cursor: pointer; }
+.win-btn:hover { background: rgba(128, 128, 128, .16); }
+.win-btn.win-close:hover { background: #d33; color: #fff; }
+

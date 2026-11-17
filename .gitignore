@@ -43,6 +43,8 @@ tauri/src-tauri/target/
 tauri/src-tauri/gen/
 # 本机构建临时用的镜像配置（如 rsproxy），不该影响别人
 tauri/src-tauri/.cargo/
+# 打包时从 dist/ 拷进来的 Python 后端（几十 MB，由 tools/build.py backend 生成）
+tauri/src-tauri/backend/
 
 # ---------- 运行时产物（会被工具重建） ----------
 # 截图：由 tools/check_ui.py 与 tools/check_presets.py 生成，随时可重跑
