@@ -61,8 +61,8 @@ a { color: var(--accent); text-decoration: none; }
   /* 顶栏常驻入口变多后，窄窗口允许换行；换行后的第二行靠右对齐，
      不要像以前那样从最左边重新排，留下一条「孤儿按钮」的空白带。 */
   flex-wrap: wrap; justify-content: flex-end;
-  column-gap: 10px; row-gap: 8px;
-  padding: 10px 16px;
+  column-gap: 8px; row-gap: 8px;
+  padding: 10px 12px;
   background: var(--bg-soft);
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 20;
@@ -70,6 +70,7 @@ a { color: var(--accent); text-decoration: none; }
 .brand { font-weight: 700; letter-spacing: .3px; }
 .brand small { color: var(--muted); font-weight: 400; margin-left: 6px; }
 .topbar .spacer { flex: 1; }
+.topbar-tools { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; margin-left: auto; }
 
 /* 自绘标题栏（R-29）的拖拽区规则已随 Electron 移除（2026-11-16）。
    那时顶栏即拖拽区、右上角给 overlay 三键留 144px；Tauri 用系统标题栏，
@@ -82,7 +83,7 @@ a { color: var(--accent); text-decoration: none; }
   /* 这一条是顶栏重叠的根因：没有 min-width 时，flex 会把整个 .target
      压到接近 0，里面的路径却照样画出来，于是盖在左侧品牌名上。
      给一个能容纳「标签 + 路径 + 更改」的最小宽度，再让长路径自己省略。 */
-  flex: 0 1 auto; min-width: 190px;
+  flex: 1 1 270px; min-width: 190px;
   max-width: min(40vw, 400px); overflow: hidden;
 }
 .target code {
