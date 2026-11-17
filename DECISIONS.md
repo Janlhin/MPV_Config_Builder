@@ -800,7 +800,7 @@ Python 后端（core 29 模块 8.5k 行 + server/api 1.6k 行）+ Tauri 3 预览
 | 档 | 范围 | 判断 | 理由 |
 |---|---|---|---|
 | A | 只把 Python 后端换成 Rust 进程，core 逻辑仍留在 Python | ❌ 否决 | 等于多养一个进程，Rust 只当壳，Python 依赖照旧；没有解决任何问题 |
-| **B** | **core + HTTP 层全换 Rust，9 页与 48 接口契约不动** | ✅ **推荐** | 唯一能真正去掉 Python 依赖、又能让 818 项测试和 9 页实机检查继续当护栏的路径 |
+| **B** | **core + HTTP 层全换 Rust，9 页与 48 接口契约不动** | ✅ **推荐** | 唯一能真正去掉 Python 依赖、又能让 830 项测试和 9 页实机检查继续当护栏的路径 |
 | C | 连界面也换 Rust 原生控件 | ❌ 否决 | 3.6k 行前端 + 1155 行 i18n 全部重做，收益只是「不像套壳」；Tauri 窗口已经是原生窗口 |
 
 ### 成本账（按模块量级，不是拍脑袋的天数）
@@ -813,7 +813,7 @@ Python 后端（core 29 模块 8.5k 行 + server/api 1.6k 行）+ Tauri 3 预览
 | dlcenter / installer / update / net / hardware / mpv_version | ~2.2k | **高** | 网络下载、安装计划、进程探测；Rust 侧要重选 HTTP/哈希/解压库 |
 | server / api（48 接口 + stdio 通道） | ~1.6k | 中 | 契约固定，可按接口逐个替换 |
 
-**测试怎么复用**：818 项里，HTTP/页面/实机类可以直接对着 Rust 后端跑（`verify.py`
+**测试怎么复用**：830 项里，HTTP/页面/实机类可以直接对着 Rust 后端跑（`verify.py`
 只看接口与页面，天然可平移）；`from core import ...` 的单元测试不能直接复用，
 做法是「Python 当 oracle」——同一批输入先在 Python 生成期望 JSON，Rust 测试断言逐字一致，
 对拍通过再删 Python 测试。7.7k 行测试不重写，但要做一层 golden 夹具。
@@ -832,7 +832,7 @@ Python 后端（core 29 模块 8.5k 行 + server/api 1.6k 行）+ Tauri 3 预览
 1. **技术验证（spike，最小闭环）**：axum 起服务，只实现 `status` + `options` 两个接口，
    搬 `textio` 的 GBK/BOM 读写与 `options_db` 的 813 项加载；量三件事——输出 JSON 与 Python
    逐字一致、单二进制体积、冷启动时间。三件不达标就停，别投入第二期。
-2. **按模块搬 + golden 对拍**：从纯计算组开始，Python 留作 oracle；每搬一组，818 项测试照跑。
+2. **按模块搬 + golden 对拍**：从纯计算组开始，Python 留作 oracle；每搬一组，830 项测试照跑。
 3. **切默认、删 Python**：48 接口全绿后把 Rust sidecar 设为默认，旧后端留一版；无回归再删，
    同步改打包、CI 与文档口径。
 
