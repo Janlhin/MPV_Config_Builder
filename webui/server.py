@@ -1313,18 +1313,31 @@ DOCS = {
     "roadmap": "产品规划与路线图.md",
 }
 
+# 英文版与中文版同目录，文件名以 `.en.md` 结尾（见 tools/translate_docs.py）
+DOCS_EN = {
+    "guide": "入门指南.en.md",
+    "shaders": "MPV_Shader搭配说明书.en.md",
+    "thanks": "致谢与许可.en.md",
+    "roadmap": "产品规划与路线图.en.md",
+}
+
 # 2026-11-17 起这些文档搬进了 `docs/`（根目录只留五个文档）。
 DOCS_DIR = BASE / "docs"
 
 
 def api_guide(params):
-    """把仓库里的中文文档渲染成 HTML，给界面里的「指南 / 致谢」页用。"""
+    """把仓库里的文档渲染成 HTML，给界面里的「指南 / 致谢」页用。"""
     from core.mdrender import extract_title, to_html
     key = (params.get("doc") or "guide").strip()
-    name = DOCS.get(key)
-    if not name:
+    lang = (params.get("lang") or "").strip().lower()
+    if not key or key not in DOCS:
         return {"ok": False, "detail": f"没有这份文档：{key}",
                 "docs": [{"id": k, "name": v} for k, v in DOCS.items()]}
+    name = DOCS[key]
+    if lang.startswith("en"):
+        en_name = DOCS_EN.get(key)
+        if en_name and (DOCS_DIR / en_name).is_file():
+            name = en_name
     path = DOCS_DIR / name
     if not path.is_file():
         # 打包时忘了带 docs/ 才会走到这里 —— 说清楚怎么修，别只报"找不到"

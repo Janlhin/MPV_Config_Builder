@@ -37,9 +37,9 @@
 <body data-page="guide">
 
 <div class="topbar">
-  <div class="brand">📖 文档 <small id="docTitle" data-no-i18n></small></div>
+  <div class="brand">📖 <span data-i18n="guide.brand">文档</span> <small id="docTitle" data-no-i18n></small></div>
   <div class="spacer"></div>
-  <a class="btn small" href="index.html">🔀 切换模式</a>
+  <a class="btn small" href="index.html">🔀 <span data-i18n="guide.switchMode">切换模式</span></a>
   <button class="btn small" data-theme-toggle>🌓</button>
 </div>
 
@@ -54,7 +54,11 @@
 <script src="api.js"></script>
 <script>
 const DOC_ICONS = { guide: '🧭', shaders: '✨', thanks: '🙏', roadmap: '🗺️' };
-const DOC_LABELS = { guide: '入门指南', shaders: 'Shader 搭配说明书', thanks: '致谢与许可', roadmap: '产品说明' };
+const DOC_LABEL_KEYS = { guide: 'doc.guide', shaders: 'doc.shaders', thanks: 'doc.thanks', roadmap: 'doc.roadmap' };
+
+function docLabel(doc) {
+  return I18N.t(DOC_LABEL_KEYS[doc] || 'doc.guide');
+}
 
 function currentDoc() {
   const q = new URLSearchParams(location.search).get('doc');
@@ -63,15 +67,21 @@ function currentDoc() {
 
 const DOC_FILES = { guide: '入门指南.md', shaders: 'MPV_Shader搭配说明书.md',
   thanks: '致谢与许可.md', roadmap: '产品规划与路线图.md' };
+const DOC_FILES_EN = { guide: '入门指南.en.md', shaders: 'MPV_Shader搭配说明书.en.md',
+  thanks: '致谢与许可.en.md', roadmap: '产品规划与路线图.en.md' };
+
+function docFile(id) {
+  const en = window.I18N && I18N.lang() === 'en';
+  return (en ? DOC_FILES_EN : DOC_FILES)[id] || (en ? DOC_FILES_EN : DOC_FILES).guide;
+}
 
 async function load(doc) {
   const box = document.getElementById('doc');
-  box.innerHTML = '<p class="note">正在读取…</p>';
+  box.innerHTML = '<p class="note">' + I18N.t('guide.loading') + '</p>';
   // 静态模式（Q-006 A）：没有后端渲染 md，退回取仓库里的原文纯文本展示。
-  // 完整渲染（标题/表格/代码块）在本机后端形态可用。
   if (MPVCB.STATIC) {
-    const text = await API.staticText(DOC_FILES[doc] || DOC_FILES.guide);
-    document.getElementById('docTitle').textContent = DOC_LABELS[doc] || doc;
+    const text = await API.staticText('docs/' + docFile(doc));
+    document.getElementById('docTitle').textContent = docLabel(doc);
     box.innerHTML = text
       ? '<p class="note">' + I18N.t('static.docNote') + '</p><pre class="doc">'
         + esc(text) + '</pre>'
@@ -80,30 +90,25 @@ async function load(doc) {
   }
   // ⚠ 走 API.guide，不要直接 fetch —— 直连在外壳的 stdio 通道下不通
   const r = await API.guide(doc)
-    .catch(() => ({ ok: false, detail: '读取失败' }));
+    .catch(() => ({ ok: false, detail: I18N.t('guide.readFailed') }));
   const toc = document.getElementById('toc');
   if (r.docs && toc) {
     toc.innerHTML = r.docs.map(d =>
       `<a class="btn small${d.id === doc ? ' primary' : ''}" href="?doc=${d.id}">
-        ${DOC_ICONS[d.id] || '📄'} ${DOC_LABELS[d.id] || d.name}</a>`).join('');
+        ${DOC_ICONS[d.id] || '📄'} ${esc(docLabel(d.id))}</a>`).join('');
   }
   if (!r.ok) { box.innerHTML = `<p class="note danger">❌ ${esc(r.detail)}</p>`; return; }
-  document.getElementById('docTitle').textContent = r.file;
+  document.getElementById('docTitle').textContent = docLabel(doc);
   box.innerHTML = r.html;
   box.querySelectorAll('a[href^="http"]').forEach(a => { a.target = '_blank'; });
 }
 
 function updateLangNote() {
   const el = document.getElementById('docLangNote');
-  if (!el) return;
-  const en = window.I18N && I18N.lang() === 'en';
-  el.hidden = !en;
-  if (en) el.textContent = I18N.t('guide.enNotice');
+  if (el) el.hidden = true;   // 4 份文档已有英文版，不再提示「仅中文」
 }
 
-document.addEventListener('click', e => {
-  if (e.target.closest('[data-lang-toggle]')) setTimeout(updateLangNote, 60);
-});
+document.addEventListener('i18n:change', () => { updateLangNote(); load(currentDoc()); });
 updateLangNote();
 load(currentDoc());
 </script>
