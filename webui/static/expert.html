@@ -186,6 +186,7 @@ const PANES = {
       <button class="btn" id="qclear">清空</button>
     </div>
     <div class="chips" id="chips"></div>
+    <div id="tagBar"></div>
     <p class="note" id="dbStat" style="margin-bottom:10px"></p>
     <div id="listHost"></div>
     <div class="actions" id="moreBox" style="display:none">
@@ -315,6 +316,7 @@ const WIRE = {
       inp.value = ''; DB.q = ''; loadDb(true);
     };
     document.getElementById('moreBtn').onclick = () => loadDb(false);
+    renderTagBar();
     loadDb(true);
   },
   custom: () => {
@@ -475,6 +477,7 @@ function renderStaticDb(all, stat) {
   }
   const more = document.getElementById('moreBox');
   if (more) more.style.display = 'none';
+  decorateTags();
 }
 
   const meta = r.meta || {};
@@ -493,6 +496,103 @@ function renderStaticDb(all, stat) {
   const queued = DB.queued;
   DB.queued = false;
   if (queued) loadDb(true);
+  decorateTags();
+}
+
+/* ---------------- 我的分组（拖拽 + 归属落盘） ----------------
+   拖动每行左侧的 ⠿ 把手到分组上；归属存 /api/tags（设置文件，跨会话保留）。
+   点分组名可只看该组；点名里的数字是组内参数个数。 */
+
+const TAG_GROUPS = [
+  { id: 'common', name: '⭐ 常用' },
+  { id: 'quality', name: '🎨 画质' },
+  { id: 'performance', name: '⚡ 性能' },
+  { id: 'subtitle', name: '💬 字幕' }
+];
+let TAGS = {};
+let TAG_FILTER = '';
+
+function tagName(id) {
+  const g = TAG_GROUPS.find(x => x.id === id);
+  return g ? g.name : '';
+}
+
+async function loadTags() {
+  const r = await API.get('/api/tags');
+  if (r.ok) { TAGS = r.tags || {}; renderTagBar(); decorateTags(); }
+}
+
+function renderTagBar() {
+  const bar = document.getElementById('tagBar');
+  if (!bar) return;
+  const counts = {};
+  Object.values(TAGS).forEach(v => { counts[v] = (counts[v] || 0) + 1; });
+  bar.innerHTML = `<div class="tagbar-line">
+    <span class="note">🏷️ 我的分组：拖每行左侧的 ⠿ 到分组上，归属会记住</span>
+    <button class="tagdrop${TAG_FILTER ? '' : ' on'}" data-tag="" type="button">全部</button>
+    ${TAG_GROUPS.map(g => `<button class="tagdrop${TAG_FILTER === g.id ? ' on' : ''}"
+      data-tag="${g.id}" type="button">${g.name}${counts[g.id] ? ` <b>${counts[g.id]}</b>` : ''}</button>`).join('')}
+  </div>`;
+  bar.onclick = e => {
+    const b = e.target.closest('[data-tag]');
+    if (!b) return;
+    TAG_FILTER = b.dataset.tag || '';
+    renderTagBar();
+    decorateTags();
+  };
+  bar.ondragover = e => { if (e.target.closest('[data-tag]')) e.preventDefault(); };
+  bar.ondrop = async e => {
+    const b = e.target.closest('[data-tag]');
+    if (!b) return;
+    e.preventDefault();
+    const key = (e.dataTransfer.getData('text/plain') || '').trim();
+    if (!key) return;
+    const tag = b.dataset.tag;
+    if (!tag || TAGS[key] === tag) delete TAGS[key];      // 拖回「全部」或拖到同一组 = 取消
+    else TAGS[key] = tag;
+    const r = await API.post('/api/tags/save', { tags: TAGS });
+    toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
+    if (r.ok) { TAGS = r.tags || TAGS; renderTagBar(); decorateTags(); }
+  };
+}
+
+function decorateTags() {
+  const host = document.getElementById('listHost');
+  if (!host) return;
+  host.querySelectorAll('.opt').forEach(row => {
+    const key = row.dataset.key;
+    const tag = TAGS[key];
+    row.classList.toggle('tag-hidden', !!(TAG_FILTER && tag !== TAG_FILTER));
+    let handle = row.querySelector('.tagdrag');
+    if (!handle) {
+      handle = document.createElement('span');
+      handle.className = 'tagdrag';
+      handle.draggable = true;
+      handle.textContent = '⠿';
+      handle.title = '拖到上面的「我的分组」';
+      const head = row.querySelector('.opt-head');
+      if (head) head.insertBefore(handle, head.firstChild);
+      handle.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', key);
+        e.dataTransfer.effectAllowed = 'copy';
+        row.classList.add('dragging');
+      });
+      handle.addEventListener('dragend', () => row.classList.remove('dragging'));
+    }
+    let badge = row.querySelector('.tagbadge');
+    if (tag) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'tagbadge';
+        const head = row.querySelector('.opt-head');
+        if (head) head.insertBefore(badge, head.querySelector('.right') || null);
+      }
+      badge.textContent = tagName(tag);
+      badge.dataset.tag = tag;
+    } else if (badge) {
+      badge.remove();
+    }
+  });
 }
 
 /* ---------------- 备份 / 扫描 ---------------- */
@@ -723,6 +823,7 @@ async function boot() {
   buildSections();
   renderSidebar();
   await loadCatalog();
+  loadTags();
   if (!APP.source) {
     const cfg = (APP.catalog.configs || []).find(c => /mpv\.conf$/i.test(c.name));
     if (cfg) APP.source = cfg.path;

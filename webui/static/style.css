@@ -767,3 +767,14 @@ body { animation: page-in .12s ease-out; }
 .gsearch-item code { font-size: 12px; }
 .gsearch-item span { font-size: 12px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gsearch-item small { font-size: 11px; opacity: .55; white-space: nowrap; }
+
+/* ---- 「我的分组」：拖拽把手 / 投放区 / 行内标签 ---- */
+.tagbar-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 4px; }
+.tagdrop { background: transparent; border: 1px dashed var(--line, rgba(128,128,128,.4)); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.tagdrop.on { border-style: solid; border-color: var(--accent); color: var(--accent); }
+.tagdrop b { font-weight: 600; }
+.tagdrag { cursor: grab; opacity: .4; user-select: none; margin-right: 3px; font-size: 12px; }
+.tagdrag:active { cursor: grabbing; }
+.opt.dragging { opacity: .45; }
+.opt.tag-hidden { display: none !important; }
+.tagbadge { font-size: 11px; border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 1px 7px; margin-left: 6px; white-space: nowrap; }
