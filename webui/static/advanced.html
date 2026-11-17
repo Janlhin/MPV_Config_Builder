@@ -2,6 +2,7 @@
 <html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>进阶模式 · MPV Config Builder</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -459,13 +460,14 @@ async function renderMyPresets() {
   if (!ps.length) {
     box.innerHTML = `<span class="note">${I18N.t('adv.myPresetEmpty')}</span>`;
   } else {
-    box.innerHTML = ps.map((p, i) => `<button class="combo" data-i="${i}" data-id="${esc(p.id)}">
+    box.innerHTML = ps.map((p, i) => `<button class="combo" data-i="${i}" data-id="${esc(p.id)}" title="${esc(I18N.t('adv.applyTitle'))}">
         <span class="ico">💾</span>
         <span><b>${esc(p.name)}</b>
           <small>${I18N.t('adv.myPresetCountN', { n: p.count })}${p.shaders ? I18N.t('adv.myPresetShadersN', { n: p.shaders }) : ''}${
             p.memc ? I18N.t('adv.myPresetMemc') : ''}${p.created ? ' · ' + esc(p.created.slice(0, 10)) : ''}</small>
           ${p.note ? `<small>${esc(p.note)}</small>` : ''}
         </span>
+        <span class="badge" data-op="copy" data-id="${esc(p.id)}" title="${esc(I18N.t('adv.duplicateTitle'))}">⧉</span>
         <span class="badge" data-op="export" data-id="${esc(p.id)}" title="${esc(I18N.t('adv.exportTitle'))}">⬇️</span>
         <span class="badge color" data-op="del" data-id="${esc(p.id)}" title="${esc(I18N.t('adv.delTitle'))}">✕</span>
       </button>`).join('');
@@ -479,6 +481,7 @@ async function renderMyPresets() {
     if (op) {
       e.stopPropagation();
       if (op.dataset.op === 'del') return delMyPreset(op.dataset.id);
+      if (op.dataset.op === 'copy') return duplicateMyPreset(op.dataset.id);
       if (op.dataset.op === 'export') return exportMyPreset(op.dataset.id);
       return;
     }
@@ -533,6 +536,18 @@ async function saveMyPreset() {
   }
   toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
   if (r.ok) { el('myPresetName').value = ''; renderMyPresets(); }
+}
+
+async function duplicateMyPreset(id) {
+  const fresh = await API.userPresets().catch(() => null);
+  const p = fresh && fresh.ok ? (fresh.presets || []).find(x => x.id === id) : null;
+  if (!p) { toast(I18N.t('adv.myPresetNotFound', { id }), 'err'); return renderMyPresets(); }
+  const name = prompt(I18N.t('adv.duplicatePrompt', { name: p.name }),
+    I18N.t('adv.duplicateDefault', { name: p.name }));
+  if (name === null) return;
+  const r = await API.userPresetSave({ name: name.trim(), state: p.state || {} });
+  toast((r.ok ? '✅ ' : '❌ ') + (r.detail || ''), r.ok ? 'ok' : 'err');
+  renderMyPresets();
 }
 
 async function delMyPreset(id) {
