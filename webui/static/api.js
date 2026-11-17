@@ -953,7 +953,8 @@ function initGlobalSearch() {
   btn.title = '全站搜索（Ctrl+K）：配置项 / uosc / 键位 / 脚本';
   btn.setAttribute('aria-label', btn.title);
   btn.textContent = '🔎';
-  (bar.querySelector('.topnav') || bar).appendChild(btn);
+  // 挂在顶栏容器而不是 .topnav 列表里：搜索不是导航项，别影响「三入口」检查
+  bar.appendChild(btn);
   btn.onclick = openGlobalSearch;
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
