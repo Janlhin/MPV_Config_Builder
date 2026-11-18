@@ -29,8 +29,9 @@ Existing mpv configurators hand you a few dozen common options. This one is diff
 | Option descriptions | none or web lookups | **714 built-in Chinese descriptions** (726 raw, 12 dropped with CLI-only options) |
 | Can it write deprecated options | yes | CLI-only options are **filtered on read** (16) and deprecated ones are flagged |
 
-The UI is Chinese-first with a full English interface (switch in the top bar);
-backend messages follow the UI language too.
+The UI follows your system language on first launch — a Chinese system gets
+Chinese, anything else gets English (the only two languages available). The
+switch in the top bar overrides it, and backend messages follow the UI language too.
 
 ## Usage
 

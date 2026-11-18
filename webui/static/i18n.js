@@ -1452,6 +1452,29 @@
     try { return localStorage.getItem(STORE_KEY); } catch (e) { return null; }
   }
 
+  /* 系统默认显示语言 → 本工具支持的语言（只有 zh-CN / en 两套）。
+     Tauri/WebView2 下 navigator.languages 跟 Windows 显示语言；浏览器下跟浏览器
+     UI 语言。按用户偏好顺序取第一个我们支持的：zh* → zh-CN，en* → en；
+     一个都不支持但有值 → 英文兜底（英文当国际通用）；读不到 navigator → 中文，
+     跟以前的固定默认一致。
+     只在「用户没手动切过」时用；手动切换会写 localStorage，永远以它为准。 */
+  function detectSystemLang() {
+    var list = [];
+    try {
+      if (navigator.languages && navigator.languages.length) {
+        list = Array.prototype.slice.call(navigator.languages);
+      } else if (navigator.language) {
+        list = [navigator.language];
+      }
+    } catch (e) { return DEFAULT_LANG; }
+    for (var i = 0; i < list.length; i++) {
+      var l = String(list[i] || '').toLowerCase();
+      if (l === 'zh' || l.indexOf('zh-') === 0) return 'zh-CN';
+      if (l === 'en' || l.indexOf('en-') === 0) return 'en';
+    }
+    return list.length ? 'en' : DEFAULT_LANG;
+  }
+
   function persist(lang) {
     try { localStorage.setItem(STORE_KEY, lang); } catch (e) {}
   }
@@ -1492,6 +1515,7 @@
   function boot() {
     var saved = readStored();
     if (saved && SUPPORTED.indexOf(saved) >= 0) current = saved;
+    else current = detectSystemLang();
     loadDict();
     apply();
     bindToggle();
@@ -1511,6 +1535,7 @@
     next: next,
     bindToggle: bindToggle,
     lang: function () { return current; },
+    detect: detectSystemLang,
     supported: SUPPORTED.slice(),
     vars: VARS
   };
