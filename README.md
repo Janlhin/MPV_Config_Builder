@@ -36,11 +36,7 @@ backend messages follow the UI language too.
 
 ### Desktop build (Tauri shell)
 
-**There is no installer right now.** On 2026-11-16 the desktop shell moved from
-Electron to Tauri (`3.0.0-alpha.6`), and Electron — along with the old
-installer pipeline — was removed. Bundling on the Tauri side (`bundle.active`)
-has not been turned on yet, so Releases has no `Setup.exe` to download. Build it
-yourself if you want the window:
+**There is no signed installer published in Releases right now.** The desktop shell moved from Electron to Tauri (`3.0.0-alpha.6`) on 2026-11-16; Tauri bundling is configured, but the current build is unsigned and no installer has been published yet. Build it yourself if you want the window:
 
 ```powershell
 cd tauri\src-tauri
@@ -48,8 +44,9 @@ cargo build
 .\target\debug\mpv-config-builder.exe
 ```
 
-Needs a Rust toolchain + WebView2 (built into Win10/11). Details and the release
-plan: [docs/打包与发布.md](docs/打包与发布.md) (Chinese).
+For a local installer, run `cargo tauri build` from `tauri\`. Needs a Rust
+toolchain + WebView2 (built into Win10/11). Details and the release plan:
+[docs/打包与发布.md](docs/打包与发布.md) (Chinese).
 
 ### From source (Python, stdlib only, no `pip install`)
 
@@ -129,6 +126,78 @@ CI runs the same gate on every push/PR (Windows runner):
 [`.github/workflows/verify.yml`](.github/workflows/verify.yml).
 
 Packaging steps: [docs/打包与发布.md](docs/打包与发布.md) (Chinese).
+
+## Roadmap: UI/UX upgrade and architecture rebuild
+
+> **Status: proposal, not shipped.** The current 0.x build is still a Tauri 3 shell
+> + Python 3.13 stdlib backend + nine static pages. The plan below describes where
+> the rebuild is going, not what the app already does.
+
+### UI/UX: from nine pages to one workbench (next)
+
+The nine pages are feature-complete, but page-shaped: to change one setting you
+first have to know which page owns it. The proposed replacement is a
+**signal-path workbench**, prototyped in
+[`webui/prototypes/MPV配置工作台原型.html`](webui/prototypes/MPV配置工作台原型.html).
+
+- Navigation follows mpv's real pipeline: **decode → scale → shader → sync →
+  audio → subtitles → performance**, not a feature menu.
+- One workbench has **three depths** (overview / tune / full) and **two densities**.
+  Depth changes what is exposed, never what the tool can do.
+- A persistent monitor shows **config / diff / health / write**. A command
+  palette (`Ctrl+K`) reaches options, stages and actions.
+- Every change gets a visible change strip and a way back. Before writing, the
+  target, diff, change count and backup path are shown together.
+- Motion only explains a state change; `prefers-reduced-motion` is respected.
+
+The prototype is clickable but uses sample data and simulates writes. It does not
+replace the current UI until these gates pass:
+
+1. The direction is accepted: signal-path navigation, three depths and the
+   monitor are understandable without a tutorial.
+2. A parity map covers every function of the nine pages; nothing is silently
+   dropped (keybindings, downloads, checkup, uosc, hell mode included).
+3. A data adapter talks to the existing API; the new surface and old pages can
+   coexist behind a route switch.
+4. Cut over one surface at a time; keep the old pages as fallback through a full
+   release cycle.
+5. Delete the old pages only after parity, keyboard access and write-safety
+   checks pass.
+
+**Not the goal:** a prettier nine-page skin, or a simplified "few switches" app
+that hides the 813-option depth. The simplification is of the path, not the
+capability.
+
+### Architecture: staged rebuild, not a big-bang rewrite (later, gated)
+
+**Current baseline:** Python 3.13 (stdlib only) owns `core/` and the HTTP/stdio
+transport; the Tauri shell is Rust; the frontend is static files. The Rust backend
+migration (T17) is **sealed** — there is no Rust backend crate and no active work
+on it. If it is unsealed, the agreed shape is B: keep the API contract and move
+`core/` + transport to Rust, with Python kept as the oracle during migration.
+
+1. **Spike:** move one vertical slice (parse → compute → return JSON). Compare
+   JSON output with Python, binary size and cold start. Stop if any of the three
+   misses its target.
+2. **Module migration:** pure computation first, then parsers/builders, then
+   network / install / hardware. Each module ships with golden fixtures generated
+   from Python; the existing tests stay as the outer gate.
+3. **Cut over:** all existing HTTP and stdio endpoints are green against the Rust
+   backend; Rust becomes the default while the Python backend stays as a rollback
+   for one release.
+4. **Packaging:** put the Rust sidecar inside the Tauri bundle and verify a clean
+   install on a machine with no Python.
+5. **Cleanup:** remove the Python backend only after the rollback window and the
+   installer checks pass. Update packaging, CI and docs in the same change.
+
+The rebuild is **not** a return to Electron, Node.js or a React SPA. The target
+stays a native WebView2 desktop tool. Packaging, native menu, single-instance lock
+and title-bar behaviour are tracked separately; this plan does not silently
+re-scope them.
+
+**Not planned in this rebuild:** macOS/Linux builds, auto-update, buying a
+code-signing certificate, or a full-disk shader scan. These remain out of scope
+until a new decision explicitly adds them.
 
 ## Stack and runtime versions
 
