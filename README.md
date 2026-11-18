@@ -93,7 +93,8 @@ conflicts / a six-axis score.
   result list, grouped by source
 - **My groups**: drag a parameter's handle onto 常用 / 画质 / 性能 / 字幕; the
   assignment is remembered in settings (display only — write order is unchanged)
-- **12-second undo**: after saving, an undo bar rolls back using the backup just created
+- **10-second undo**: after saving, an undo bar rolls back using the backup just created;
+  it pauses while your mouse hovers over it
 
 ## Why you can trust it with your config
 
