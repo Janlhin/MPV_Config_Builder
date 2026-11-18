@@ -195,12 +195,14 @@ function toast(msg, kind) {
   }, kind === 'err' ? 6000 : 2600);
 }
 
-/** 写完之后 12 秒内一键撤回（R-28）。
+/** 写完之后 10 秒内一键撤回（R-28）。
     只对「刚刚这一次写入」生效：拿后端返回的备份路径调 /api/restore。
-    撤回本身也会先备份当前版本，所以撤错了还能再回来 —— 不是把文件删了。 */
+    撤回本身也会先备份当前版本，所以撤错了还能再回来 —— 不是把文件删了。
+    两条细节：连续写入时先停掉上一条的计时器（否则旧计时器到点会 remove 掉新条）；
+    鼠标悬停 / 键盘焦点在条内时暂停倒计时（别在手指点下去之前消失）。 */
 function offerUndo(backs, seconds) {
   if (!backs || !backs.length) return;
-  seconds = seconds || 12;
+  seconds = seconds || 10;
   let bar = document.getElementById('undoBar');
   if (!bar) {
     bar = document.createElement('div');
@@ -208,16 +210,30 @@ function offerUndo(backs, seconds) {
     bar.className = 'undo-bar';
     document.body.appendChild(bar);
   }
+  /* 复用同一个条：先收掉上一次还在跑的计时器，不然它会到点把这一条提前删掉 */
+  if (bar._tick) clearInterval(bar._tick);
   bar.innerHTML = `<span>${I18N.t('undo.hint', { n: seconds })}</span>
     <button type="button" class="btn small" data-role="undo">${I18N.t('undo.action')}</button>`;
   let left = seconds;
+  let hover = false, focus = false, paused = false;
+  const syncPause = () => { paused = hover || focus; };
   const tick = setInterval(() => {
+    if (paused) return;
     left -= 1;
     const s = bar.querySelector('span');
     if (s) s.textContent = I18N.t('undo.hint', { n: Math.max(0, left) });
     if (left <= 0) stop();
   }, 1000);
-  function stop() { clearInterval(tick); bar.remove(); }
+  bar._tick = tick;
+  function stop() {
+    clearInterval(tick);
+    if (bar._tick === tick) bar._tick = null;
+    bar.remove();
+  }
+  bar.onmouseenter = () => { hover = true; syncPause(); };
+  bar.onmouseleave = () => { hover = false; syncPause(); };
+  bar.onfocusin = () => { focus = true; syncPause(); };
+  bar.onfocusout = () => { focus = false; syncPause(); };
   bar.onclick = async e => {
     if (!e.target.closest('[data-role="undo"]')) return;
     stop();

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""写后 12 秒撤销：后端要把这次的备份路径交出来，且按它回滚能真的还原。"""
+"""写后 10 秒撤销：后端要把这次的备份路径交出来，且按它回滚能真的还原。"""
 import tempfile
 import unittest
 from pathlib import Path
