@@ -131,13 +131,17 @@ class CDP:
 
 
 def launch(port, window="1440,900", headless=True):
-    """起一个浏览器进程，调试端口开在 `port`。返回 Popen（用完记得 terminate）。"""
+    """起一个浏览器进程，调试端口开在 `port`。返回 Popen（用完记得 terminate）。
+
+    固定 `--lang=zh-CN`：界面断言按中文写，测试只要一个确定的环境；
+    真实桌面壳首启仍跟随系统（见 i18n.js 的 detectSystemLang）。
+    """
     profile = tempfile.mkdtemp(prefix="dsh-cdp-")
     args = [find_browser()]
     if headless:
         args.append("--headless=new")
     args += [f"--remote-debugging-port={port}", f"--user-data-dir={profile}",
-             "--no-first-run", "--no-default-browser-check",
+             "--no-first-run", "--no-default-browser-check", "--lang=zh-CN",
              f"--window-size={window}", "--hide-scrollbars",
              "--force-device-scale-factor=1", "about:blank"]
     return subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

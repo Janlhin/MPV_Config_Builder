@@ -882,3 +882,19 @@ Python 后端（core 29 模块 8.5k 行 + server/api 1.6k 行）+ Tauri 3 预览
   （C）前端另造编辑历史栈 —— 等于第二套写入实现，见 2026-11-17 条。
 * **代价**：只改前端提示层，后端备份/回滚语义不变；`tests/test_undo.py` 仍只测后端回滚。
 * **判据**：`tests/test_undo.py` 1 项通过；人工验证连续写两次只有最新条计时、悬停时秒数停住。
+
+## 2026-11-19 首启跟随系统语言：中文系统中文，其余英文
+
+* **决策**：用户没手动切过语言时（localStorage 无 `mpvcb-lang`），启动读 `navigator.languages`，
+  按偏好顺序取第一个支持项：`zh*` → `zh-CN`，`en*` → `en`；都不支持但有值 → `en` 兜底；
+  读不到 → `zh-CN`（与旧默认一致）。检测函数挂在 `I18N.detect()`，方便单独验证。
+* **理由**：以前固定中文，英文系统用户首屏是中文，得先去顶栏找切换。Tauri/WebView2 的
+  `navigator.languages` 跟 Windows 显示语言，浏览器下跟浏览器 UI 语言，是启动前就能拿到的
+  零成本信号，不用等后端。
+* **被否决的替代方案**：（A）后端加 `/api/system-lang` —— 启动时拿不到同步值，得先渲染再异步切，
+  反而多闪一次；WebView2 的 navigator 已经跟系统。（B）把检测结果写进 localStorage ——
+  会把「自动」变成「手动」，系统改语言后不再跟随。
+* **代价**：网页版取的是浏览器 UI 语言，不是 Windows 显示语言；桌面壳为准，网页版可接受。
+  只有中英两套，其它语言统一落到英文。
+* **判据**：Node 桩测 9 组 locale 映射全过（zh / zh-Hans / zh-TW / en / en-GB / ja / fr+zh /
+  无 `languages` / 空）；`verify.py i18n` 仍绿。
