@@ -36,7 +36,8 @@ jobs:
         run: Copy-Item -LiteralPath docs/index.html -Destination index.html -Force
         shell: pwsh
       - uses: actions/configure-pages@v5
-        with:/n          enablement: true
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
