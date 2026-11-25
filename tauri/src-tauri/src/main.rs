@@ -99,6 +99,7 @@ fn acquire_instance_lock() -> bool {
     let path = dir.join("instance.lock");
     let file = match OpenOptions::new()
         .create(true)
+        .truncate(false)
         .read(true)
         .write(true)
         .open(&path)
@@ -178,7 +179,10 @@ fn spawn_backend(app: &tauri::AppHandle) -> Result<(), String> {
         .spawn()
         .map_err(|e| format!("启动后端失败（{program}）：{e}"))?;
     let stdin = child.stdin.take();
-    let stdout = child.stdout.take().ok_or_else(|| "拿不到后端 stdout".to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "拿不到后端 stdout".to_string())?;
     let stderr = child.stderr.take();
 
     let be = backend();

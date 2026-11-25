@@ -3,7 +3,7 @@ name = "mpv-config-builder"
 version = "0.1.0"
 description = "MPV Config Builder 的 Tauri 预览外壳"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.89"
 
 [build-dependencies]
 tauri-build = { version = "3.0.0-alpha.4", features = [] }
