@@ -19,10 +19,13 @@ Windows 上的 mpv 配置工具（GPL-3.0）：不播放视频，只负责把 `m
 | 根目录白名单 + README 目录声明 | `python tools\verify.py layout` | 退出码 0 |
 | 版本同源 | `python tools\verify.py stack` | 退出码 0 |
 | 单测 | `python -m unittest discover -s tests -t .` | 退出码 0 |
+| Ruff（语法/未定义名，开发环境） | `python -m ruff check core webui tools tests` | 退出码 0 |
+| 覆盖率（开发环境） | `python -m coverage run --source=core,webui -m pytest -q`，再 `python -m coverage report --fail-under=80` | 退出码 0 |
 | 版本文件同步 | `python tools\build.py version` | 改过 `core/schema.py` 的 `VERSION` 后跑 |
 
 `verify.py help` / `build.py help` 可列出全部子命令。命令一律用 `python`，**不要用 `py -3`**
-（本机 `py -3` 退出 103）。CI 在 **Windows runner** 跑 `verify.py --offline`
+（本机 `py -3` 退出 103）。Ruff / pytest / coverage 是开发依赖，先装
+`requirements-dev.txt`；它们不进发行包，也不改变“运行时只用标准库”的约束。CI 在 **Windows runner** 跑 `verify.py --offline`
 （`.github/workflows/verify.yml`，`shell: pwsh`）：必须 Windows（实机检查在 Linux 会退化成
 「跳过」= 假通过）；必须 `--offline`（外链每周日单独 job，同样阻断）；CI 验顶端提交，
 历史提交由本地钩子负责。
@@ -49,7 +52,8 @@ Windows 上的 mpv 配置工具（GPL-3.0）：不播放视频，只负责把 `m
 - **脚本基线**：仓库无 `.bat` / `.cmd`；`.ps1` 为 UTF-8 带 BOM + CRLF；改完跑 `build.py ps1`。
 - **根目录白名单**：只允许标准根文档（`README` / `AGENTS` / `CONTRIBUTING` /
   `SECURITY` / `CHANGELOG`）与三个封存指针（`DECISIONS` / `TASKS` / `MANIFEST`）、
-  `LICENSE`、点文件、`.github/` / `.githooks/` 与已声明目录；散文一律进 `docs/`；
+  开发配置（`pyproject.toml` / `requirements-dev.txt`）、`LICENSE`、点文件、
+  `.github/` / `.githooks/` 与已声明目录；散文一律进 `docs/`；
   新目录必须同步写进 README 的 `## Layout`（`verify.py layout` 的数据源）。
 - **版本只有一个来源**：`core/schema.py` 的 `VERSION`；改完跑 `build.py version`；
   `.python-version` 与 CI 同源（`verify.py stack` 判）；`APP_VERSION` 只给仓外旧界面，

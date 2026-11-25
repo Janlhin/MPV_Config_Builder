@@ -16,6 +16,22 @@ or:
 pwsh -NoProfile -File .\scripts\启动.ps1
 ```
 
+## Development tools
+
+The shipped runtime is still standard-library-only. The lint/test/coverage tools
+are development dependencies:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m ruff check core webui tools tests
+python -m coverage run --source=core,webui -m pytest -q
+python -m coverage report --fail-under=80
+```
+
+`ruff` currently runs a phase-1 ratchet (syntax and undefined names); broader
+rules are a follow-up. `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`
+and `cargo test` live under `tauri/src-tauri/`.
+
 ## Before you open a PR
 
 ```powershell
@@ -33,6 +49,7 @@ consistency, release files and browser UI behavior.
 - `webui/` — local HTTP/stdio server and static pages.
 - `tauri/` — desktop shell; it loads `webui/static` directly, no duplicate copy.
 - `tools/` — `build.py`, `verify.py`, `translate_docs.py`, `gen_compliance.py`, `uidriver.py`.
+- `requirements-dev.txt` — pinned Ruff / pytest / coverage; development only.
 - `docs/` — see [`docs/README.md`](docs/README.md) for the four-drawer map.
 
 ## Commit rules

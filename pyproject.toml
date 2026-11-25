@@ -1,0 +1,28 @@
+# Tooling configuration only. The runtime is Python 3.13 standard library;
+# development tools are pinned in requirements-dev.txt.
+#
+# This is a ratchet, not a full style rewrite. The first Ruff gate catches
+# syntax and undefined-name failures; broader rule sets are a follow-up once
+# the baseline is clean.
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+extend-exclude = [".venv", "build", "dist", "docs/_archive", "tauri"]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
+
+[tool.coverage.run]
+branch = true
+source = ["core", "webui"]
+
+[tool.coverage.report]
+skip_covered = true
+fail_under = 80

@@ -4091,7 +4091,8 @@ def cmd_precommit():
 ROOT_DOCS = ("README.md", "AGENTS.md", "CONTRIBUTING.md", "SECURITY.md",
              "CHANGELOG.md", "DECISIONS.md", "TASKS.md", "MANIFEST.md")
 #: 允许出现在仓库根的单个文件（点文件 / 许可证 / 运行时版本文件）
-ROOT_FILES = {".gitattributes", ".gitignore", ".python-version", ".editorconfig", "LICENSE"}
+ROOT_FILES = {".gitattributes", ".gitignore", ".python-version", ".editorconfig",
+              "LICENSE", "pyproject.toml", "requirements-dev.txt"}
 #: 允许出现在仓库根的目录（代码、数据、文档、协作平台配置）
 ROOT_DIRS = {
     "core", "data", "docs", "packaging", "scripts", "tauri", "tests", "tools",

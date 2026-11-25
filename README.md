@@ -115,7 +115,7 @@ This tool edits your files, so the rules live in the code and the tests:
 
 ```
 python -m unittest discover -s tests -t .
-python tools\verify.py          :: pre-release gate (add --offline to skip network checks)
+python tools\verify.py          # pre-release gate (add --offline to skip network checks)
 ```
 
 `verify.py` runs everything: unit tests, compile check, docs-vs-reality numbers,
@@ -124,8 +124,22 @@ topbar (real browser), and the Tauri shell (its live half only when
 `tauri/src-tauri/target/debug` has been built). Browser-based checks also
 cover the i18n switch, statusbar, context menu, keyboard shortcuts and animations.
 
+Development tooling is separate from the bundled runtime:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m ruff check core webui tools tests
+python -m coverage run --source=core,webui -m pytest -q
+python -m coverage report --fail-under=80
+```
+
+`pyproject.toml` holds the Ruff/pytest/coverage configuration. The Python
+checks run in the `quality` workflow; Rust uses `cargo fmt --check`,
+`cargo clippy --all-targets -- -D warnings` and `cargo test`.
+
 CI runs the same gate on every push/PR (Windows runner):
-[`.github/workflows/verify.yml`](.github/workflows/verify.yml).
+[`.github/workflows/verify.yml`](.github/workflows/verify.yml) and
+[`.github/workflows/quality.yml`](.github/workflows/quality.yml).
 
 Packaging steps: [docs/engineering/release.md](docs/engineering/release.md) (Chinese).
 
@@ -210,7 +224,9 @@ The gate (`verify.py layout`) checks the declared directories below against
 |---|---|---|
 | Language (backend + tools) | **Python 3.13** | `.python-version`; CI uses the same value |
 | Package manager / lock | **none** (stdlib only) | no `requirements.txt`, no virtualenv |
+| Development tools | **Ruff / pytest / coverage** | pinned in `requirements-dev.txt`; not shipped |
 | Desktop shell | **Tauri 3.0.0-alpha.6** | `tauri/src-tauri/Cargo.toml`, `Cargo.lock` is the lock |
+| Rust (desktop shell) | **1.89+** | `tauri/src-tauri/Cargo.toml` (`rust-version`) |
 | Shell entry | **PowerShell 7.4+** | `.ps1` files only; `.cmd` / `.bat` are forbidden |
 | Browser / UI | system **WebView2** | no Node.js, no npm build step |
 
@@ -246,7 +262,8 @@ data/          bundled data (options DB / keybindings / commands / raw mpv dump)
 
 The root holds the standard files (`README.md`, `AGENTS.md`, `CONTRIBUTING.md`,
 `SECURITY.md`, `CHANGELOG.md`), three pointer files to the frozen archive
-(`DECISIONS.md`, `TASKS.md`, `MANIFEST.md`), the license, dotfiles and these
+(`DECISIONS.md`, `TASKS.md`, `MANIFEST.md`), the license, dotfiles, the
+development config (`pyproject.toml`, `requirements-dev.txt`) and these
 directories; prose files belong under `docs/`. Anything new at the root has to
 be approved first, and `verify.py layout` fails otherwise.
 
