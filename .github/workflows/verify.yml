@@ -44,7 +44,7 @@ on:
 permissions:
   contents: read
 
-# 规则章节 脚本执行基线：显式声明 pwsh。windows-latest 的默认 shell 本来就是 pwsh，
+# 工程规则：脚本执行基线要求显式声明 pwsh。windows-latest 的默认 shell 本来就是 pwsh，
 # 但「默认」不等于「声明」——默认值会随 runner 镜像变化，声明不会。
 defaults:
   run:

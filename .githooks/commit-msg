@@ -1,5 +1,5 @@
 #!/bin/sh
-# 提交信息门禁（规则 L2 本地门禁层：git commit）。
+# 提交信息门禁（L2 本地门禁层：git commit）。
 #
 # 这个文件里**不放判断规则** —— 规则在 tools/verify.py 的 commitmsg 子命令里。
 # 钩子只做一件事实上的事：把 git 给的提交信息文件路径转发过去。

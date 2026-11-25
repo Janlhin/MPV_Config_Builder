@@ -4271,7 +4271,7 @@ def cmd_commitmsg():
                 for n in parts[:2]:
                     total += int(n) if n.isdigit() else 0
     if total > 400:
-        print(f"⚠ 本次暂存改动 {total} 行（规范建议单提交 ≤400 行）——"
+        print(f"⚠ 本次暂存改动 {total} 行（规则建议单提交 ≤400 行）——"
               f"能拆就拆，拆不动请在提交信息正文里写清理由。")
     print(f"✅ 提交信息合规：{subject}")
     return 0
