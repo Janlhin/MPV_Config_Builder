@@ -1,7 +1,7 @@
 # 致谢与许可
 
 > 本文档同时是**应用内「关于 / 致谢」页的文案底稿**，三处保持一致：
-> 仓库 README、`MPV_Shader搭配说明书.md`、应用内「关于」页。
+> 仓库 README、`shader-guide.md`、应用内「关于」页。
 > 更新时间：2026-09-13
 
 ---
@@ -13,7 +13,7 @@
 | 版本 | 0.1.0（开发中） |
 | 定位 | 给普通人的 mpv 配置工具：装好就能用，改配置不用手写 |
 | 平台 | Windows 10 / 11 |
-| 许可 | **GPL-3.0**（全文见仓库根 `LICENSE`；第三方归属见同目录 `NOTICE.txt`） |
+| 许可 | **GPL-3.0**（全文见仓库根 `LICENSE`；第三方归属见 [`NOTICE.txt`](../../compliance/NOTICE.txt)） |
 | 性质 | **非官方第三方工具**，与下文任何项目及其作者无隶属关系 |
 
 ---
@@ -32,12 +32,12 @@
 
 | 内容 | 来源 | 许可 | 在本工具里的位置 |
 |---|---|---|---|
-| **726 条中文选项说明** | **[mpv_doc-CN](https://github.com/hooke007/mpv_doc-CN)**（mpv 官方手册中文翻译，hooke007 维护） | **GPL-3.0** | `data/mpv_options_zh.json` 的 `zh_desc` 字段 |
+| **727 条中文选项说明** | **[mpv_doc-CN](https://github.com/hooke007/mpv_doc-CN)**（mpv 官方手册中文翻译，hooke007 维护） | **GPL-3.0** | `data/mpv_options_zh.json` 的 `zh_desc` 字段 |
 | 选项表（键名 / 类型 / 取值范围 / 默认值，原始 829 条、可写进配置 813 条） | **原版 mpv**（`mpv --list-options` 输出） | mpv 项目许可 | `data/mpv_options_zh.json`、`data/_mpv_options_raw.txt` |
 | 209 条内置默认键位 | **原版 mpv**（`input-bindings` 属性导出） | mpv 项目许可 | `data/mpv_keybindings.json` |
 | 86 条 mpv 命令 | **原版 mpv**（`mpv --input-cmdlist`） | mpv 项目许可 | `data/mpv_commands.json` |
 
-> **重点**：`data/mpv_options_zh.json` 里那 726 条中文说明是 mpv 官方手册中文版的**衍生数据**，
+> **重点**：`data/mpv_options_zh.json` 里那 727 条中文说明是 mpv 官方手册中文版的**衍生数据**，
 > 该文件自身也标注了 `"license_note": "中文说明来自 mpv_doc-CN，GPL-3.0；本文件是其衍生数据"`。
 > **它随仓库/安装包一起分发**，因此不是"仅引用"，而是"再分发 GPL-3.0 内容"。
 > 打包发布时必须附上 GPL-3.0 许可证全文，并保留上述归属声明。
@@ -85,7 +85,7 @@
   「下载器」与「一键安装 mpv-lazy」功能只指向各项目的官方发布地址，
   由用户自行下载。
 
-  **例外（必须知道）**：`data/mpv_options_zh.json` 里内嵌了 726 条
+  **例外（必须知道）**：`data/mpv_options_zh.json` 里内嵌了 727 条
   mpv_doc-CN（GPL-3.0）的中文选项说明，这部分是随本工具一起分发的第三方内容，
   详见上文「文档与数据来源」。除此之外没有别的内嵌第三方内容。
 
@@ -105,7 +105,7 @@
 | 类别 | 内容 | 处理方式 |
 |---|---|---|
 | **内置代码** | 本项目自身源码、界面文案 | 归本项目；**GPL-3.0**（见下节） |
-| **内置数据 ①** | 参数说明**中文部分**（726 条）、预设组合文案 | **来自 mpv_doc-CN，GPL-3.0，随包分发** —— 见上文 |
+| **内置数据 ①** | 参数说明**中文部分**（727 条）、预设组合文案 | **来自 mpv_doc-CN，GPL-3.0，随包分发** —— 见上文 |
 | **内置数据 ②** | 选项表结构（键名/类型/范围/默认值）、键位表、命令表、shader 名称与官方路径 | 整理自原版 mpv 的导出数据；路径仅作引用，不含文件内容 |
 | **外部链接** | 「资源 / 下载」页的 24 个链接（**目前只在旧版 Tkinter 界面**） | 仅跳转，不缓存、不代理 |
 | **下载功能** | shader 直链（Anime4K / FSRCNNX / RAVU）、mpv-lazy 官方 release | 运行时从官方地址下载；**不随程序分发** |
@@ -120,7 +120,7 @@
 全文见仓库根目录的 **`LICENSE`**；第三方内容的来源与许可汇总在同目录的
 **`NOTICE.txt`**（那份面向**分发者**，本文面向**最终用户**，两者不重复）。
 
-**为什么选它**：本工具随包分发 `data/mpv_options_zh.json`，其中内嵌 726 条
+**为什么选它**：本工具随包分发 `data/mpv_options_zh.json`，其中内嵌 727 条
 来自 mpv_doc-CN 的中文选项说明（GPL-3.0）。GPL-3.0 具传染性 —— 分发这份衍生数据，
 整个分发物就要按 GPL-3.0 条款走。选整体 GPL-3.0 是最省事、也最不容易出合规问题的做法。
 
@@ -129,9 +129,9 @@
 | 方案 | 为什么没选 |
 |---|---|
 | MIT + 数据文件单独标注 GPL-3.0 | 一个仓库两种许可，对普通用户不友好；打包时还得保证不把数据混进 MIT 声明里 |
-| 把 726 条中文说明从分发包里拆出去 | 代码就能任选许可，但界面里就没有中文选项说明了 —— 等于砍掉一大卖点 |
+| 把 727 条中文说明从分发包里拆出去 | 代码就能任选许可，但界面里就没有中文选项说明了 —— 等于砍掉一大卖点 |
 
-**分发时**（打包成安装包）必须一并带上 `LICENSE` 全文与 `docs/NOTICE.txt`。
+**分发时**（打包成安装包）必须一并带上 `LICENSE` 全文与 `docs/compliance/NOTICE.txt`。
 不附就分发属于许可证不合规。
 
 ---
@@ -149,7 +149,7 @@ MPV Config Builder  v0.1.0
 · mpv / mpv-player —— 播放器本体与官方手册
 · hooke007 —— mpv-lazy / mpv_PlayKit（本工具最重要的参考来源）
 · hooke007 —— mpv_doc-CN（mpv 官方手册中文翻译，GPL-3.0）
-  ※ 完全体里的 726 条中文选项说明来自该项目
+  ※ 完全体里的 727 条中文选项说明来自该项目
 · bloc97 (Anime4K)、igv (FSRCNNX / KrigBilateral / SSim)、
   bjin (mpv-prescalers / RAVU)、Artoriuz (ArtCNN)、
   the-database (AnimeJaNai)、iwalton3 (default-shader-pack)
@@ -163,10 +163,10 @@ MPV Config Builder  v0.1.0
 本工具不包含、不重新分发任何第三方二进制、着色器或脚本文件；
 下载功能只指向各项目的官方发布地址。
 
-例外：完全体里的 726 条中文选项说明来自 mpv_doc-CN（GPL-3.0），
+例外：完全体里的 727 条中文选项说明来自 mpv_doc-CN（GPL-3.0），
 这部分中文内容随本工具一起分发，其版权归原作者，遵循 GPL-3.0。
 **本工具自身也按 GPL-3.0 分发** —— 许可证全文见安装目录下的 `LICENSE`，
-第三方归属汇总见 `NOTICE.txt`。
+第三方归属汇总见 [`docs/compliance/NOTICE.txt`](../../compliance/NOTICE.txt)。
 
 所有第三方资源的版权与许可归其原作者所有。
 

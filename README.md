@@ -1,6 +1,6 @@
 # MPV Config Builder
 
-[中文说明](docs/README.zh-CN.md) · **English**
+[中文说明](docs/user/zh-CN/README.md) · **English**
 
 **Puts all 813 mpv options on the table, and tells you which ones fight each other.**
 
@@ -26,7 +26,7 @@ Existing mpv configurators hand you a few dozen common options. This one is diff
 |---|---|---|
 | Options covered | a few dozen (at most 74) | **813** (full database) |
 | Conflict detection | none | **17 rules**, each annotated with the manual's wording |
-| Option descriptions | none or web lookups | **714 built-in Chinese descriptions** (726 raw, 12 dropped with CLI-only options) |
+| Option descriptions | none or web lookups | **715 built-in Chinese descriptions** (727 raw, 12 dropped with CLI-only options) |
 | Can it write deprecated options | yes | CLI-only options are **filtered on read** (16) and deprecated ones are flagged |
 
 The UI follows your system language on first launch — a Chinese system gets
@@ -47,7 +47,7 @@ cargo build
 
 For a local installer, run `cargo tauri build` from `tauri\`. Needs a Rust
 toolchain + WebView2 (built into Win10/11). Details and the release plan:
-[docs/打包与发布.md](docs/打包与发布.md) (Chinese).
+[docs/engineering/release.md](docs/engineering/release.md) (Chinese).
 
 ### From source (Python, stdlib only, no `pip install`)
 
@@ -127,7 +127,7 @@ cover the i18n switch, statusbar, context menu, keyboard shortcuts and animation
 CI runs the same gate on every push/PR (Windows runner):
 [`.github/workflows/verify.yml`](.github/workflows/verify.yml).
 
-Packaging steps: [docs/打包与发布.md](docs/打包与发布.md) (Chinese).
+Packaging steps: [docs/engineering/release.md](docs/engineering/release.md) (Chinese).
 
 ## Roadmap: UI/UX upgrade and architecture rebuild
 
@@ -223,9 +223,9 @@ Top-level directories and what they are for (declared here because the gate
 compares this list with what actually exists):
 
 ```
-core/          UI-agnostic logic (26 modules)
+core/          UI-agnostic logic (29 modules)
 webui/         web UI
-  server.py      local server + JSON API (42 endpoints, stdlib only)
+  server.py      local server + JSON API (48 endpoints, stdlib only)
   api.py         transport-agnostic dispatch (shared by HTTP and stdio)
   stdio.py       stdio transport: protocol on stdout, logs on stderr
   static/        9 pages
@@ -235,16 +235,18 @@ tauri/         Tauri shell (Rust + system WebView2; no installer yet — see pac
 packaging/     PyInstaller recipe (standalone backend exe)
 scripts/       source-run entry (`启动.ps1`) — the only launcher
 tests/         unit tests
-tools/         build.py (generate) / verify.py (verify) / uidriver.py (browser driver)
-docs/          user docs (the four documents the UI renders, both READMEs, NOTICE.txt)
-               + field-tested conclusions (pitfalls) + packaging & release
+tools/         build.py (generate) / verify.py (verify) / translate_docs.py (translate) /
+               gen_compliance.py (checksum ledger) / uidriver.py (browser driver)
+docs/          user/{zh-CN,en}/ + engineering/ + adr/ + compliance/ + _archive/
+               (app-rendered docs + engineering notes + decisions + third-party ledger)
 data/          bundled data (options DB / keybindings / commands / raw mpv dump)
 .github/       CI: push / PR runs the pre-release gate on Windows
 .githooks/     local commit gates (pre-commit, commit-msg) — thin `sh` shells
 ```
 
-The root holds **only** the five documents (`README.md`, `AGENTS.md`,
-`DECISIONS.md`, `TASKS.md`, `MANIFEST.md`), the license, dotfiles and these
+The root holds the standard files (`README.md`, `AGENTS.md`, `CONTRIBUTING.md`,
+`SECURITY.md`, `CHANGELOG.md`), three pointer files to the frozen archive
+(`DECISIONS.md`, `TASKS.md`, `MANIFEST.md`), the license, dotfiles and these
 directories; prose files belong under `docs/`. Anything new at the root has to
 be approved first, and `verify.py layout` fails otherwise.
 
@@ -260,11 +262,12 @@ default branch (the local hook covers the rest).
 
 **GPL-3.0** — full text in [`LICENSE`](LICENSE).
 
-Why GPL-3.0: the bundled `data/mpv_options_zh.json` embeds **726 Chinese option
+Why GPL-3.0: the bundled `data/mpv_options_zh.json` embeds **727 Chinese option
 descriptions from [mpv_doc-CN](https://github.com/hooke007/mpv_doc-CN)**
 (GPL-3.0), and GPL-3.0 is viral.
 
-Third-party sources and licenses are summarized in [`docs/NOTICE.txt`](docs/NOTICE.txt).
+Third-party sources and licenses are summarized in [`docs/compliance/NOTICE.txt`](docs/compliance/NOTICE.txt).
+The machine-checkable ledger is [`docs/compliance/SHA256SUMS`](docs/compliance/SHA256SUMS).
 This project **bundles and forwards no third-party binaries** — the download
 centre only fetches from each project's official address when you click.
 

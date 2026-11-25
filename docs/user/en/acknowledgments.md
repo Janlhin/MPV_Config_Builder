@@ -13,7 +13,7 @@
 | Version | 0.1.0 (in development) |
 | Positioning | An mpv configuration tool for ordinary users: ready to use out of the box, no manual editing of configurations required |
 | Platform | Windows 10 / 11 |
-| License | **GPL-3.0** (full text in the repository root `LICENSE`; third-party attributions in the same directory's `NOTICE.txt`) |
+| License | **GPL-3.0** (full text in the repository root `LICENSE`; third-party attributions in [`docs/compliance/NOTICE.txt`](../../compliance/NOTICE.txt)) |
 | Nature | **Unofficial third-party tool**, not affiliated with any of the projects or their authors mentioned below |
 
 ---
@@ -32,12 +32,12 @@ This section must make it clear: this tool includes some **third-party text cont
 
 | Content | Source | License | Location in this tool |
 |---|---|---|---|
-| **726 Chinese option descriptions** | **[mpv_doc-CN](https://github.com/hooke007/mpv_doc-CN)** (Chinese translation of the official mpv manual, maintained by hooke007) | **GPL-3.0** | The `zh_desc` field in `data/mpv_options_zh.json` |
+| **727 Chinese option descriptions** | **[mpv_doc-CN](https://github.com/hooke007/mpv_doc-CN)** (Chinese translation of the official mpv manual, maintained by hooke007) | **GPL-3.0** | The `zh_desc` field in `data/mpv_options_zh.json` |
 | Option table (key name / type / value range / default value, 829 original entries, 813 that can be written to the configuration) | **Original mpv** (output of `mpv --list-options`) | mpv project license | `data/mpv_options_zh.json`, `data/_mpv_options_raw.txt` |
 | 209 built-in default key bindings | **Original mpv** (exported from the `input-bindings` property) | mpv project license | `data/mpv_keybindings.json` |
 | 86 mpv commands | **Original mpv** (`mpv --input-cmdlist`) | mpv project license | `data/mpv_commands.json` |
 
-> **Key point**: The 726 Chinese descriptions in `data/mpv_options_zh.json` are **derivative data** from the official Chinese version of the mpv manual.
+> **Key point**: The 727 Chinese descriptions in `data/mpv_options_zh.json` are **derivative data** from the official Chinese version of the mpv manual.
 > The file itself also states: `"license_note": "The Chinese descriptions are from mpv_doc-CN, GPL-3.0; this file is its derivative data."`
 > **It is distributed along with the repository/installation package**, so it is not "mere citation" but "redistribution of GPL-3.0 content."
 > When packaging for release, the full text of the GPL-3.0 license must be included, and the attribution statement above must be preserved.
@@ -85,7 +85,7 @@ This section must make it clear: this tool includes some **third-party text cont
   The "Downloader" and "One-Click Install mpv-lazy" features only point to the official release addresses of each project,
   and users are responsible for downloading them.
 
-  **Exception (must be aware of)**: The file `data/mpv_options_zh.json` embeds 726
+  **Exception (must be aware of)**: The file `data/mpv_options_zh.json` embeds 727
   Chinese option descriptions from mpv_doc-CN (GPL-3.0). This portion is third-party content distributed with this tool.
   For details, see the "Documentation and Data Sources" section above. There is no other embedded third-party content.
 
@@ -105,7 +105,7 @@ When asked during public release, "What gives you the right to package other peo
 | Category | Content | Handling |
 |---|---|---|
 | **Built-in Code** | The project's own source code, UI text | Belongs to this project; **GPL-3.0** (see next section) |
-| **Built-in Data ①** | **Chinese portion** of parameter descriptions (726 entries), preset combination text | **From mpv_doc-CN, GPL-3.0, distributed with the package** — see above |
+| **Built-in Data ①** | **Chinese portion** of parameter descriptions (727 entries), preset combination text | **From mpv_doc-CN, GPL-3.0, distributed with the package** — see above |
 | **Built-in Data ②** | Option table structure (key name/type/range/default value), key binding table, command table, shader names and official paths | Organized from exported data of the original mpv; paths are for reference only and do not include file contents |
 | **External Links** | 24 links on the "Resources / Downloads" page (**currently only in the old Tkinter UI**) | Redirect only; no caching or proxying |
 | **Download Functionality** | Direct links for shaders (Anime4K / FSRCNNX / RAVU), official releases of mpv-lazy | Downloaded from official addresses at runtime; **not distributed with the program** |
@@ -116,18 +116,18 @@ When asked during public release, "What gives you the right to package other peo
 **GNU General Public License v3.0 (GPL-3.0)** — decided on 2026-09-14.
 
 The full text is in the **`LICENSE`** file at the root of the repository. A summary of the sources and licenses for third-party content is in the same directory's
-**`NOTICE.txt`** (that file is for **distributors**; this document is for **end users**, and the two do not overlap).
+**`docs/compliance/NOTICE.txt`** (that file is for **distributors**; this document is for **end users**, and the two do not overlap).
 
-**Why this license was chosen**: This tool distributes `data/mpv_options_zh.json` as part of its package. It contains 726 Chinese descriptions of options embedded from mpv_doc-CN (GPL-3.0). GPL-3.0 is "infectious" — when distributing this derived data, the entire distribution must comply with the terms of GPL-3.0. Choosing GPL-3.0 for the entire project is the simplest approach and the one least likely to cause compliance issues.
+**Why this license was chosen**: This tool distributes `data/mpv_options_zh.json` as part of its package. It contains 727 Chinese descriptions of options embedded from mpv_doc-CN (GPL-3.0). GPL-3.0 is "infectious" — when distributing this derived data, the entire distribution must comply with the terms of GPL-3.0. Choosing GPL-3.0 for the entire project is the simplest approach and the one least likely to cause compliance issues.
 
 The other two options that were considered but **not adopted** are listed here for reference:
 
 | Plan | Why it wasn't chosen |
 |---|---|
 | MIT + data files separately marked with GPL-3.0 | Two licenses in one repository is not user-friendly; when packaging, you also have to ensure that the data isn't mixed into the MIT declaration |
-| Remove the 726 Chinese descriptions from the distribution package | The code could then use any license, but the interface would lose its Chinese option descriptions — which is equivalent to cutting out a major selling point |
+| Remove the 727 Chinese descriptions from the distribution package | The code could then use any license, but the interface would lose its Chinese option descriptions — which is equivalent to cutting out a major selling point |
 
-**When distributing** (packaged into an installer), the full text of `LICENSE` and `docs/NOTICE.txt` must be included.
+**When distributing** (packaged into an installer), the full text of `LICENSE` and `docs/compliance/NOTICE.txt` must be included.
 Distributing without them constitutes a license violation.
 
 ---
@@ -145,7 +145,7 @@ Thanks to the following projects and authors (in no particular order)
 · mpv / mpv-player —— the player itself and its official manual
 · hooke007 —— mpv-lazy / mpv_PlayKit (the most important reference for this tool)
 · hooke007 —— mpv_doc-CN (Chinese translation of the official mpv manual, GPL-3.0)
-  ※ The 726 Chinese option descriptions in the complete version come from this project
+  ※ The 727 Chinese option descriptions in the complete version come from this project
 · bloc97 (Anime4K), igv (FSRCNNX / KrigBilateral / SSim),
   bjin (mpv-prescalers / RAVU), Artoriuz (ArtCNN),
   the-database (AnimeJaNai), iwalton3 (default-shader-pack)
@@ -160,10 +160,10 @@ This tool is an unofficial third-party tool and is not affiliated with the afore
 This tool does not include or redistribute any third-party binaries, shaders, or script files;
 The download function only points to the official release addresses of each project.
 
-Exception: The 726 Chinese option descriptions in the full version are from mpv_doc-CN (GPL-3.0).
+Exception: The 727 Chinese option descriptions in the full version are from mpv_doc-CN (GPL-3.0).
 This Chinese content is distributed along with this tool, and its copyright belongs to the original authors, under the GPL-3.0 license.
 **This tool itself is also distributed under the GPL-3.0 license** — see the `LICENSE` file in the installation directory for the full license text,
-and see `NOTICE.txt` for a summary of third-party attributions.
+and see [`docs/compliance/NOTICE.txt`](../../compliance/NOTICE.txt) for a summary of third-party attributions.
 
 The copyright and licenses of all third-party resources belong to their original authors.
 

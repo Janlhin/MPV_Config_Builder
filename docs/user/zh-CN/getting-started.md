@@ -272,6 +272,6 @@ vf=vapoursynth="~~/vs/MEMC_RIFE_NV.vpy"
 
 ---
 
-**相关文档**：`MPV_Shader搭配说明书.md`（画面怎么搭最锐）、`致谢与许可.md`（用到了谁的成果）。
+**相关文档**：`shader-guide.md`（画面怎么搭最锐）、`acknowledgments.md`（用到了谁的成果）。
 **权威来源**：[mpv 官方手册](https://mpv.io/manual/master/) · [mpv_doc-CN 中文手册](https://github.com/hooke007/mpv_doc-CN) ·
 [mpv-lazy / mpv_PlayKit](https://github.com/hooke007/mpv_PlayKit)

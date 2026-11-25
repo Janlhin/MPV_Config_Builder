@@ -1,6 +1,6 @@
 # MPV Config Builder
 
-[English](../README.md) · **中文说明**（本页） · 打包与发布详版见 [打包与发布.md](打包与发布.md)
+[English](../../../README.md) · **中文说明**（本页） · 打包与发布详版见 [release.md](../../engineering/release.md)
 
 **把 mpv 的 813 个选项摊开给你调，还告诉你哪个和哪个打架。**
 
@@ -26,7 +26,7 @@
 |---|---|---|
 | 覆盖的选项 | 几十个（同类工具最多 74 个） | **813 个**（全量库） |
 | 冲突检测 | 没有 | **17 条规则**，每条注明手册原文 |
-| 选项说明 | 没有或靠联网查 | **714 条中文说明**内嵌（原始 726 条，12 条随命令行专用项滤除） |
+| 选项说明 | 没有或靠联网查 | **715 条中文说明**内嵌（原始 727 条，12 条随命令行专用项滤除） |
 | 会不会写出已废弃的选项 | 会 | 读取时**滤掉** 16 条命令行专用项，并标出 deprecated |
 
 ## 怎么用
@@ -44,7 +44,7 @@ cargo build
 ```
 
 要生成安装包，在 `tauri\` 下运行 `cargo tauri build`。详细步骤与后续打包计划见
-[打包与发布.md](打包与发布.md)。
+[release.md](../../engineering/release.md)。
 
 需要 Rust 工具链 + WebView2（Win10/11 自带）。
 
@@ -121,11 +121,11 @@ Tauri 外壳（实机那半要 `cargo build` 出 exe 才跑）。
 ```powershell
 python tools\verify.py topnav     # 9 个页面的顶栏入口
 python tools\verify.py stdio      # 9 个页面跑在 stdio 通道上
-python tools\verify.py tauri      # Tauri 外壳（25 项，含窗口与关窗实测）
+python tools\verify.py tauri      # Tauri 外壳（静态 18 项；实机要 exe）
 ```
 
 每次 `push` 与 PR 都会在 CI 上跑一遍上面的自检，配置在
-[`.github/workflows/verify.yml`](../.github/workflows/verify.yml)。
+[`.github/workflows/verify.yml`](../../../.github/workflows/verify.yml)。
 runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Tauri 检查要 `cargo build` 出的 exe，
 换 Linux 上这两项会退化成「跳过」，绿灯就成了假的。
 外链可达性不与代码提交绑定，改为每周日单独跑一次。
@@ -139,7 +139,7 @@ runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Tauri 检查要 `c
 
 九个页面功能是齐的，但「页面思维」太重：想改一项，得先知道它归哪一页。下一版
 准备换成一个**信号路径工作台**，可点击原型在
-[`webui/prototypes/MPV配置工作台原型.html`](../webui/prototypes/MPV配置工作台原型.html)。
+[`webui/prototypes/MPV配置工作台原型.html`](../../../webui/prototypes/MPV配置工作台原型.html)。
 
 - 导航按 mpv 真实的处理顺序：**解码 → 缩放 → Shader → 同步 → 音频 → 字幕 →
   性能**，不按功能清单排。
@@ -166,7 +166,8 @@ runner 是 Windows —— 顶栏实机检查要 Edge/Chrome、Tauri 检查要 `c
 
 **现状**：Python 3.13（仅标准库）负责 `core/` 与 HTTP/stdio 传输；Tauri 外壳是
 Rust；前端是静态文件。Rust 后端迁移（T17）**已封存**——没有 Rust 后端 crate，
-也没有在推进；结论与封存记录见 [`DECISIONS.md`](../DECISIONS.md)。若解封，按
+也没有在推进；结论与封存记录见
+[`docs/_archive/legacy-governance-2026-11-25/DECISIONS.md`](../../_archive/legacy-governance-2026-11-25/DECISIONS.md)。若解封，按
 已定的 B 档：保留 API 契约，把 `core/` + 传输换 Rust，迁移期用 Python 当 oracle。
 
 1. **Spike**：搬一条竖切片（解析 → 计算 → 返回 JSON）。JSON 输出、单二进制体积、
@@ -202,25 +203,27 @@ tauri/         Tauri 桌面外壳（Rust + 系统 WebView2；安装包暂未出�
 packaging/     PyInstaller 配方（把后端打成独立 exe）
 scripts/       源码运行入口（`启动.ps1`，唯一的启动器）
 tests/         单元测试
-tools/         build.py（生成）/ verify.py（验证）/ uidriver.py（浏览器驱动共用）
+tools/         build.py（生成）/ verify.py（验证）/ translate_docs.py（翻译）/
+               gen_compliance.py（哈希台账）/ uidriver.py（浏览器驱动共用）
 .github/       CI：push / PR 在 Windows runner 上跑一遍发布前自检
-docs/          用户文档（界面能读的 4 份、中英 README、NOTICE.txt）+ 实测结论
+docs/          文档树：user/{zh-CN,en}/ + engineering/ + adr/ + compliance/ + _archive/
 data/          内置数据（选项库 / 键位 / 命令 / mpv 原始输出）
 ```
 
-仓库根目录**只放**五个文档（`README.md` / `AGENTS.md` / `DECISIONS.md` /
-`TASKS.md` / `MANIFEST.md`）、许可证、点文件和上面这些目录；散文类文件一律进
-`docs/`，`verify.py layout` 会与 `git ls-files` 比对。
+仓库根目录只放标准件（`README.md` / `AGENTS.md` / `CONTRIBUTING.md` /
+`SECURITY.md` / `CHANGELOG.md`），以及三个指向封存档案的旧账指针
+（`DECISIONS.md` / `TASKS.md` / `MANIFEST.md`）、许可证、点文件和目录；
+散文类文件一律进 `docs/`，`verify.py layout` 会与 `git ls-files` 比对。
 
 ## 许可
 
-**GPL-3.0** —— 全文见 [`LICENSE`](../LICENSE)。
+**GPL-3.0** —— 全文见 [`LICENSE`](../../../LICENSE)。
 
-为什么是 GPL-3.0：随包分发的 `data/mpv_options_zh.json` 内嵌了 **726 条来自
+为什么是 GPL-3.0：随包分发的 `data/mpv_options_zh.json` 内嵌了 **727 条来自
 [mpv_doc-CN](https://github.com/hooke007/mpv_doc-CN) 的中文选项说明**（GPL-3.0），
 而 GPL-3.0 具传染性。
 
-第三方内容的来源与许可汇总在 [`NOTICE.txt`](NOTICE.txt)。
+第三方内容的来源与许可汇总在 [`NOTICE.txt`](../../compliance/NOTICE.txt)。
 本项目**不内置、不转发**任何第三方二进制 —— 下载中心只在用户点击时从各项目的
 **官方地址**取。
 

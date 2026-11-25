@@ -145,10 +145,12 @@ def cmd_all():
     sys.stdout.reconfigure(encoding="utf-8")
 
     # 界面上能在线打开的文档（webui/server.py 的 DOCS 白名单）+ 发行包该带的
-    # 2026-11-17 起它们都在 docs/（根目录只留五个文档，见 README「目录结构」）
+    # 2026-11-25 起按 user/{zh-CN,en}/ 分层存放；根目录只留标准件。
     REQUIRED_DOCS = [
-        "docs/入门指南.md", "docs/MPV_Shader搭配说明书.md", "docs/致谢与许可.md",
-        "docs/产品规划与路线图.md",
+        "docs/user/zh-CN/getting-started.md",
+        "docs/user/zh-CN/shader-guide.md",
+        "docs/user/zh-CN/acknowledgments.md",
+        "docs/user/zh-CN/roadmap.md",
     ]
     REQUIRED_DATA = [
         "data/mpv_options_zh.json", "data/mpv_keybindings.json", "data/mpv_commands.json",
@@ -160,7 +162,7 @@ def cmd_all():
     # ⚠ 为什么把它们列进"必带"而不是只在结尾提醒一句：提醒是**空话** ——
     # 忘了也没人拦。之前它们既不在这个清单里、也不在打包文档的 --add-data 里，
     # 也就是说"提醒你带"和"检查你带了"之间是断的。
-    REQUIRED_LEGAL = ["LICENSE", "docs/NOTICE.txt"]
+    REQUIRED_LEGAL = ["LICENSE", "docs/compliance/NOTICE.txt"]
 
     # 不该再出现的"作者机器专用"路径（用户名硬编码）
     FORBIDDEN = [re.compile(r"C:\\Users\\Janlhin", re.I)]
@@ -255,9 +257,9 @@ def cmd_all():
         if len(text.encode("utf-8")) < 30000:
             problems.append(f"太短（{len(text.encode('utf-8'))} 字节）—— GPL-3.0 全文约 35 KB")
 
-        notice = ROOT / "docs" / "NOTICE.txt"
+        notice = ROOT / "docs" / "compliance" / "NOTICE.txt"
         if not notice.is_file():
-            problems.append("没有 docs/NOTICE.txt")
+            problems.append("没有 docs/compliance/NOTICE.txt")
         else:
             nt = notice.read_text(encoding="utf-8", errors="replace")
             for label, needle in (("本项目许可声明", "GPL-3.0"),
@@ -669,11 +671,12 @@ def cmd_docs():
         bad_total = 0
         # 2026-09-14 清理过一轮开发文档：已完成清单 / 问题清单 / 制作与发布文档都删了
         # （在 git 历史里）。这里只剩真正还在的文档，**加新文档记得同步这份列表**。
-        for name in ("docs/README.zh-CN.md", "README.md", "docs/产品规划与路线图.md",
-                     # ⚠ 2026-10-09 补齐：这三份以前**不在检查范围里**，
-                     # 数字写错也没人拦（它们同样是用户与打包会读到的文档）。
-                     "docs/入门指南.md", "docs/致谢与许可.md",
-                     "docs/MPV_Shader搭配说明书.md"):
+        for name in ("docs/user/zh-CN/README.md", "README.md",
+                     "docs/user/zh-CN/roadmap.md",
+                     # ⚠ 这三份以前**不在检查范围里**，数字写错也没人拦。
+                     "docs/user/zh-CN/getting-started.md",
+                     "docs/user/zh-CN/acknowledgments.md",
+                     "docs/user/zh-CN/shader-guide.md"):
             p = ROOT / name
             if not p.is_file():
                 continue
@@ -3694,7 +3697,8 @@ def cmd_pack():
         for rel in ("data/mpv_options_zh.json", "data/mpv_keybindings.json",
                     "data/mpv_commands.json", "webui/static/index.html",
                     "webui/static/api.js", "webui/static/style.css",
-                    "LICENSE", "docs/NOTICE.txt", "docs/入门指南.md"):
+                    "LICENSE", "docs/compliance/NOTICE.txt",
+                    "docs/user/zh-CN/getting-started.md"):
             ck(f"包内带上了 {rel}", (internal / rel).is_file())
 
         # ---- stdio：协议纯净性（本 spec 的核心风险）----
@@ -4083,10 +4087,11 @@ def cmd_precommit():
 # ==========================================================================
 # layout（根目录白名单 + README 目录声明）
 # ==========================================================================
-#: 允许出现在仓库根的散文类文档（只有这五份）
-ROOT_DOCS = ("README.md", "AGENTS.md", "DECISIONS.md", "TASKS.md", "MANIFEST.md")
+#: 允许出现在仓库根的散文类文档（标准件 + 三个旧账指针）
+ROOT_DOCS = ("README.md", "AGENTS.md", "CONTRIBUTING.md", "SECURITY.md",
+             "CHANGELOG.md", "DECISIONS.md", "TASKS.md", "MANIFEST.md")
 #: 允许出现在仓库根的单个文件（点文件 / 许可证 / 运行时版本文件）
-ROOT_FILES = {".gitattributes", ".gitignore", ".python-version", "LICENSE"}
+ROOT_FILES = {".gitattributes", ".gitignore", ".python-version", ".editorconfig", "LICENSE"}
 #: 允许出现在仓库根的目录（代码、数据、文档、协作平台配置）
 ROOT_DIRS = {
     "core", "data", "docs", "packaging", "scripts", "tauri", "tests", "tools",
@@ -4097,7 +4102,7 @@ ROOT_DIRS = {
 def cmd_layout():
     """根目录白名单：`git ls-files` 的顶层条目必须都在声明范围内。
 
-    为什么要有它：规则要求「除五个文档外，根目录不放任何散文类文件」，
+    为什么要有它：规则要求「除标准根文档外，根目录不放任何散文类文件」，
     新增条目要先询问。靠人记是记不住的 —— 2026-11-17 一次搬迁前，
     根目录同时躺着 4 份界面文档、NOTICE、中文 README、跳转页、原始数据、
     启动器共 9 个白名单外条目。这里把它变成可机器比对的一步。

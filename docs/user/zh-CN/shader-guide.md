@@ -264,7 +264,7 @@ CTRL+0 change-list glsl-shaders clr ""
 
 ## 7. 致谢与免责
 
-本文档与配套工具能写出来，主要靠这些人和项目（完整版见 `致谢与许可.md`）：
+本文档与配套工具能写出来，主要靠这些人和项目（完整版见 `acknowledgments.md`）：
 
 **项目与作者**
 - **mpv / mpv-player 团队** —— 播放器本体与[官方手册](https://mpv.io/manual/master/)

@@ -1,0 +1,61 @@
+# Platform and atomic-write conventions
+
+> Active engineering note. Archived source: `docs/_archive/legacy-governance-2026-11-25/docs/平台与写入约定.md`.
+> This copy is maintained; the archive is historical.
+
+> 本文原为 `AGENTS.md` §2.4 的编码细则与 §2.12。2026-11-07 按「AGENTS.md 是目录，
+> 不是手册（≤150 行）」的约定迁出：这两块是**实现细节**，改脚本或改写入路径时才会读。
+
+## 一、`.ps1` 的编码约定与 `.bat` 时代正好相反
+
+1. **必须带 BOM**。Windows PowerShell 5.1 读 UTF-8 无 BOM 的脚本时按系统代码页（936）
+   解码，中文一律乱码；Pwsh 7 默认 UTF-8、两种都认。带 BOM 是唯一让 5.1 / 7 都正确的写法。
+2. **CRLF 仍然必须**；`.gitattributes` 只管行尾、不管 BOM。
+3. 用工具改完 `.ps1` 之后必须跑 `python tools\build.py ps1`
+   （它保证「有且只有一个 BOM + 纯 CRLF」，模型工具写出的是 LF、无 BOM）。
+
+用户运行方式（已写进 README）：右键 `scripts\启动.ps1` →「使用 PowerShell 运行」，
+或终端里 `pwsh -NoProfile -File .\scripts\启动.ps1`。双击 `.ps1` 默认是用记事本打开 ——
+这是 Pwsh 的系统行为，文档里要交代清楚。
+
+### 钩子保持 sh 的例外（Q-002，2026-10-14 用户裁决）
+
+`.githooks/pre-commit` 保持 sh。这不是偏好，是工具链硬限制：Git for Windows 会把
+`#!/usr/bin/env pwsh` 钩子转给 PowerShell，但 PowerShell 拒绝用 `-File` 执行**无扩展名**
+文件，而 git 只认固定名 `pre-commit` —— 两头夹死（实测记录见 `docs/engineering/pitfalls.md` 的「实测判据」）。
+钩子本身只是 3 行分发器（跑 `verify.py precommit`），不含任何判断规则；
+规则全在 `verify.py`（Python）里，「规则只有一份」的纪律不受此例外影响。
+
+## 二、写用户文件一律走 `core.textio.write_atomic`
+
+**禁止新增 `Path.write_text()` / `Path.write_bytes()` 直接落盘**（临时文件、测试夹具除外）：
+
+- 直接写是「先截断目标再写」—— 写一半崩溃 / 断电 / 被强杀，用户的 `mpv.conf`
+  就是半截；备份文件在也救不了「原文件已毁」。
+- `write_atomic` 走「同目录临时文件 → fsync → `os.replace`」，Windows 同卷成立；
+  目标被 mpv / 编辑器占用时抛 `PermissionError` 并自动重试。
+- 换行一律 LF（见 `AGENTS.md` §2「红线」：行尾一律 LF）；编码回退要如实告知用户
+  （`encode_report` / `report=` 出参），别再出现「界面说按原编码写回、实际整篇变 UTF-8」。
+
+## 三、读进程/控制台输出：显式编码，别用 `text=True` 裸跑
+
+**Python 3.13 的 `subprocess.run(..., text=True)` 解码失败不抛异常**：读取线程把
+`UnicodeDecodeError` 打到 stderr 后死掉，主线程正常返回、`stdout` 是 `None` —— `try/except`
+拦不到，下游在不相干的地方撞 `AttributeError`，而且"时有时无"（跟着环境里有没有非 ASCII 行）。
+
+- 一律显式 `encoding="utf-8", errors="replace"`（只做 ASCII 匹配时对判据无损）。
+- 对 `stdout` / `stderr` 做 `or ""` 兜底。
+- 判据：拿到 `None` 先怀疑读取线程，不要怀疑 subprocess 坏了。
+
+## 四、编码嗅探的已知歧义（T35）
+
+`textio.sniff` 在 Big5 / GB18030 都能"干净解码"时按 `FALLBACKS` 顺序取前者，`_score` 只数控制字符，
+**分不出谁对**。纯 Big5 老配置可能被读成 GB18030 乱码，再按错编码写回。
+
+- 现状是**已知缺陷**（T35），不是可用行为；不要在此基础上再叠加"猜编码"的启发式。
+- 用户报"打开是乱码"时，先让他显式指定编码，再判断是不是嗅探的锅。
+
+## 五、`.bat` / `.cmd` 已全面禁用
+
+脚本基线门禁只认 `.ps1`（见 `AGENTS.md` §1「强制命令入口」）。`.bat` 时代的两条教训（UTF-8 BOM 双击炸、
+cmd 按控制台代码页预读头部）**不适用于当前栈**，只作为历史记在 git 里，不要拿来解释现在的问题。

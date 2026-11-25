@@ -33,7 +33,7 @@ Windows 上的 mpv 配置工具（GPL-3.0）：不播放视频，只负责把 `m
 留在推送前——门禁慢到几分钟，人就会用 `--no-verify` 绕过去。
 
 启动层：Git 在 Windows 上用 **`sh`** 执行钩子，钩子只能是 LF 薄壳（找 python + 转发），
-业务判断全在 `verify.py`。本项目**不用 husky / npm 验收入口**（已在 `docs/度量与门禁.md`
+业务判断全在 `verify.py`。本项目**不用 husky / npm 验收入口**（已在 `docs/engineering/quality.md`
 登记豁免）。自动化入口统一 **PowerShell 7.4+**；`.ps1` 的原生失败判定显式设
 `$PSNativeCommandUseErrorActionPreference = $false`。**不得以「启动层绕不过去」引入
 `cmd` / `.bat` / `.cmd` 语法。**
@@ -47,14 +47,15 @@ Windows 上的 mpv 配置工具（GPL-3.0）：不播放视频，只负责把 `m
 - **行尾一律 LF**：用 Python 改文本必须 `open(..., newline="\n")`；`Path.write_text()`
   在 Windows 会写 CRLF。
 - **脚本基线**：仓库无 `.bat` / `.cmd`；`.ps1` 为 UTF-8 带 BOM + CRLF；改完跑 `build.py ps1`。
-- **根目录白名单**：只允许五个文档（`README` / `AGENTS` / `DECISIONS` / `TASKS` / `MANIFEST`）、
+- **根目录白名单**：只允许标准根文档（`README` / `AGENTS` / `CONTRIBUTING` /
+  `SECURITY` / `CHANGELOG`）与三个封存指针（`DECISIONS` / `TASKS` / `MANIFEST`）、
   `LICENSE`、点文件、`.github/` / `.githooks/` 与已声明目录；散文一律进 `docs/`；
   新目录必须同步写进 README 的 `## Layout`（`verify.py layout` 的数据源）。
 - **版本只有一个来源**：`core/schema.py` 的 `VERSION`；改完跑 `build.py version`；
   `.python-version` 与 CI 同源（`verify.py stack` 判）；`APP_VERSION` 只给仓外旧界面，
   主界面不许显示。
 - **数字不手抄**：选项数 / 接口数 / 测试数一律实测；改测试数要同步 `verify.py` 的
-  测试数白名单与 `docs/README.zh-CN.md`。
+  测试数白名单与 `docs/user/zh-CN/README.md`。
 - **界面文案走 i18n**；写用户文件走 `core.textio.write_atomic`，禁止直接 `Path.write_text()`。
 - **界面文档渲染器只支持**标题 / 水平线 / 列表 / 围栏代码块 / 引用 / 表格；**表格不能放进 `>` 引用块**
   （会 join 成一行变乱码）；非 `http(s)` 链接降级为纯文本。
@@ -82,7 +83,7 @@ Windows 上的 mpv 配置工具（GPL-3.0）：不播放视频，只负责把 `m
    不得用「我看过了」替代机械检查，也不得用脚本结论冒充语义正确。
 2. **警告与阻断分离**：警告不得显示为通过，阻断不得降级为警告；代码级豁免必须三条件——
    代码内标注 `verify-exempt: <理由> ref:<issue>`、CI 豁免清单、到期时间；流程级豁免
-   （工具/通道未接入）登记在 `docs/度量与门禁.md`，带到期复核。
+   （工具/通道未接入）登记在 `docs/engineering/quality.md`，带到期复核。
 3. **防死循环**：门禁不检查自己产生的文件；修复建议不得递归触发自身；超时与重试有上限。
 
 ## 5. 验证证据四个条件
@@ -103,7 +104,7 @@ Windows 上的 mpv 配置工具（GPL-3.0）：不播放视频，只负责把 `m
 - **选新**：默认当前受支持的最新稳定版；预览版须先过准入（有回归与兼容证据）。
 - **锁定**：`.python-version`、`Cargo.lock`、`tauri/Cargo.toml`、README 技术栈表；CI 与本地同源。
 - **升级前五个动作**：读变更说明 → 查已知回归 → 独立 `chore(deps):` 提交 → 跑 `verify` 全链
-  → 跨主版本写入 `DECISIONS.md`。禁止裸 `latest`，禁止「先升到最新试试」。
+  → 跨主版本写入 `docs/adr/`。禁止裸 `latest`，禁止「先升到最新试试」。
 
 ## 8. 交付说明四项
 
@@ -114,15 +115,19 @@ Windows 上的 mpv 配置工具（GPL-3.0）：不播放视频，只负责把 `m
 ## 9. 文档地图
 
 - `README.md` —— 是什么、怎么跑、目录结构、技术栈版本、验收标准
-- `DECISIONS.md` —— 追加式决策日志（含被否决方案与理由）
-- `TASKS.md` —— 任务队列与待裁决台账（完成判据必须可机器判定）
-- `MANIFEST.md` —— 第三方来源登记（URL / SHA256 / 用途 / 许可结论）
-- `docs/平台与写入约定.md` —— `.ps1` 的 BOM/CRLF、钩子保持 sh、`write_atomic`
-- `docs/i18n-约定.md` —— `data-i18n` 与词典兜底两套机制的取舍
-- `docs/既有约定.md` —— `tools/` 四个文件、门禁入口、`API.xxx()` 等结构约束
-- `docs/度量与门禁.md` —— 度量看板、校验矩阵、豁免登记（带到期复核）
-- `docs/打包与发布.md` —— 打包链路与发布检查
+- `docs/README.md` —— 文档总索引（四层：user / engineering / adr / compliance）
+- `docs/engineering/architecture.md` —— 运行时形状、边界、已登记偏差
+- `docs/engineering/quality.md` —— 当前门禁、基线、豁免与到期复核
+- `docs/engineering/constraints.md` —— 结构约束
+- `docs/engineering/pitfalls.md` —— 实测判据（原「踩过的坑」）
+- `docs/engineering/platform.md` —— `.ps1` BOM/CRLF、钩子保持 sh、`write_atomic`
+- `docs/engineering/i18n.md` —— `data-i18n` 与词典兜底两套机制
+- `docs/engineering/release.md` —— 打包链路与发布检查
+- `docs/adr/` —— 一条决策一个文件；旧决策冻结在 `docs/_archive/legacy-governance-2026-11-25/`
+- `docs/compliance/` —— 第三方来源登记 + `SHA256SUMS`
+- `docs/user/{zh-CN,en}/` —— 界面能读的四份产品文档（中英分目录）
 
 ## 10. 待裁决
 
-见 `TASKS.md` 的待裁决区。执行中撞到新歧义，按 §3 登记，不猜。
+见 GitHub Issues 与 `docs/_archive/legacy-governance-2026-11-25/TASKS.md`（历史队列）。
+执行中撞到新歧义，按 §3 登记，不猜。
