@@ -1307,21 +1307,21 @@ def api_annotate(body):
 
 # 能在线看的文档（白名单，只读仓库 `docs/` 里的这几个）
 DOCS = {
-    "guide": "入门指南.md",
-    "shaders": "MPV_Shader搭配说明书.md",
-    "thanks": "致谢与许可.md",
-    "roadmap": "产品规划与路线图.md",
+    "guide": "user/zh-CN/getting-started.md",
+    "shaders": "user/zh-CN/shader-guide.md",
+    "thanks": "user/zh-CN/acknowledgments.md",
+    "roadmap": "user/zh-CN/roadmap.md",
 }
 
-# 英文版与中文版同目录，文件名以 `.en.md` 结尾（见 tools/translate_docs.py）
+# 英文版在 `docs/user/en/`，文件名与中文版一一对应（见 tools/translate_docs.py）
 DOCS_EN = {
-    "guide": "入门指南.en.md",
-    "shaders": "MPV_Shader搭配说明书.en.md",
-    "thanks": "致谢与许可.en.md",
-    "roadmap": "产品规划与路线图.en.md",
+    "guide": "user/en/getting-started.md",
+    "shaders": "user/en/shader-guide.md",
+    "thanks": "user/en/acknowledgments.md",
+    "roadmap": "user/en/roadmap.md",
 }
 
-# 2026-11-17 起这些文档搬进了 `docs/`（根目录只留五个文档）。
+# 2026-11-25 起文档按 user/{zh-CN,en}/ 分层存放（根目录只留标准件）。
 DOCS_DIR = BASE / "docs"
 
 

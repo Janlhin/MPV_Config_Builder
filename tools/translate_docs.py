@@ -25,10 +25,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 PAIRS = [
-    ("入门指南.md", "入门指南.en.md"),
-    ("MPV_Shader搭配说明书.md", "MPV_Shader搭配说明书.en.md"),
-    ("致谢与许可.md", "致谢与许可.en.md"),
-    ("产品规划与路线图.md", "产品规划与路线图.en.md"),
+    ("user/zh-CN/getting-started.md", "user/en/getting-started.md"),
+    ("user/zh-CN/shader-guide.md", "user/en/shader-guide.md"),
+    ("user/zh-CN/acknowledgments.md", "user/en/acknowledgments.md"),
+    ("user/zh-CN/roadmap.md", "user/en/roadmap.md"),
 ]
 ENDPOINT = "https://index-translate.bilibili.com/v1/chat/completions"
 MODEL = "Index-Translate-35B-A3B"

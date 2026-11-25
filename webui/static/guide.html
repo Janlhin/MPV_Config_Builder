@@ -65,10 +65,10 @@ function currentDoc() {
   return q || 'guide';
 }
 
-const DOC_FILES = { guide: '入门指南.md', shaders: 'MPV_Shader搭配说明书.md',
-  thanks: '致谢与许可.md', roadmap: '产品规划与路线图.md' };
-const DOC_FILES_EN = { guide: '入门指南.en.md', shaders: 'MPV_Shader搭配说明书.en.md',
-  thanks: '致谢与许可.en.md', roadmap: '产品规划与路线图.en.md' };
+const DOC_FILES = { guide: 'user/zh-CN/getting-started.md', shaders: 'user/zh-CN/shader-guide.md',
+  thanks: 'user/zh-CN/acknowledgments.md', roadmap: 'user/zh-CN/roadmap.md' };
+const DOC_FILES_EN = { guide: 'user/en/getting-started.md', shaders: 'user/en/shader-guide.md',
+  thanks: 'user/en/acknowledgments.md', roadmap: 'user/en/roadmap.md' };
 
 function docFile(id) {
   const en = window.I18N && I18N.lang() === 'en';

@@ -6,7 +6,7 @@
 #
 # 为什么是 sh 薄壳、不是 .ps1：Git for Windows 用 sh 跑钩子，钩子文件名没有
 # 扩展名，PowerShell 的 -File 不接受无扩展名文件（实测踩过，见
-# docs/平台与写入约定.md 的 Q-002）。所以薄壳保持 sh，业务逻辑一律留在 .py。
+# docs/engineering/platform.md 的 Q-002）。所以薄壳保持 sh，业务逻辑一律留在 .py。
 # 钩子必须 LF 行尾（CRLF 会让 sh 解析失败）。
 #
 # 生效方式（与 pre-commit 共用一次配置）：

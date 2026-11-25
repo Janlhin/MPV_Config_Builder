@@ -28,7 +28,7 @@
 #   · 只在 Python 3.13 上跑。README 声称「需要 Python 3.8+」，这条**未被 CI 验证**。
 #     见 TASKS.md T12。
 #   · Tauri 实机那一半（窗口/CDP/关窗）仍会跳过：CI 不装 Rust、不 cargo build。
-#   · 「打包后的安装包」没有任何自动验证 —— Tauri 还没出安装器（见 docs/打包与发布.md）。
+#   · 「打包后的安装包」没有任何自动验证 —— Tauri 还没出安装器（见 docs/engineering/release.md）。
 
 name: verify
 

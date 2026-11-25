@@ -26,8 +26,10 @@ class SourceModeTest(unittest.TestCase):
         self.assertTrue((paths.bundle_root() / "webui" / "static").is_dir())
         self.assertTrue(paths.data_dir().is_dir())
         self.assertTrue((paths.data_dir() / "mpv_options_zh.json").is_file())
-        for doc in ("入门指南.md", "致谢与许可.md", "MPV_Shader搭配说明书.md",
-                    "产品规划与路线图.md"):
+        for doc in ("user/zh-CN/getting-started.md",
+                    "user/zh-CN/acknowledgments.md",
+                    "user/zh-CN/shader-guide.md",
+                    "user/zh-CN/roadmap.md"):
             self.assertTrue(paths.doc_path(doc).is_file(), doc)
 
     def test_writable_root_is_repo_in_source(self):
@@ -46,10 +48,10 @@ class FrozenModeTest(unittest.TestCase):
         (self.fake / "data").mkdir()
         (self.fake / "data" / "mpv_options_zh.json").write_text(
             '{"meta": {"count": 0}, "options": {}, "groups": []}', encoding="utf-8")
-        # 界面文档在 docs/ 子目录里（2026-11-17 起不再摊在根目录）
-        (self.fake / "docs").mkdir()
-        for doc in ("入门指南.md", "致谢与许可.md"):
-            (self.fake / "docs" / doc).write_text("# 标题\n", encoding="utf-8")
+        # 界面文档在 docs/user/{zh-CN,en}/ 分层目录里
+        (self.fake / "docs" / "user" / "zh-CN").mkdir(parents=True)
+        for doc in ("getting-started.md", "acknowledgments.md"):
+            (self.fake / "docs" / "user" / "zh-CN" / doc).write_text("# 标题\n", encoding="utf-8")
         self._saved = (getattr(sys, "frozen", None), getattr(sys, "_MEIPASS", None))
         sys.frozen = True
         sys._MEIPASS = str(self.fake)
@@ -73,8 +75,9 @@ class FrozenModeTest(unittest.TestCase):
         self.assertEqual(paths.bundle_root(), self.fake)
 
     def test_docs_resolve_inside_bundle(self):
-        self.assertTrue(paths.doc_path("入门指南.md").is_file())
-        self.assertEqual(paths.doc_path("入门指南.md").parent, self.fake / "docs")
+        self.assertTrue(paths.doc_path("user/zh-CN/getting-started.md").is_file())
+        self.assertEqual(paths.doc_path("user/zh-CN/getting-started.md").parent,
+                         self.fake / "docs" / "user" / "zh-CN")
 
     def test_data_resolves_inside_bundle(self):
         self.assertTrue((paths.data_dir() / "mpv_options_zh.json").is_file())

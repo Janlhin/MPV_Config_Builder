@@ -6,7 +6,7 @@
 `data/` 与 `docs/` 一起带上，界面里的"文档/致谢"页就会 404，而且只有在打包产物里
 才会发现（源码跑永远是对的）。这个坑就是《问题清单》P2-6 记的那条。
 
-约定（打包时必须照做，见 docs/打包与发布.md）：
+约定（打包时必须照做，见 docs/engineering/release.md）：
 
     源码运行   repo/                        ← 本文件在 repo/core/paths.py
     打包运行   sys._MEIPASS/                ← PyInstaller 的解包目录
@@ -50,8 +50,8 @@ def data_dir():
 def doc_path(name):
     """`docs/` 里的某份界面文档（打包后是解包目录 `docs/` 里的同名文件）。
 
-    2026-11-17 起界面文档不再摊在仓库根目录（根目录只留五个文档 + 目录），
-    所以这里带上 `docs` 前缀；调用方仍然只写文件名。
+    2026-11-25 起界面文档按 `user/{zh-CN,en}/` 分层；调用方传入相对
+    `docs/` 的路径（例如 ``user/zh-CN/getting-started.md``），不要只写文件名。
     """
     return bundle_root() / "docs" / name
 

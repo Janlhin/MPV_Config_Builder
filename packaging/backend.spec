@@ -51,16 +51,25 @@ datas = [
     (str(ROOT / "data"), "data"),
     (str(ROOT / "webui" / "static"), "webui/static"),
     (str(ROOT / "LICENSE"), "."),
+    (str(ROOT / "docs" / "compliance" / "NOTICE.txt"), "docs/compliance"),
     (str(ROOT / "docs" / "NOTICE.txt"), "docs"),
 ]
 
 # 界面能在线打开的文档（`webui/server.py` 的 DOCS 白名单）全部来自 `docs/`。
-# 2026-11-17 起这些 md 不再摊在仓库根目录，所以只带这 4 份 + NOTICE，
+# 2026-11-25 起按 user/{zh-CN,en}/ 分层，打包时只带中英产品文档与 NOTICE，
 # 不把整个 docs/（还有开发者文档）塞进发行包。
-UI_DOCS = ("入门指南.md", "MPV_Shader搭配说明书.md", "致谢与许可.md",
-           "产品规划与路线图.md")
-for name in UI_DOCS:
-    datas.append((str(ROOT / "docs" / name), "docs"))
+UI_DOCS = (
+    ("user/zh-CN/getting-started.md", "docs/user/zh-CN"),
+    ("user/zh-CN/shader-guide.md", "docs/user/zh-CN"),
+    ("user/zh-CN/acknowledgments.md", "docs/user/zh-CN"),
+    ("user/zh-CN/roadmap.md", "docs/user/zh-CN"),
+    ("user/en/getting-started.md", "docs/user/en"),
+    ("user/en/shader-guide.md", "docs/user/en"),
+    ("user/en/acknowledgments.md", "docs/user/en"),
+    ("user/en/roadmap.md", "docs/user/en"),
+)
+for src, dst in UI_DOCS:
+    datas.append((str(ROOT / "docs" / src), dst))
 
 # ---- 确定要 import 的入口 ----
 # 后端入口是 webui/server.py。它靠 `sys.path.insert(0, ROOT)` + `from core.xxx`
