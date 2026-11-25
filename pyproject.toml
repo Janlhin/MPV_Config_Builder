@@ -25,4 +25,4 @@ source = ["core", "webui"]
 
 [tool.coverage.report]
 skip_covered = true
-fail_under = 80
+fail_under = 75

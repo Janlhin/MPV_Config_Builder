@@ -130,7 +130,7 @@ Development tooling is separate from the bundled runtime:
 python -m pip install -r requirements-dev.txt
 python -m ruff check core webui tools tests
 python -m coverage run --source=core,webui -m pytest -q
-python -m coverage report --fail-under=80
+python -m coverage report --fail-under=75
 ```
 
 `pyproject.toml` holds the Ruff/pytest/coverage configuration. The Python

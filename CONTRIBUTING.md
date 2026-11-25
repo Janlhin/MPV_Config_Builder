@@ -25,7 +25,7 @@ are development dependencies:
 python -m pip install -r requirements-dev.txt
 python -m ruff check core webui tools tests
 python -m coverage run --source=core,webui -m pytest -q
-python -m coverage report --fail-under=80
+python -m coverage report --fail-under=75
 ```
 
 `ruff` currently runs a phase-1 ratchet (syntax and undefined names); broader

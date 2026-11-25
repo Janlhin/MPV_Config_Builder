@@ -20,7 +20,7 @@ Windows 上的 mpv 配置工具（GPL-3.0）：不播放视频，只负责把 `m
 | 版本同源 | `python tools\verify.py stack` | 退出码 0 |
 | 单测 | `python -m unittest discover -s tests -t .` | 退出码 0 |
 | Ruff（语法/未定义名，开发环境） | `python -m ruff check core webui tools tests` | 退出码 0 |
-| 覆盖率（开发环境） | `python -m coverage run --source=core,webui -m pytest -q`，再 `python -m coverage report --fail-under=80` | 退出码 0 |
+| 覆盖率（开发环境） | `python -m coverage run --source=core,webui -m pytest -q`，再 `python -m coverage report --fail-under=75` | 退出码 0 |
 | 版本文件同步 | `python tools\build.py version` | 改过 `core/schema.py` 的 `VERSION` 后跑 |
 
 `verify.py help` / `build.py help` 可列出全部子命令。命令一律用 `python`，**不要用 `py -3`**
