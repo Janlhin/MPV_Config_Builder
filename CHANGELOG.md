@@ -21,8 +21,14 @@ the project’s single `VERSION` source.
 
 - `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`, `docs/README.md`,
   `docs/adr/`, `docs/compliance/`.
+- Development tooling: `pyproject.toml`, pinned `requirements-dev.txt`, Ruff,
+  pytest + coverage, a `quality` CI workflow and Dependabot config.
+- Rust quality checks: `cargo fmt --check`, `cargo clippy -D warnings`,
+  `cargo test`; Rust MSRV raised to 1.89 for the 2024 file-lock API.
 
 ### Fixed
 
 - Corrected stale third-party byte counts/hashes in the active compliance
   ledger (the archived `MANIFEST.md` keeps the historical values).
+- Explicit `truncate(false)` on the Tauri instance-lock file (no behavior
+  change; satisfies `clippy::suspicious_open_options`).
