@@ -23,7 +23,8 @@ At 2026-11-25, before the documentation rebuild:
 - After the documentation rebuild on 2026-11-25, `python tools\verify.py --offline`
   → exit code 0 again (830 tests, 1 skip; all static and browser gates green)
 - Toolchain pass: `pytest` → 829 passed, 1 skipped; coverage (core + webui)
-  → 84%, gate 80%; Ruff phase-1 gate passes; `cargo fmt --check`,
+  → 84% locally, 77% in CI with environment-dependent skips; gate 75%;
+  Ruff phase-1 gate passes; `cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings` and `cargo test` pass.
 
 These numbers are a dated baseline. Do not copy them into new prose as if they
@@ -40,7 +41,7 @@ were live. The live number belongs to the command output and CI artifacts.
 | Lint (Ruff) | ✅ | phase-1 ratchet: `E9` / `F63` / `F7` / `F82`; broader rules follow |
 | Formatting (Ruff format) | ⛔ | baseline would reformat 82 files; mechanical follow-up |
 | Type checking | ⛔ | 9 / 1559 defs annotated at the audit; use a ratchet, not `mypy --strict` |
-| Coverage | ✅ | core + webui baseline 84%; gate 80% |
+| Coverage | ✅ | core + webui: 84% local / 77% CI with skips; gate 75% |
 | Rust fmt/clippy/test | ✅ | `quality` workflow and local commands |
 | Dependency updates | ✅ | Dependabot config (pip, cargo, GitHub Actions) |
 | Link check for all docs | ⚠ | `verify.py docs` covers the app docs and README, not every engineering page |

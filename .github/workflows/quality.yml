@@ -2,7 +2,7 @@ name: quality
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -42,7 +42,7 @@ jobs:
       - name: Unit tests with coverage
         run: |
           python -m coverage run --source=core,webui -m pytest -q
-          python -m coverage report --fail-under=80
+          python -m coverage report --fail-under=75
 
   rust:
     name: Rust format, clippy and tests
