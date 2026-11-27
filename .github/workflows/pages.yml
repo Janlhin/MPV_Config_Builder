@@ -29,7 +29,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # 根目录不再放散文类文件（2026-11-17 规则整改）：跳转页收在 docs/index.html，
       # 部署前复制回根目录，GitHub Pages 才能把站点根 / 跳到 webui/static/index.html。
       # 产物只是工作区里的未跟踪文件，不入库（见 .gitignore 的 /index.html）。
